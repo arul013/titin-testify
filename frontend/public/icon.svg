@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="blob-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5" />
+      <stop offset="100%" stop-color="#9333ea" />
+    </linearGradient>
+  </defs>
+  
+  <!-- White Background Circle with Dark Border -->
+  <circle cx="256" cy="256" r="236" fill="#ffffff" stroke="#2d2757" stroke-width="24" />
+  
+  <!-- Character Body (Enlarged) -->
+  <path d="M 120 370 
+           C 120 180, 170 80, 256 80 
+           C 342 80, 392 180, 392 370 
+           C 392 390, 370 400, 256 400 
+           C 142 400, 120 390, 120 370 Z" 
+        fill="url(#blob-gradient)" 
+        stroke="#2d2757" 
+        stroke-width="16" 
+        stroke-linejoin="round" />
+        
+  <!-- Left Eye White -->
+  <ellipse cx="210" cy="210" rx="26" ry="36" fill="#ffffff" stroke="#2d2757" stroke-width="10" />
+  <!-- Right Eye White -->
+  <ellipse cx="280" cy="205" rx="26" ry="36" fill="#ffffff" stroke="#2d2757" stroke-width="10" />
+  
+  <!-- Left Pupil -->
+  <ellipse cx="218" cy="211" rx="12" ry="18" fill="#2d2757" />
+  <!-- Right Pupil -->
+  <ellipse cx="288" cy="206" rx="12" ry="18" fill="#2d2757" />
+  
+  <!-- Mouth Curve -->
+  <path d="M 195 255 Q 230 285, 270 260" fill="none" stroke="#2d2757" stroke-width="12" stroke-linecap="round" />
+  <!-- Cute dimple cheek -->
+  <path d="M 190 260 Q 185 250, 195 248" fill="none" stroke="#2d2757" stroke-width="10" stroke-linecap="round" />
+</svg>

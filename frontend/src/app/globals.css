@@ -1,0 +1,185 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #ffffff;
+  --color-foreground: #010d3e;
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-body: var(--font-dm-sans);
+  --animate-move-left: move-left 30s linear infinite;
+
+  /* ─── Learning Nexus Design System — brand tokens ────────────────────────
+     Fondasi portable. Saat DS diekstrak jadi package, blok ini pindah ke
+     `@learning-nexus/design-system/theme.css`. Ubah di sini = ubah brand
+     di seluruh produk. Utility yang dihasilkan: bg-brand-start, from-brand-end,
+     text-brand, dsb. */
+  --color-brand-start: #4f46e5; /* indigo-600 — awal gradient primary */
+  --color-brand-end:   #9333ea; /* purple-600 — akhir gradient primary */
+  --color-brand:       #7c3aed; /* violet-600 — brand solid (teks/border/aksen) */
+  --radius-btn: 0.75rem;        /* radius standar tombol (≈ rounded-xl) */
+}
+
+@keyframes move-left {
+  from {
+    transform: translateX(0%);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@layer components {
+  .tag {
+    @apply text-sm inline-flex border border-black/10 px-3 py-1 rounded-lg tracking-tight;
+  }
+
+  .section-title {
+    @apply text-center text-3xl md:text-[54px] md:leading-15 font-bold tracking-tighter bg-linear-to-b from-black to-[#001e80] text-transparent bg-clip-text;
+  }
+
+  .section-description {
+    @apply text-center text-[22px] leading-7.5 tracking-tight text-foreground;
+  }
+  .section-heading {
+    @apply max-w-135 mx-auto;
+  }
+
+  .card {
+    @apply p-10 border border-[#222222]/10 rounded-3xl shadow-[0_7px_14px_#eaeaea] max-w-xs w-full;
+  }
+
+  .prose-article {
+    @apply text-foreground/80 text-[16px] leading-[1.8];
+  }
+  .prose-article p {
+    @apply mb-5;
+  }
+  .prose-article h2 {
+    @apply text-xl md:text-2xl font-bold tracking-tight text-foreground mt-10 mb-4;
+  }
+  .prose-article h3 {
+    @apply text-lg font-semibold text-foreground mt-6 mb-3;
+  }
+  .prose-article strong {
+    @apply font-semibold text-foreground;
+  }
+  .prose-article em {
+    @apply italic text-foreground/70;
+  }
+  .prose-article ul {
+    @apply list-disc pl-6 mb-5 space-y-2;
+  }
+  .prose-article ol {
+    @apply list-decimal pl-6 mb-5 space-y-2;
+  }
+  .prose-article li {
+    @apply text-foreground/80;
+  }
+  .prose-article blockquote {
+    @apply border-l-4 border-[#001e80]/30 pl-4 italic text-foreground/60 my-6;
+  }
+
+  /* ── TipTap Admin Editor ─────────────────────────────── */
+  .ProseMirror {
+    @apply outline-none text-gray-800 text-[14px] leading-[1.7];
+  }
+  .ProseMirror p {
+    @apply mb-3;
+  }
+  .ProseMirror h2 {
+    @apply text-lg font-bold text-gray-900 mt-6 mb-2 border-b border-gray-100 pb-1;
+  }
+  .ProseMirror h3 {
+    @apply text-base font-semibold text-gray-800 mt-4 mb-1;
+  }
+  .ProseMirror strong {
+    @apply font-semibold text-gray-900;
+  }
+  .ProseMirror em {
+    @apply italic text-gray-600;
+  }
+  .ProseMirror ul {
+    @apply list-disc pl-5 mb-3 space-y-1;
+  }
+  .ProseMirror ol {
+    @apply list-decimal pl-5 mb-3 space-y-1;
+  }
+  .ProseMirror li {
+    @apply text-gray-700;
+  }
+  .ProseMirror blockquote {
+    @apply border-l-4 border-purple-200 pl-4 italic text-gray-500 my-4;
+  }
+  .ProseMirror hr {
+    @apply border-gray-200 my-4;
+  }
+  .ProseMirror p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    @apply text-gray-400 pointer-events-none float-left h-0;
+  }
+
+  /* ── react-day-picker override ───────────────────────── */
+  .rdp-root {
+    --rdp-accent-color: #9333ea;
+    --rdp-accent-background-color: #f3e8ff;
+    --rdp-day-height: 2rem;
+    --rdp-day-width: 2rem;
+    --rdp-day_button-height: 2rem;
+    --rdp-day_button-width: 2rem;
+    --rdp-day_button-border-radius: 0.5rem;
+    --rdp-selected-border: none;
+    font-family: inherit;
+  }
+  .rdp-month_caption {
+    @apply flex items-center justify-between mb-2 px-1;
+  }
+  .rdp-caption_label {
+    @apply text-sm font-semibold text-gray-800;
+  }
+  .rdp-nav {
+    @apply flex items-center gap-1;
+  }
+  .rdp-button_previous,
+  .rdp-button_next {
+    @apply p-1 rounded-lg text-gray-500 hover:bg-purple-50 hover:text-purple-600 transition-colors;
+  }
+  .rdp-weekday {
+    @apply text-[11px] font-semibold text-gray-400 uppercase tracking-wide w-9 text-center pb-1;
+  }
+  .rdp-day {
+    @apply w-9 h-9 p-0 flex items-center justify-center;
+  }
+  .rdp-day_button {
+    @apply w-8 h-8 rounded-lg text-sm text-gray-700 transition-colors hover:bg-purple-50 hover:text-purple-700 focus:outline-none;
+  }
+  .rdp-selected .rdp-day_button {
+    @apply bg-purple-600 text-white font-semibold hover:bg-purple-700 hover:text-white;
+  }
+  .rdp-today:not(.rdp-selected) .rdp-day_button {
+    @apply font-bold text-purple-600 ring-1 ring-purple-300;
+  }
+  .rdp-outside .rdp-day_button {
+    @apply text-gray-300 hover:bg-gray-50 hover:text-gray-400;
+  }
+  .rdp-disabled .rdp-day_button {
+    @apply text-gray-200 cursor-not-allowed hover:bg-transparent;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+}
+
+button,
+[role="button"],
+a,
+label[for],
+select,
+input[type="submit"],
+input[type="button"],
+input[type="checkbox"],
+input[type="radio"] {
+  cursor: pointer;
+}
