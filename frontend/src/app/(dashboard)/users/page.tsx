@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useUsers } from '../../../features/users/hooks/useUsers';
+import { useUsers, type GeneratedUser } from '../../../features/users/hooks/useUsers';
 import { useAuth } from '../../../features/auth/hooks/useAuth';
 import { UserTable } from '../../../features/users/UserTable';
 import { UserForm } from '../../../features/users/UserForm';
@@ -12,7 +12,8 @@ import { Modal } from '../../../components/ui/modal';
 import { Tabs } from '../../../components/ui/tabs';
 import { toast } from '../../../components/ui/toast';
 import { copyToClipboard } from '../../../lib/clipboard';
-import { UserProfile } from '../../../types';
+import { getErrorMessage } from '../../../lib/errors';
+import { UserProfile, CreateUserRequest, UpdateUserRequest } from '../../../types';
 import { Download, Sparkles, UserPlus, Users, MessageSquare, Copy, AlertTriangle, KeyRound, Trash2 } from 'lucide-react';
 
 export default function UserManagementPage() {
@@ -47,7 +48,7 @@ export default function UserManagementPage() {
   const [genQuantity, setGenQuantity] = useState(3);
   const [genNames, setGenNames] = useState<string[]>(['', '', '']);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedList, setGeneratedList] = useState<any[] | null>(null);
+  const [generatedList, setGeneratedList] = useState<GeneratedUser[] | null>(null);
 
   // Credentials success modal state
   const [credentialsModalData, setCredentialsModalData] = useState<{
@@ -93,16 +94,17 @@ export default function UserManagementPage() {
     setModalOpen(true);
   };
 
-  const handleFormSubmit = async (formData: any) => {
+  const handleFormSubmit = async (formData: CreateUserRequest | UpdateUserRequest) => {
     try {
       if (editingUser) {
-        await updateUser(editingUser.id, formData);
+        await updateUser(editingUser.id, formData as UpdateUserRequest);
         toast.success('Pengguna berhasil diperbarui');
       } else {
         // Automatically default to 'peserta' if creating by an admin
-        const payload = {
-          ...formData,
-          role: currentUser?.role === 'super_admin' ? formData.role : 'peserta',
+        const createData = formData as CreateUserRequest;
+        const payload: CreateUserRequest = {
+          ...createData,
+          role: currentUser?.role === 'super_admin' ? createData.role : 'peserta',
         };
         const newUser = await createUser(payload);
         toast.success('Pengguna baru berhasil ditambahkan');
@@ -112,7 +114,7 @@ export default function UserManagementPage() {
             title: 'User Baru Berhasil Dibuat',
             description: 'Berikut adalah kredensial akun pengguna yang baru saja dibuat. Silakan salin atau bagikan ke pengguna tersebut.',
             username: newUser.username,
-            passwordUsed: formData.password || '',
+            passwordUsed: createData.password || '',
             fullName: newUser.full_name,
             role: newUser.role,
           });
@@ -120,8 +122,8 @@ export default function UserManagementPage() {
       }
       setModalOpen(false);
       loadUsersList();
-    } catch (err: any) {
-      toast.error(err.message || 'Terjadi kesalahan sistem');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Terjadi kesalahan sistem'));
     }
   };
 
@@ -147,8 +149,8 @@ export default function UserManagementPage() {
           role: confirmResetUser.role,
         });
       }
-    } catch (err: any) {
-      toast.error(err.message || 'Gagal mengatur ulang password');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Gagal mengatur ulang password'));
     } finally {
       setIsResetting(false);
       setConfirmResetUser(null);
@@ -199,8 +201,8 @@ export default function UserManagementPage() {
       await deleteUser(confirmDeleteUserId);
       toast.success('Pengguna berhasil dihapus');
       loadUsersList();
-    } catch (err: any) {
-      toast.error(err.message || 'Gagal menghapus pengguna');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Gagal menghapus pengguna'));
     } finally {
       setIsDeleting(false);
       setConfirmDeleteUserId(null);
@@ -251,8 +253,8 @@ export default function UserManagementPage() {
         setGeneratedList(result);
         toast.success(`Berhasil generate ${result.length} akun peserta!`);
       }
-    } catch (err: any) {
-      toast.error(err.message || 'Gagal men-generate peserta masal');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Gagal men-generate peserta masal'));
     } finally {
       setIsGenerating(false);
     }
@@ -284,7 +286,7 @@ export default function UserManagementPage() {
   };
 
   // Share generated credentials via WA directly
-  const handleShareGeneratedWA = (u: any) => {
+  const handleShareGeneratedWA = (u: GeneratedUser) => {
     const appUrl = window.location.origin;
     const text = `Halo *${u.full_name}*,\n\nBerikut kredensial akun ujian CBT Titin Testify Anda:\n\n*Username:* ${u.username}\n*Password:* ${u.password}\n*Link Ujian:* ${appUrl}\n\nSelamat menempuh ujian!`;
     const encodedText = encodeURIComponent(text);
@@ -412,6 +414,7 @@ export default function UserManagementPage() {
         title={editingUser ? 'Edit Detail User' : 'Tambah User Baru'}
       >
         <UserForm
+          key={`u-${editingUser?.id ?? 'new'}-${modalOpen}`}
           user={editingUser}
           onSubmit={handleFormSubmit}
           onCancel={() => setModalOpen(false)}

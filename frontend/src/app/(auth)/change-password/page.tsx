@@ -7,6 +7,7 @@ import { Input } from '../../../components/ui/input';
 import { Button } from '../../../components/ui/button';
 import { Card } from '../../../components/ui/card';
 import { api } from '../../../lib/api';
+import { getErrorMessage } from '../../../lib/errors';
 import { toast } from '../../../components/ui/toast';
 
 export default function ChangePasswordPage() {
@@ -55,9 +56,9 @@ export default function ChangePasswordPage() {
       } else {
         router.push('/dashboard');
       }
-    } catch (err: any) {
+    } catch (err) {
       toast.error('Gagal Mengubah Password', {
-        description: err.message || 'Terjadi kesalahan saat menyimpan password baru.',
+        description: getErrorMessage(err, 'Terjadi kesalahan saat menyimpan password baru.'),
       });
     } finally {
       setIsLoading(false);

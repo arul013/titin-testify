@@ -107,7 +107,10 @@ export const Select = React.forwardRef<HTMLButtonElement, SelectProps>(function 
   const options: { value: string; label: string }[] = [];
   React.Children.forEach(children, (child) => {
     if (React.isValidElement(child) && child.type === "option") {
-      const optionElement = child as React.ReactElement<any>;
+      const optionElement = child as React.ReactElement<{
+        value?: string | number;
+        children?: React.ReactNode;
+      }>;
       options.push({
         value: String(optionElement.props.value || ""),
         label: String(optionElement.props.children || ""),

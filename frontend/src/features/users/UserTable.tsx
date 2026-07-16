@@ -25,7 +25,6 @@ export const UserTable: React.FC<UserTableProps> = ({
   onEdit,
   onDelete,
   onResetPassword,
-  onChangeRole,
 }) => {
   const getRoleVariant = (role: UserRole) => {
     switch (role) {

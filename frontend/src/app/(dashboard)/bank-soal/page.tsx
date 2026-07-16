@@ -1,54 +1,60 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/features/auth/hooks/useAuth';
+import React, { useState, useEffect } from "react";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import {
   useQuestions,
   usePassages,
   useQuestionStats,
   type Question,
   type Passage,
-} from '@/features/questions/hooks/useQuestions';
-import { QuestionTable } from '@/features/questions/QuestionTable';
-import { QuestionForm } from '@/features/questions/QuestionForm';
-import { PassageForm } from '@/features/questions/PassageForm';
-import { QuestionPreview } from '@/features/questions/QuestionPreview';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
+} from "@/features/questions/hooks/useQuestions";
+import { QuestionTable } from "@/features/questions/QuestionTable";
+import { QuestionForm } from "@/features/questions/QuestionForm";
+import { PassageForm } from "@/features/questions/PassageForm";
+import { QuestionPreview } from "@/features/questions/QuestionPreview";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import {
-  BookOpen,
   Plus,
   Search,
   Music,
   FileText,
   HelpCircle,
-  Clock,
   Layers,
   ChevronLeft,
   ChevronRight,
-  Eye,
   Trash2,
   Edit2,
-} from 'lucide-react';
-import { toast } from 'sonner';
+} from "lucide-react";
+import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/errors";
 
 export default function BankSoalPage() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'all' | 'passages' | 'listening' | 'structure' | 'written_expression' | 'reading'>('all');
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [difficulty, setDifficulty] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [activeTab, setActiveTab] = useState<
+    | "all"
+    | "passages"
+    | "listening"
+    | "structure"
+    | "written_expression"
+    | "reading"
+  >("all");
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [difficulty, setDifficulty] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
   const perPage = 10;
 
   // Selected passage for detail view (shows child questions)
   const [selectedPassage, setSelectedPassage] = useState<Passage | null>(null);
   const [passageQuestions, setPassageQuestions] = useState<Question[]>([]);
-  const [isPassageQuestionsLoading, setIsPassageQuestionsLoading] = useState(false);
+  const [isPassageQuestionsLoading, setIsPassageQuestionsLoading] =
+    useState(false);
 
   // Modals state
   const [isQuestionOpen, setIsQuestionOpen] = useState(false);
@@ -70,7 +76,7 @@ export default function BankSoalPage() {
 
   // Determine section filter based on tab
   const getSectionFilter = () => {
-    if (activeTab === 'all' || activeTab === 'passages') return undefined;
+    if (activeTab === "all" || activeTab === "passages") return undefined;
     return activeTab;
   };
 
@@ -82,7 +88,6 @@ export default function BankSoalPage() {
     createQuestion,
     updateQuestion,
     deleteQuestion,
-    fetchQuestions,
   } = useQuestions({
     section: getSectionFilter(),
     difficulty: difficulty || undefined,
@@ -99,7 +104,6 @@ export default function BankSoalPage() {
     createPassage,
     updatePassage,
     deletePassage,
-    fetchPassages,
   } = usePassages({
     type: getSectionFilter(),
     status: statusFilter || undefined,
@@ -110,27 +114,31 @@ export default function BankSoalPage() {
 
   const { stats, refetch: refetchStats } = useQuestionStats();
 
-  // Fetch child questions when a passage is selected
-  const fetchPassageQuestions = async (passageId: string) => {
-    setIsPassageQuestionsLoading(true);
-    try {
-      const res = await fetch(`/api/questions?passage_id=${passageId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setPassageQuestions(data.questions || []);
-      }
-    } catch (err) {
-      console.error('Error fetching child questions:', err);
-    } finally {
-      setIsPassageQuestionsLoading(false);
-    }
-  };
+  // Trigger untuk memuat ulang soal anak (dipakai setelah create/update/delete)
+  const [passageQuestionsRefetch, setPassageQuestionsRefetch] = useState(0);
+  const refreshPassageQuestions = () =>
+    setPassageQuestionsRefetch((i) => i + 1);
 
+  // Fetch child questions when a passage is selected
   useEffect(() => {
-    if (selectedPassage) {
-      fetchPassageQuestions(selectedPassage.id);
-    }
-  }, [selectedPassage]);
+    if (!selectedPassage) return;
+    let active = true;
+    const passageId = selectedPassage.id;
+
+    fetch(`/api/questions?passage_id=${passageId}`)
+      .then((res) => (res.ok ? res.json() : { questions: [] }))
+      .then((data) => {
+        if (active) setPassageQuestions(data.questions || []);
+      })
+      .catch((err) => console.error("Error fetching child questions:", err))
+      .finally(() => {
+        if (active) setIsPassageQuestionsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedPassage, passageQuestionsRefetch]);
 
   // Reset pagination when tab/filters change
   const handleTabChange = (tab: typeof activeTab) => {
@@ -149,17 +157,17 @@ export default function BankSoalPage() {
     try {
       if (editingQuestion) {
         await updateQuestion(editingQuestion.id, data);
-        toast.success('Soal berhasil diperbarui.');
+        toast.success("Soal berhasil diperbarui.");
       } else {
         await createQuestion(data);
-        toast.success('Soal baru berhasil ditambahkan.');
+        toast.success("Soal baru berhasil ditambahkan.");
       }
       refetchStats();
       if (selectedPassage) {
-        fetchPassageQuestions(selectedPassage.id);
+        refreshPassageQuestions();
       }
-    } catch (err: any) {
-      toast.error(err.message || 'Gagal menyimpan soal.');
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Gagal menyimpan soal."));
     }
   };
 
@@ -167,40 +175,45 @@ export default function BankSoalPage() {
     try {
       if (editingPassage) {
         await updatePassage(editingPassage.id, data);
-        toast.success('Passage berhasil diperbarui.');
+        toast.success("Passage berhasil diperbarui.");
       } else {
         await createPassage(data);
-        toast.success('Passage baru berhasil ditambahkan.');
+        toast.success("Passage baru berhasil ditambahkan.");
       }
       refetchStats();
-    } catch (err: any) {
-      toast.error(err.message || 'Gagal menyimpan passage.');
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Gagal menyimpan passage."));
     }
   };
 
   const handleDeleteQuestion = async (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus soal ini?')) return;
+    if (!confirm("Apakah Anda yakin ingin menghapus soal ini?")) return;
     try {
       await deleteQuestion(id);
-      toast.success('Soal berhasil dihapus.');
+      toast.success("Soal berhasil dihapus.");
       refetchStats();
       if (selectedPassage) {
-        fetchPassageQuestions(selectedPassage.id);
+        refreshPassageQuestions();
       }
-    } catch (err: any) {
-      toast.error(err.message || 'Gagal menghapus soal.');
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Gagal menghapus soal."));
     }
   };
 
   const handleDeletePassage = async (id: string) => {
-    if (!confirm('Menghapus passage ini akan menghapus semua anak pertanyaan di dalamnya. Lanjutkan?')) return;
+    if (
+      !confirm(
+        "Menghapus passage ini akan menghapus semua anak pertanyaan di dalamnya. Lanjutkan?",
+      )
+    )
+      return;
     try {
       await deletePassage(id);
-      toast.success('Passage beserta soal terkait berhasil dihapus.');
+      toast.success("Passage beserta soal terkait berhasil dihapus.");
       refetchStats();
       setSelectedPassage(null);
-    } catch (err: any) {
-      toast.error(err.message || 'Gagal menghapus passage.');
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Gagal menghapus passage."));
     }
   };
 
@@ -222,22 +235,25 @@ export default function BankSoalPage() {
   };
 
   const totalPages = Math.ceil(
-    (activeTab === 'passages' ? totalPassages : totalQuestions) / perPage
+    (activeTab === "passages" ? totalPassages : totalQuestions) / perPage,
   );
 
   return (
     <div className="flex flex-col gap-6 py-2">
       {/* Header Banner */}
-      <div className="rounded-3xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-800 text-white p-8 shadow-xl shadow-indigo-200/50 relative overflow-hidden">
+      <div className="rounded-3xl bg-linear-to-r from-indigo-600 via-indigo-700 to-purple-800 text-white p-8 shadow-xl shadow-indigo-200/50 relative overflow-hidden">
         <div className="absolute top-0 right-0 -translate-y-6 translate-x-6 w-64 h-64 bg-white/5 rounded-full blur-xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <Badge className="bg-white/20 text-white hover:bg-white/30 border-none px-3 py-1 font-bold text-xs uppercase tracking-wider mb-3">
               Katalog Soal
             </Badge>
-            <h1 className="text-3xl font-extrabold font-heading text-white">Bank Soal Titin Testify</h1>
+            <h1 className="text-3xl font-extrabold font-heading text-white">
+              Bank Soal Titin Testify
+            </h1>
             <p className="text-indigo-100/90 mt-1 max-w-xl text-sm leading-relaxed">
-              Kelola daftar soal ujian, transkrip listening audio, dan teks bacaan ujian secara terisolasi dan dinamis.
+              Kelola daftar soal ujian, transkrip listening audio, dan teks
+              bacaan ujian secara terisolasi dan dinamis.
             </p>
           </div>
           <div className="flex flex-wrap gap-3 shrink-0">
@@ -269,16 +285,43 @@ export default function BankSoalPage() {
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {[
-            { label: 'Total Soal', val: stats.total_questions, icon: <HelpCircle className="w-5 h-5 text-indigo-600" /> },
-            { label: 'Total Passage', val: stats.total_passages, icon: <Layers className="w-5 h-5 text-purple-600" /> },
-            { label: 'Listening', val: stats.by_section.listening || 0, icon: <Music className="w-5 h-5 text-indigo-600" /> },
-            { label: 'Structure', val: stats.by_section.structure || 0, icon: <FileText className="w-5 h-5 text-amber-600" /> },
-            { label: 'Reading', val: stats.by_section.reading || 0, icon: <FileText className="w-5 h-5 text-emerald-600" /> },
+            {
+              label: "Total Soal",
+              val: stats.total_questions,
+              icon: <HelpCircle className="w-5 h-5 text-indigo-600" />,
+            },
+            {
+              label: "Total Passage",
+              val: stats.total_passages,
+              icon: <Layers className="w-5 h-5 text-purple-600" />,
+            },
+            {
+              label: "Listening",
+              val: stats.by_section.listening || 0,
+              icon: <Music className="w-5 h-5 text-indigo-600" />,
+            },
+            {
+              label: "Structure",
+              val: stats.by_section.structure || 0,
+              icon: <FileText className="w-5 h-5 text-amber-600" />,
+            },
+            {
+              label: "Reading",
+              val: stats.by_section.reading || 0,
+              icon: <FileText className="w-5 h-5 text-emerald-600" />,
+            },
           ].map((item, i) => (
-            <Card key={i} className="bg-white border border-slate-100 p-4 flex items-center justify-between shadow-sm rounded-xl">
+            <Card
+              key={i}
+              className="bg-white border border-slate-100 p-4 flex items-center justify-between shadow-sm rounded-xl"
+            >
               <div>
-                <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">{item.label}</p>
-                <p className="text-2xl font-extrabold text-slate-800 mt-1">{item.val}</p>
+                <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">
+                  {item.label}
+                </p>
+                <p className="text-2xl font-extrabold text-slate-800 mt-1">
+                  {item.val}
+                </p>
               </div>
               <div className="bg-slate-50 p-2.5 rounded-lg shrink-0">
                 {item.icon}
@@ -301,7 +344,10 @@ export default function BankSoalPage() {
                 >
                   <ChevronLeft className="w-4 h-4 mr-1" /> Kembali ke Daftar
                 </Button>
-                <Badge variant="info" className="font-extrabold uppercase text-xs">
+                <Badge
+                  variant="info"
+                  className="font-extrabold uppercase text-xs"
+                >
                   {selectedPassage.type} Group
                 </Badge>
               </div>
@@ -310,11 +356,15 @@ export default function BankSoalPage() {
               </h2>
               {selectedPassage.audio_url && (
                 <div className="mt-3 max-w-md bg-slate-50 p-2.5 border border-slate-200/50 rounded-xl">
-                  <audio src={selectedPassage.audio_url} controls className="w-full h-8" />
+                  <audio
+                    src={selectedPassage.audio_url}
+                    controls
+                    className="w-full h-8"
+                  />
                 </div>
               )}
               {selectedPassage.content && (
-                <div className="mt-3 text-slate-600 text-sm max-h-[140px] overflow-y-auto bg-slate-50 border border-slate-100 p-4 rounded-xl whitespace-pre-wrap leading-relaxed">
+                <div className="mt-3 text-slate-600 text-sm max-h-35 overflow-y-auto bg-slate-50 border border-slate-100 p-4 rounded-xl whitespace-pre-wrap leading-relaxed">
                   {selectedPassage.content}
                 </div>
               )}
@@ -357,7 +407,9 @@ export default function BankSoalPage() {
               Daftar Soal di dalam Group ({passageQuestions.length})
             </h3>
             {isPassageQuestionsLoading ? (
-              <div className="py-12 text-center text-slate-500 font-semibold">Memuat soal anak...</div>
+              <div className="py-12 text-center text-slate-500 font-semibold">
+                Memuat soal anak...
+              </div>
             ) : (
               <QuestionTable
                 questions={passageQuestions}
@@ -381,20 +433,20 @@ export default function BankSoalPage() {
           {/* Navigation Tabs */}
           <div className="flex flex-wrap border-b border-slate-100 gap-1 pb-1">
             {[
-              { id: 'all', label: 'Semua Soal' },
-              { id: 'passages', label: 'Passage Bacaan & Audio' },
-              { id: 'listening', label: 'Listening Group' },
-              { id: 'structure', label: 'Structure' },
-              { id: 'written_expression', label: 'Written Expression' },
-              { id: 'reading', label: 'Reading Group' },
+              { id: "all", label: "Semua Soal" },
+              { id: "passages", label: "Passage Bacaan & Audio" },
+              { id: "listening", label: "Listening Group" },
+              { id: "structure", label: "Structure" },
+              { id: "written_expression", label: "Written Expression" },
+              { id: "reading", label: "Reading Group" },
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => handleTabChange(tab.id as any)}
+                onClick={() => handleTabChange(tab.id as typeof activeTab)}
                 className={`px-4 py-2.5 text-sm font-bold rounded-xl transition-all ${
                   activeTab === tab.id
-                    ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                    ? "bg-indigo-50 text-indigo-700 shadow-sm"
+                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
                 }`}
               >
                 {tab.label}
@@ -410,28 +462,38 @@ export default function BankSoalPage() {
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder={activeTab === 'passages' ? 'Cari teks passage...' : 'Cari teks pertanyaan...'}
+                placeholder={
+                  activeTab === "passages"
+                    ? "Cari teks passage..."
+                    : "Cari teks pertanyaan..."
+                }
                 className="pl-10"
               />
             </div>
 
             {/* Difficulty Filter (hide for passages tab) */}
-            {activeTab !== 'passages' ? (
+            {activeTab !== "passages" ? (
               <Select
                 value={difficulty}
-                onChange={(e) => handleFilterChange(setDifficulty, e.target.value)}
+                onChange={(e) =>
+                  handleFilterChange(setDifficulty, e.target.value)
+                }
               >
                 <option value="">Semua Tingkat Kesulitan</option>
                 <option value="easy">Easy (Mudah)</option>
                 <option value="medium">Medium (Sedang)</option>
                 <option value="hard">Hard (Sulit)</option>
               </Select>
-            ) : <div />}
+            ) : (
+              <div />
+            )}
 
             {/* Status Filter */}
             <Select
               value={statusFilter}
-              onChange={(e) => handleFilterChange(setStatusFilter, e.target.value)}
+              onChange={(e) =>
+                handleFilterChange(setStatusFilter, e.target.value)
+              }
             >
               <option value="">Semua Status Publikasi</option>
               <option value="draft">Draft</option>
@@ -440,48 +502,76 @@ export default function BankSoalPage() {
           </div>
 
           {/* List Display */}
-          {activeTab === 'passages' ? (
+          {activeTab === "passages" ? (
             // Passages Table
             <div className="overflow-x-auto border border-slate-100 rounded-2xl">
               {isPassagesLoading ? (
-                <div className="py-20 text-center text-slate-500 font-bold">Memuat data passage...</div>
+                <div className="py-20 text-center text-slate-500 font-bold">
+                  Memuat data passage...
+                </div>
               ) : (
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50/70 border-b border-slate-100">
-                      <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase">Konten / Ringkasan</th>
-                      <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase">Tipe Passage</th>
-                      <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase">Jumlah Pertanyaan</th>
-                      <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase">Status</th>
-                      {user?.role === 'super_admin' && (
-                        <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase">Pembuat</th>
+                      <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase">
+                        Konten / Ringkasan
+                      </th>
+                      <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase">
+                        Tipe Passage
+                      </th>
+                      <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase">
+                        Jumlah Pertanyaan
+                      </th>
+                      <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase">
+                        Status
+                      </th>
+                      {user?.role === "super_admin" && (
+                        <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase">
+                          Pembuat
+                        </th>
                       )}
-                      <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase text-right">Aksi</th>
+                      <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase text-right">
+                        Aksi
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {passages.length === 0 ? (
                       <tr>
-                        <td colSpan={user?.role === 'super_admin' ? 6 : 5} className="py-12 text-center text-sm text-slate-400 font-medium">
+                        <td
+                          colSpan={user?.role === "super_admin" ? 6 : 5}
+                          className="py-12 text-center text-sm text-slate-400 font-medium"
+                        >
                           Belum ada passage induk yang dibuat.
                         </td>
                       </tr>
                     ) : (
                       passages.map((p) => {
-                        const canModify = user?.role === 'super_admin' || p.created_by === user?.id;
+                        const canModify =
+                          user?.role === "super_admin" ||
+                          p.created_by === user?.id;
                         return (
-                          <tr key={p.id} className="hover:bg-slate-50/40 transition-colors">
+                          <tr
+                            key={p.id}
+                            className="hover:bg-slate-50/40 transition-colors"
+                          >
                             <td className="py-4 px-6 max-w-md">
                               <div className="font-semibold text-slate-800 text-sm line-clamp-2 leading-relaxed">
                                 {p.content || (
                                   <span className="text-indigo-600 font-bold flex items-center gap-1">
-                                    <Music className="w-3.5 h-3.5" /> Audio Listening Group
+                                    <Music className="w-3.5 h-3.5" /> Audio
+                                    Listening Group
                                   </span>
                                 )}
                               </div>
                             </td>
                             <td className="py-4 px-6 whitespace-nowrap">
-                              <Badge variant="info" className="font-extrabold uppercase text-xs">{p.type}</Badge>
+                              <Badge
+                                variant="info"
+                                className="font-extrabold uppercase text-xs"
+                              >
+                                {p.type}
+                              </Badge>
                             </td>
                             <td className="py-4 px-6 whitespace-nowrap">
                               <span className="font-bold text-slate-700 text-sm bg-slate-100 px-3 py-1 rounded-xl">
@@ -489,13 +579,20 @@ export default function BankSoalPage() {
                               </span>
                             </td>
                             <td className="py-4 px-6 whitespace-nowrap">
-                              <Badge variant={p.status === 'published' ? 'success' : 'neutral'} className="text-[10px] font-extrabold uppercase">
+                              <Badge
+                                variant={
+                                  p.status === "published"
+                                    ? "success"
+                                    : "neutral"
+                                }
+                                className="text-[10px] font-extrabold uppercase"
+                              >
                                 {p.status}
                               </Badge>
                             </td>
-                            {user?.role === 'super_admin' && (
+                            {user?.role === "super_admin" && (
                               <td className="py-4 px-6 whitespace-nowrap text-xs font-semibold text-slate-600">
-                                {p.creator_name || 'Super Admin'}
+                                {p.creator_name || "Super Admin"}
                               </td>
                             )}
                             <td className="py-4 px-6 whitespace-nowrap text-right text-xs">
@@ -506,7 +603,8 @@ export default function BankSoalPage() {
                                   className="h-8 py-0 font-bold text-xs"
                                   onClick={() => setSelectedPassage(p)}
                                 >
-                                  <Layers className="w-3.5 h-3.5 mr-1" /> Kelola Soal
+                                  <Layers className="w-3.5 h-3.5 mr-1" /> Kelola
+                                  Soal
                                 </Button>
                                 {canModify && (
                                   <>
@@ -541,7 +639,9 @@ export default function BankSoalPage() {
             // Questions Table
             <div>
               {isQuestionsLoading ? (
-                <div className="py-20 text-center text-slate-500 font-bold">Memuat data soal...</div>
+                <div className="py-20 text-center text-slate-500 font-bold">
+                  Memuat data soal...
+                </div>
               ) : (
                 <QuestionTable
                   questions={questions}
@@ -569,7 +669,7 @@ export default function BankSoalPage() {
                   variant="secondary"
                   size="sm"
                   disabled={page <= 1}
-                  onClick={() => setPage(p => p - 1)}
+                  onClick={() => setPage((p) => p - 1)}
                 >
                   <ChevronLeft className="w-4 h-4 mr-1" /> Sebelum
                 </Button>
@@ -577,7 +677,7 @@ export default function BankSoalPage() {
                   variant="secondary"
                   size="sm"
                   disabled={page >= totalPages}
-                  onClick={() => setPage(p => p + 1)}
+                  onClick={() => setPage((p) => p + 1)}
                 >
                   Berikut <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
@@ -589,6 +689,7 @@ export default function BankSoalPage() {
 
       {/* Question Form Modal */}
       <QuestionForm
+        key={`q-${editingQuestion?.id ?? "new"}-${isQuestionOpen}`}
         open={isQuestionOpen}
         onClose={() => {
           setIsQuestionOpen(false);
@@ -602,6 +703,7 @@ export default function BankSoalPage() {
 
       {/* Passage Form Modal */}
       <PassageForm
+        key={`p-${editingPassage?.id ?? "new"}-${isPassageOpen}`}
         open={isPassageOpen}
         onClose={() => {
           setIsPassageOpen(false);
@@ -609,7 +711,11 @@ export default function BankSoalPage() {
         }}
         onSubmit={handleCreatePassageSubmit}
         initialData={editingPassage}
-        defaultType={activeTab !== 'all' && activeTab !== 'passages' ? activeTab : undefined}
+        defaultType={
+          activeTab !== "all" && activeTab !== "passages"
+            ? activeTab
+            : undefined
+        }
       />
 
       {/* Question Preview Modal */}

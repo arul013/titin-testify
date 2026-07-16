@@ -14,7 +14,7 @@ export const createClient = () => {
           setSession: async () => ({ data: { session: null }, error: null }),
           signOut: async () => ({ error: null }),
         },
-      } as any;
+      } as unknown as ReturnType<typeof createBrowserClient>;
     }
   }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
@@ -44,55 +44,23 @@ export const QuestionForm: React.FC<QuestionFormProps> = ({
   passageId,
   defaultSection,
 }) => {
-  const [section, setSection] = useState(defaultSection || 'listening');
-  const [difficulty, setDifficulty] = useState('medium');
-  const [questionText, setQuestionText] = useState('');
-  const [optionA, setOptionA] = useState('');
-  const [optionB, setOptionB] = useState('');
-  const [optionC, setOptionC] = useState('');
-  const [optionD, setOptionD] = useState('');
-  const [correctAnswer, setCorrectAnswer] = useState('a');
-  const [explanation, setExplanation] = useState('');
-  const [status, setStatus] = useState('draft');
+  // State di-init langsung dari props. Parent memberi `key` unik agar form
+  // remount (state fresh) tiap kali record/berubah dibuka — tidak perlu effect sinkronisasi.
+  const [section, setSection] = useState(initialData?.section || defaultSection || 'listening');
+  const [difficulty, setDifficulty] = useState(initialData?.difficulty || 'medium');
+  const [questionText, setQuestionText] = useState(initialData?.question_text || '');
+  const [optionA, setOptionA] = useState(initialData?.option_a || '');
+  const [optionB, setOptionB] = useState(initialData?.option_b || '');
+  const [optionC, setOptionC] = useState(initialData?.option_c || '');
+  const [optionD, setOptionD] = useState(initialData?.option_d || '');
+  const [correctAnswer, setCorrectAnswer] = useState(initialData?.correct_answer || 'a');
+  const [explanation, setExplanation] = useState(initialData?.explanation || '');
+  const [status, setStatus] = useState(initialData?.status || 'draft');
   const [tagInput, setTagInput] = useState('');
-  const [tags, setTags] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>(initialData?.tags || []);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isEditing = !!initialData;
-
-  useEffect(() => {
-    if (initialData) {
-      setSection(initialData.section);
-      setDifficulty(initialData.difficulty);
-      setQuestionText(initialData.question_text);
-      setOptionA(initialData.option_a);
-      setOptionB(initialData.option_b);
-      setOptionC(initialData.option_c);
-      setOptionD(initialData.option_d);
-      setCorrectAnswer(initialData.correct_answer);
-      setExplanation(initialData.explanation || '');
-      setStatus(initialData.status);
-      setTags(initialData.tags || []);
-    } else {
-      resetForm();
-      if (defaultSection) setSection(defaultSection);
-    }
-  }, [initialData, defaultSection, open]);
-
-  const resetForm = () => {
-    setSection(defaultSection || 'listening');
-    setDifficulty('medium');
-    setQuestionText('');
-    setOptionA('');
-    setOptionB('');
-    setOptionC('');
-    setOptionD('');
-    setCorrectAnswer('a');
-    setExplanation('');
-    setStatus('draft');
-    setTags([]);
-    setTagInput('');
-  };
 
   const addTag = () => {
     const trimmed = tagInput.trim();
@@ -124,9 +92,8 @@ export const QuestionForm: React.FC<QuestionFormProps> = ({
         status,
         tags,
       });
-      resetForm();
       onClose();
-    } catch (err) {
+    } catch {
       // Error handled by toast in parent
     } finally {
       setIsSubmitting(false);

@@ -1,11 +1,17 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { Modal } from '@/components/ui/modal';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Music, FileText, CheckCircle2, AlertCircle, BookOpen } from 'lucide-react';
-import type { Question, Passage } from './hooks/useQuestions';
+import React from "react";
+import { Modal } from "@/components/ui/modal";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Music,
+  FileText,
+  CheckCircle2,
+  AlertCircle,
+  BookOpen,
+} from "lucide-react";
+import type { Question, Passage } from "./hooks/useQuestions";
 
 interface QuestionPreviewProps {
   open: boolean;
@@ -24,18 +30,21 @@ export const QuestionPreview: React.FC<QuestionPreviewProps> = ({
 
   // Formatting helper for Written Expression (ETS format)
   const renderTextWithUnderlines = (text: string) => {
-    if (!text) return '';
-    
+    if (!text) return "";
+
     // Split by matching "[word]{option}" pattern
     const parts = text.split(/(\[[^\]]+\]\{[A-Da-d]\})/g);
-    
+
     return parts.map((part, i) => {
       const match = part.match(/^\[([^\]]+)\]\{([A-Da-d])\}$/);
       if (match) {
         const word = match[1];
         const option = match[2].toUpperCase();
         return (
-          <span key={i} className="inline-flex flex-col items-center mx-1 align-top">
+          <span
+            key={i}
+            className="inline-flex flex-col items-center mx-1 align-top"
+          >
             <span className="underline decoration-2 decoration-indigo-600/70 font-semibold text-slate-800">
               {word}
             </span>
@@ -51,39 +60,63 @@ export const QuestionPreview: React.FC<QuestionPreviewProps> = ({
 
   const getSectionLabel = (section: string) => {
     switch (section) {
-      case 'listening': return 'Listening Comprehension';
-      case 'reading': return 'Reading Comprehension';
-      case 'structure': return 'Structure Section';
-      case 'written_expression': return 'Written Expression';
-      default: return section.toUpperCase();
+      case "listening":
+        return "Listening Comprehension";
+      case "reading":
+        return "Reading Comprehension";
+      case "structure":
+        return "Structure Section";
+      case "written_expression":
+        return "Written Expression";
+      default:
+        return section.toUpperCase();
     }
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Pratinjau Soal (Preview Mode)" size="lg">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Pratinjau Soal (Preview Mode)"
+      size="lg"
+    >
       <div className="flex flex-col gap-6 max-h-[75vh] overflow-y-auto pr-1">
-        
         {/* Header Metadata */}
         <div className="flex flex-wrap gap-2.5 items-center pb-4 border-b border-slate-100">
           <Badge variant="info" className="font-extrabold uppercase text-xs">
             {getSectionLabel(question.section)}
           </Badge>
-          <Badge variant={question.difficulty === 'easy' ? 'success' : question.difficulty === 'medium' ? 'warning' : 'danger'} className="font-extrabold uppercase text-[10px]">
+          <Badge
+            variant={
+              question.difficulty === "easy"
+                ? "success"
+                : question.difficulty === "medium"
+                  ? "warning"
+                  : "danger"
+            }
+            className="font-extrabold uppercase text-[10px]"
+          >
             Tingkat: {question.difficulty}
           </Badge>
-          <Badge variant={question.status === 'published' ? 'success' : 'neutral'} className="font-extrabold uppercase text-[10px]">
+          <Badge
+            variant={question.status === "published" ? "success" : "neutral"}
+            className="font-extrabold uppercase text-[10px]"
+          >
             {question.status}
           </Badge>
-          {question.tags && question.tags.map(tag => (
-            <span key={tag} className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-              #{tag}
-            </span>
-          ))}
+          {question.tags &&
+            question.tags.map((tag) => (
+              <span
+                key={tag}
+                className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md"
+              >
+                #{tag}
+              </span>
+            ))}
         </div>
 
         {/* 2-Column Preview Grid (Similar to actual exam layout) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-          
           {/* Left Column (Passage Content) */}
           <div className="lg:col-span-6 flex flex-col gap-4 bg-slate-50/70 border border-slate-100 p-5 rounded-2xl">
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200/60 pb-2">
@@ -99,18 +132,25 @@ export const QuestionPreview: React.FC<QuestionPreviewProps> = ({
                       <Music className="w-4 h-4 text-indigo-600 animate-pulse" />
                       Listening Audio Player
                     </div>
-                    <audio src={passage.audio_url} controls className="w-full h-8" />
+                    <audio
+                      src={passage.audio_url}
+                      controls
+                      className="w-full h-8"
+                    />
                   </div>
                 )}
                 {passage.content && (
-                  <div className="text-slate-700 text-sm leading-loose whitespace-pre-wrap font-sans flex-1 overflow-y-auto max-h-[300px] bg-white border border-slate-200/50 p-4 rounded-xl shadow-sm">
-                    {passage.type === 'written_expression' ? renderTextWithUnderlines(passage.content) : passage.content}
+                  <div className="text-slate-700 text-sm leading-loose whitespace-pre-wrap font-sans flex-1 overflow-y-auto max-h-75 bg-white border border-slate-200/50 p-4 rounded-xl shadow-sm">
+                    {passage.type === "written_expression"
+                      ? renderTextWithUnderlines(passage.content)
+                      : passage.content}
                   </div>
                 )}
               </div>
             ) : (
               <div className="text-slate-400 text-xs italic flex items-center justify-center h-48 border border-dashed border-slate-200 rounded-xl bg-white">
-                Soal ini tidak menggunakan teks bacaan (passage) atau audio kelompok (Standalone).
+                Soal ini tidak menggunakan teks bacaan (passage) atau audio
+                kelompok (Standalone).
               </div>
             )}
           </div>
@@ -124,16 +164,18 @@ export const QuestionPreview: React.FC<QuestionPreviewProps> = ({
 
             {/* Question Text */}
             <div className="font-extrabold text-slate-800 text-md leading-relaxed">
-              {question.section === 'written_expression' ? renderTextWithUnderlines(question.question_text) : question.question_text}
+              {question.section === "written_expression"
+                ? renderTextWithUnderlines(question.question_text)
+                : question.question_text}
             </div>
 
             {/* Options list */}
             <div className="flex flex-col gap-3">
               {[
-                { key: 'a', val: question.option_a, label: 'A' },
-                { key: 'b', val: question.option_b, label: 'B' },
-                { key: 'c', val: question.option_c, label: 'C' },
-                { key: 'd', val: question.option_d, label: 'D' },
+                { key: "a", val: question.option_a, label: "A" },
+                { key: "b", val: question.option_b, label: "B" },
+                { key: "c", val: question.option_c, label: "C" },
+                { key: "d", val: question.option_d, label: "D" },
               ].map((opt) => {
                 const isCorrect = question.correct_answer === opt.key;
                 return (
@@ -141,23 +183,27 @@ export const QuestionPreview: React.FC<QuestionPreviewProps> = ({
                     key={opt.key}
                     className={`flex items-center gap-3.5 border p-3.5 rounded-xl text-sm font-medium transition-all ${
                       isCorrect
-                        ? 'border-emerald-200 bg-emerald-50/40 text-emerald-800 shadow-sm shadow-emerald-50'
-                        : 'border-slate-100 hover:border-slate-200 text-slate-600 bg-slate-50/30'
+                        ? "border-emerald-200 bg-emerald-50/40 text-emerald-800 shadow-sm shadow-emerald-50"
+                        : "border-slate-100 hover:border-slate-200 text-slate-600 bg-slate-50/30"
                     }`}
                   >
                     <span
                       className={`flex shrink-0 items-center justify-center font-bold text-xs h-7 w-7 rounded-lg border ${
                         isCorrect
-                          ? 'border-emerald-300 bg-emerald-500 text-white'
-                          : 'border-slate-200 bg-white text-slate-500'
+                          ? "border-emerald-300 bg-emerald-500 text-white"
+                          : "border-slate-200 bg-white text-slate-500"
                       }`}
                     >
                       {opt.label}
                     </span>
                     <span className="flex-1 leading-normal">
-                      {question.section === 'written_expression' ? renderTextWithUnderlines(opt.val) : opt.val}
+                      {question.section === "written_expression"
+                        ? renderTextWithUnderlines(opt.val)
+                        : opt.val}
                     </span>
-                    {isCorrect && <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600 shrink-0" />}
+                    {isCorrect && (
+                      <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600 shrink-0" />
+                    )}
                   </div>
                 );
               })}

@@ -3,7 +3,17 @@
 import { useState, useCallback } from 'react';
 import { UserProfile, CreateUserRequest, UpdateUserRequest, ChangeRoleRequest } from '../../../types';
 import { api } from '../../../lib/api';
+import { getErrorMessage } from '../../../lib/errors';
 import { useAuth } from '../../auth/hooks/useAuth';
+
+/** Akun peserta hasil generate masal (termasuk password mentah untuk dibagikan). */
+export interface GeneratedUser {
+  id: string;
+  username: string;
+  full_name: string;
+  password: string;
+  email?: string;
+}
 
 export const useUsers = () => {
   const { token } = useAuth();
@@ -24,8 +34,8 @@ export const useUsers = () => {
       const response = await api.get<{ users: UserProfile[]; total: number }>(url, { token });
       setUsers(response.users);
       setTotal(response.total);
-    } catch (err: any) {
-      setError(err.message || 'Gagal memuat daftar pengguna');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Gagal memuat daftar pengguna'));
       throw err;
     } finally {
       setIsLoading(false);
@@ -41,8 +51,8 @@ export const useUsers = () => {
       setUsers((prev) => [newUser, ...prev]);
       setTotal((prev) => prev + 1);
       return newUser;
-    } catch (err: any) {
-      setError(err.message || 'Gagal membuat pengguna');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Gagal membuat pengguna'));
       throw err;
     } finally {
       setIsLoading(false);
@@ -57,8 +67,8 @@ export const useUsers = () => {
       const updated = await api.put<UserProfile>(`/api/users/${id}`, request, { token });
       setUsers((prev) => prev.map((u) => (u.id === id ? updated : u)));
       return updated;
-    } catch (err: any) {
-      setError(err.message || 'Gagal memperbarui pengguna');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Gagal memperbarui pengguna'));
       throw err;
     } finally {
       setIsLoading(false);
@@ -73,8 +83,8 @@ export const useUsers = () => {
       await api.delete(`/api/users/${id}`, { token });
       setUsers((prev) => prev.filter((u) => u.id !== id));
       setTotal((prev) => Math.max(0, prev - 1));
-    } catch (err: any) {
-      setError(err.message || 'Gagal menghapus pengguna');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Gagal menghapus pengguna'));
       throw err;
     } finally {
       setIsLoading(false);
@@ -89,8 +99,8 @@ export const useUsers = () => {
       const updated = await api.patch<UserProfile>(`/api/users/${id}/role`, request, { token });
       setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, role: updated.role } : u)));
       return updated;
-    } catch (err: any) {
-      setError(err.message || 'Gagal mengubah role pengguna');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Gagal mengubah role pengguna'));
       throw err;
     } finally {
       setIsLoading(false);
@@ -104,14 +114,14 @@ export const useUsers = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await api.post<{ users: any[]; success: boolean }>(
+      const response = await api.post<{ users: GeneratedUser[]; success: boolean }>(
         '/api/users/generate',
         request,
         { token }
       );
       return response.users;
-    } catch (err: any) {
-      setError(err.message || 'Gagal generate peserta secara masal');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Gagal generate peserta secara masal'));
       throw err;
     } finally {
       setIsLoading(false);
@@ -132,8 +142,8 @@ export const useUsers = () => {
         success: boolean;
       }>(`/api/users/${id}/reset-password`, {}, { token });
       return response;
-    } catch (err: any) {
-      setError(err.message || 'Gagal mengatur ulang password');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Gagal mengatur ulang password'));
       throw err;
     } finally {
       setIsLoading(false);

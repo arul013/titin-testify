@@ -1,6 +1,10 @@
-import { AuthResponse } from '../types';
-
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+/** Bentuk satu item error validasi dari FastAPI (422). */
+interface ValidationErrorItem {
+  loc?: (string | number)[];
+  msg?: string;
+}
 
 interface RequestOptions extends RequestInit {
   token?: string;
@@ -47,7 +51,7 @@ class ApiClient {
             errorMessage = errorData.detail;
           } else if (Array.isArray(errorData.detail)) {
             errorMessage = errorData.detail
-              .map((err: any) => {
+              .map((err: ValidationErrorItem) => {
                 const field = err.loc ? err.loc[err.loc.length - 1] : '';
                 return `${field ? `Kolom '${field}': ` : ''}${err.msg}`;
               })
@@ -74,7 +78,7 @@ class ApiClient {
     return this.request<T>(endpoint, { ...options, method: 'GET' });
   }
 
-  async post<T>(endpoint: string, body: any, options: RequestOptions = {}): Promise<T> {
+  async post<T>(endpoint: string, body: unknown, options: RequestOptions = {}): Promise<T> {
     return this.request<T>(endpoint, {
       ...options,
       method: 'POST',
@@ -82,7 +86,7 @@ class ApiClient {
     });
   }
 
-  async put<T>(endpoint: string, body: any, options: RequestOptions = {}): Promise<T> {
+  async put<T>(endpoint: string, body: unknown, options: RequestOptions = {}): Promise<T> {
     return this.request<T>(endpoint, {
       ...options,
       method: 'PUT',
@@ -90,7 +94,7 @@ class ApiClient {
     });
   }
 
-  async patch<T>(endpoint: string, body: any, options: RequestOptions = {}): Promise<T> {
+  async patch<T>(endpoint: string, body: unknown, options: RequestOptions = {}): Promise<T> {
     return this.request<T>(endpoint, {
       ...options,
       method: 'PATCH',

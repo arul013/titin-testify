@@ -15,7 +15,7 @@ export const useToast = () => {
   }, []);
 
   return {
-    toasts: [] as any[], // Return empty to prevent legacy inline lists from showing
+    toasts: [] as unknown[], // Return empty to prevent legacy inline lists from showing
     addToast,
     removeToast: useCallback(() => {}, []),
   };

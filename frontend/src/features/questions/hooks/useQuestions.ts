@@ -53,6 +53,16 @@ export interface PassageWithQuestions {
   questions: Question[];
 }
 
+interface QuestionListResponse {
+  questions: Question[];
+  total: number;
+}
+
+interface PassageListResponse {
+  passages: Passage[];
+  total: number;
+}
+
 // ─── Question Hooks ──────────────────────────────────────────
 
 export function useQuestions(filters?: {
@@ -67,51 +77,65 @@ export function useQuestions(filters?: {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [refetchIndex, setRefetchIndex] = useState(0);
 
-  const fetchQuestions = useCallback(async () => {
-    if (!user) return;
-    setIsLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (filters?.section) params.set('section', filters.section);
-      if (filters?.difficulty) params.set('difficulty', filters.difficulty);
-      if (filters?.status) params.set('status', filters.status);
-      if (filters?.search) params.set('search', filters.search);
-      params.set('page', String(filters?.page || 1));
-      params.set('per_page', String(filters?.perPage || 20));
-
-      const data = (await api.request(`/api/questions?${params.toString()}`)) as any;
-      setQuestions(data.questions || []);
-      setTotal(data.total || 0);
-    } catch (err) {
-      console.error('Failed to fetch questions:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user, filters?.section, filters?.difficulty, filters?.status, filters?.search, filters?.page, filters?.perPage]);
+  // Ambil nilai primitif agar dependency effect stabil & spesifik.
+  const section = filters?.section;
+  const difficulty = filters?.difficulty;
+  const status = filters?.status;
+  const search = filters?.search;
+  const page = filters?.page;
+  const perPage = filters?.perPage;
 
   useEffect(() => {
-    fetchQuestions();
-  }, [fetchQuestions]);
+    if (!user) return;
+    let active = true;
+
+    const params = new URLSearchParams();
+    if (section) params.set('section', section);
+    if (difficulty) params.set('difficulty', difficulty);
+    if (status) params.set('status', status);
+    if (search) params.set('search', search);
+    params.set('page', String(page || 1));
+    params.set('per_page', String(perPage || 20));
+
+    api
+      .request<QuestionListResponse>(`/api/questions?${params.toString()}`)
+      .then((data) => {
+        if (!active) return;
+        setQuestions(data.questions || []);
+        setTotal(data.total || 0);
+      })
+      .catch((err) => console.error('Failed to fetch questions:', err))
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user, section, difficulty, status, search, page, perPage, refetchIndex]);
+
+  const refetch = useCallback(() => setRefetchIndex((i) => i + 1), []);
 
   const createQuestion = async (data: Record<string, unknown>) => {
     const res = await api.request('/api/questions', { method: 'POST', body: JSON.stringify(data) });
-    await fetchQuestions();
+    refetch();
     return res;
   };
 
   const updateQuestion = async (id: string, data: Record<string, unknown>) => {
     const res = await api.request(`/api/questions/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-    await fetchQuestions();
+    refetch();
     return res;
   };
 
   const deleteQuestion = async (id: string) => {
     await api.request(`/api/questions/${id}`, { method: 'DELETE' });
-    await fetchQuestions();
+    refetch();
   };
 
-  return { questions, total, isLoading, fetchQuestions, createQuestion, updateQuestion, deleteQuestion };
+  return { questions, total, isLoading, refetch, createQuestion, updateQuestion, deleteQuestion };
 }
 
 // ─── Passage Hooks ───────────────────────────────────────────
@@ -127,50 +151,62 @@ export function usePassages(filters?: {
   const [passages, setPassages] = useState<Passage[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [refetchIndex, setRefetchIndex] = useState(0);
 
-  const fetchPassages = useCallback(async () => {
-    if (!user) return;
-    setIsLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (filters?.type) params.set('type', filters.type);
-      if (filters?.status) params.set('status', filters.status);
-      if (filters?.search) params.set('search', filters.search);
-      params.set('page', String(filters?.page || 1));
-      params.set('per_page', String(filters?.perPage || 20));
-
-      const data = (await api.request(`/api/passages?${params.toString()}`)) as any;
-      setPassages(data.passages || []);
-      setTotal(data.total || 0);
-    } catch (err) {
-      console.error('Failed to fetch passages:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user, filters?.type, filters?.status, filters?.search, filters?.page, filters?.perPage]);
+  const type = filters?.type;
+  const status = filters?.status;
+  const search = filters?.search;
+  const page = filters?.page;
+  const perPage = filters?.perPage;
 
   useEffect(() => {
-    fetchPassages();
-  }, [fetchPassages]);
+    if (!user) return;
+    let active = true;
+
+    const params = new URLSearchParams();
+    if (type) params.set('type', type);
+    if (status) params.set('status', status);
+    if (search) params.set('search', search);
+    params.set('page', String(page || 1));
+    params.set('per_page', String(perPage || 20));
+
+    api
+      .request<PassageListResponse>(`/api/passages?${params.toString()}`)
+      .then((data) => {
+        if (!active) return;
+        setPassages(data.passages || []);
+        setTotal(data.total || 0);
+      })
+      .catch((err) => console.error('Failed to fetch passages:', err))
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user, type, status, search, page, perPage, refetchIndex]);
+
+  const refetch = useCallback(() => setRefetchIndex((i) => i + 1), []);
 
   const createPassage = async (data: Record<string, unknown>) => {
     const res = await api.request('/api/passages', { method: 'POST', body: JSON.stringify(data) });
-    await fetchPassages();
+    refetch();
     return res;
   };
 
   const updatePassage = async (id: string, data: Record<string, unknown>) => {
     const res = await api.request(`/api/passages/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-    await fetchPassages();
+    refetch();
     return res;
   };
 
   const deletePassage = async (id: string) => {
     await api.request(`/api/passages/${id}`, { method: 'DELETE' });
-    await fetchPassages();
+    refetch();
   };
 
-  return { passages, total, isLoading, fetchPassages, createPassage, updatePassage, deletePassage };
+  return { passages, total, isLoading, refetch, createPassage, updatePassage, deletePassage };
 }
 
 // ─── Passage Detail Hook ─────────────────────────────────────
@@ -179,25 +215,30 @@ export function usePassageDetail(passageId: string | null) {
   const { user } = useAuth();
   const [data, setData] = useState<PassageWithQuestions | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-
-  const fetchDetail = useCallback(async () => {
-    if (!user || !passageId) return;
-    setIsLoading(true);
-    try {
-      const res = (await api.request(`/api/passages/${passageId}`)) as any;
-      setData(res);
-    } catch (err) {
-      console.error('Failed to fetch passage detail:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user, passageId]);
+  const [refetchIndex, setRefetchIndex] = useState(0);
 
   useEffect(() => {
-    fetchDetail();
-  }, [fetchDetail]);
+    if (!user || !passageId) return;
+    let active = true;
 
-  return { data, isLoading, refetch: fetchDetail };
+    api
+      .request<PassageWithQuestions>(`/api/passages/${passageId}`)
+      .then((res) => {
+        if (active) setData(res);
+      })
+      .catch((err) => console.error('Failed to fetch passage detail:', err))
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user, passageId, refetchIndex]);
+
+  const refetch = useCallback(() => setRefetchIndex((i) => i + 1), []);
+
+  return { data, isLoading, refetch };
 }
 
 // ─── Stats Hook ──────────────────────────────────────────────
@@ -206,23 +247,28 @@ export function useQuestionStats() {
   const { user } = useAuth();
   const [stats, setStats] = useState<QuestionStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  const fetchStats = useCallback(async () => {
-    if (!user) return;
-    setIsLoading(true);
-    try {
-      const data = (await api.request('/api/questions/stats')) as any;
-      setStats(data);
-    } catch (err) {
-      console.error('Failed to fetch stats:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user]);
+  const [refetchIndex, setRefetchIndex] = useState(0);
 
   useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+    if (!user) return;
+    let active = true;
 
-  return { stats, isLoading, refetch: fetchStats };
+    api
+      .request<QuestionStats>('/api/questions/stats')
+      .then((data) => {
+        if (active) setStats(data);
+      })
+      .catch((err) => console.error('Failed to fetch stats:', err))
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user, refetchIndex]);
+
+  const refetch = useCallback(() => setRefetchIndex((i) => i + 1), []);
+
+  return { stats, isLoading, refetch };
 }

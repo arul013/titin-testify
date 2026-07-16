@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { UserProfile, CreateUserRequest, UpdateUserRequest, UserRole } from '../../types';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
@@ -9,7 +9,7 @@ import { useAuth } from '../auth/hooks/useAuth';
 
 interface UserFormProps {
   user?: UserProfile | null;
-  onSubmit: (data: any) => Promise<void>;
+  onSubmit: (data: CreateUserRequest | UpdateUserRequest) => Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
 }
@@ -23,31 +23,14 @@ export const UserForm: React.FC<UserFormProps> = ({
   const { user: currentUser } = useAuth();
   const isEdit = !!user;
 
-  const [email, setEmail] = useState('');
+  // State di-init langsung dari props. Parent memberi `key` unik agar form
+  // remount (state fresh) saat user berbeda dibuka — tidak perlu effect sinkronisasi.
+  const [email, setEmail] = useState(user?.email || '');
   const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<UserRole>('peserta');
-  const [isActive, setIsActive] = useState(true);
-
-  // Load user data if edit mode
-  useEffect(() => {
-    if (user) {
-      setEmail(user.email || '');
-      setUsername(user.username);
-      setFullName(user.full_name);
-      setRole(user.role);
-      setIsActive(user.is_active);
-    } else {
-      // Clear form
-      setEmail('');
-      setPassword('');
-      setUsername('');
-      setFullName('');
-      setRole('peserta');
-      setIsActive(true);
-    }
-  }, [user]);
+  const [username, setUsername] = useState(user?.username || '');
+  const [fullName, setFullName] = useState(user?.full_name || '');
+  const [role, setRole] = useState<UserRole>(user?.role || 'peserta');
+  const [isActive, setIsActive] = useState(user?.is_active ?? true);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

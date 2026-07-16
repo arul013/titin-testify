@@ -23,6 +23,12 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { X } from "lucide-react";
 import { cn } from "@/src/lib/cn";
 
+// Deteksi "sudah di client" tanpa setState di dalam effect: useSyncExternalStore
+// mengembalikan snapshot server (false) saat SSR dan snapshot client (true) di browser.
+const subscribeNoop = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
+
 export type ModalSize = "sm" | "md" | "lg";
 export type ModalVariant = "default" | "vivid";
 
@@ -105,8 +111,7 @@ export function Modal({
 
   // Portal ke <body> agar modal lolos dari stacking context induk (mis. <main>
   // yang overflow) — kalau tidak, footer/elemen lain bisa menembus di atasnya.
-  const [mounted, setMounted] = React.useState(false);
-  React.useEffect(() => setMounted(true), []);
+  const mounted = React.useSyncExternalStore(subscribeNoop, getClientSnapshot, getServerSnapshot);
 
   // Escape untuk menutup
   React.useEffect(() => {

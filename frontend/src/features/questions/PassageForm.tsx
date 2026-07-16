@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import { Music, FileText, Settings, AlertCircle } from 'lucide-react';
+import { Music, FileText, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { getErrorMessage } from '@/lib/errors';
 import type { Passage } from './hooks/useQuestions';
 
 interface PassageFormProps {
@@ -36,33 +37,16 @@ export const PassageForm: React.FC<PassageFormProps> = ({
   initialData,
   defaultType,
 }) => {
-  const [type, setType] = useState(defaultType || 'reading');
-  const [content, setContent] = useState('');
-  const [audioUrl, setAudioUrl] = useState('');
-  const [status, setStatus] = useState('draft');
+  // State di-init langsung dari props. Parent memberi `key` unik agar form
+  // remount (state fresh) tiap kali record berbeda dibuka — tidak perlu effect sinkronisasi.
+  const [type, setType] = useState(initialData?.type || defaultType || 'reading');
+  const [content, setContent] = useState(initialData?.content || '');
+  const [audioUrl, setAudioUrl] = useState(initialData?.audio_url || '');
+  const [status, setStatus] = useState(initialData?.status || 'draft');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
   const isEditing = !!initialData;
-
-  useEffect(() => {
-    if (initialData) {
-      setType(initialData.type);
-      setContent(initialData.content || '');
-      setAudioUrl(initialData.audio_url || '');
-      setStatus(initialData.status);
-    } else {
-      resetForm();
-      if (defaultType) setType(defaultType);
-    }
-  }, [initialData, defaultType, open]);
-
-  const resetForm = () => {
-    setType(defaultType || 'reading');
-    setContent('');
-    setAudioUrl('');
-    setStatus('draft');
-  };
 
   const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -95,9 +79,9 @@ export const PassageForm: React.FC<PassageFormProps> = ({
 
       setAudioUrl(responseData.audio_url);
       toast.success('Audio berhasil diunggah ke Cloudflare R2!');
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error uploading audio:', err);
-      toast.error(err.message || 'Gagal mengunggah file audio. Pastikan kredensial R2 di .env backend sudah benar.');
+      toast.error(getErrorMessage(err, 'Gagal mengunggah file audio. Pastikan kredensial R2 di .env backend sudah benar.'));
     } finally {
       setIsUploading(false);
     }
@@ -113,9 +97,8 @@ export const PassageForm: React.FC<PassageFormProps> = ({
         audio_url: type === 'listening' ? audioUrl : null,
         status,
       });
-      resetForm();
       onClose();
-    } catch (err) {
+    } catch {
       // Error handled by toast in parent
     } finally {
       setIsSubmitting(false);
