@@ -2,6 +2,10 @@
 Learning Nexus CBT — FastAPI Application Entry Point
 """
 
+from fastapi import FastAPI
+
+from app.config import get_settings
+from app.middleware.cors import setup_cors
 from app.routes import auth, users, questions, upload
 
 settings = get_settings()
