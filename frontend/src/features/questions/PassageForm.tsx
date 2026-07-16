@@ -173,7 +173,7 @@ export const PassageForm: React.FC<PassageFormProps> = ({
 
         {/* Text Content */}
         <div>
-          <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1">
+          <label className="text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1">
             <FileText className="w-3.5 h-3.5 text-slate-500" />
             {type === 'listening' ? 'Teks Transkrip / Catatan Pembantu (Opsional)' : 'Teks Bacaan / Passage'}
           </label>

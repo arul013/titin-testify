@@ -27,6 +27,9 @@ def setup_cors(app: FastAPI) -> None:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
+        # Izinkan semua deployment Vercel (production + preview: *.vercel.app).
+        # Setelah domain final ditetapkan, boleh diperketat ke domain spesifik saja.
+        allow_origin_regex=r"https://.*\.vercel\.app",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

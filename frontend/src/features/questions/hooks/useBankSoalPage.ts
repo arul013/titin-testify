@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import {
@@ -107,8 +108,8 @@ export function useBankSoalPage() {
     let active = true;
     const passageId = selectedPassage.id;
 
-    fetch(`/api/questions?passage_id=${passageId}`)
-      .then((res) => (res.ok ? res.json() : { questions: [] }))
+    api
+      .request<{ questions: Question[] }>(`/api/questions?passage_id=${passageId}`)
       .then((data) => {
         if (active) setPassageQuestions(data.questions || []);
       })
@@ -242,11 +243,8 @@ export function useBankSoalPage() {
     setPreviewPassage(null);
     if (q.passage_id) {
       try {
-        const res = await fetch(`/api/passages/${q.passage_id}`);
-        if (res.ok) {
-          const data = await res.json();
-          setPreviewPassage(data.passage);
-        }
+        const data = await api.request<{ passage: Passage }>(`/api/passages/${q.passage_id}`);
+        setPreviewPassage(data.passage);
       } catch (err) {
         console.error(err);
       }
