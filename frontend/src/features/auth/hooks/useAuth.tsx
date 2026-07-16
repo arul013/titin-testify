@@ -1,6 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { UserProfile, LoginRequest } from '../../../types';
 import { api } from '../../../lib/api';
 import { createClient } from '../../../lib/supabase';
@@ -22,7 +23,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const supabase = createClient();
+  // Buat instance Supabase client sekali saja (stabil antar render)
+  const [supabase] = useState(() => createClient());
+
+  const clearAuth = useCallback(() => {
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem('cbt_access_token');
+    localStorage.removeItem('cbt_user');
+  }, []);
 
   // Load initial session
   useEffect(() => {
@@ -40,7 +49,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const profile = await api.get<UserProfile>('/api/auth/me', { token: storedToken });
             setUser(profile);
             localStorage.setItem('cbt_user', JSON.stringify(profile));
-          } catch (e) {
+          } catch {
             // Token might be expired, let's try to get Supabase session
             const { data } = await supabase.auth.getSession();
             if (data.session) {
@@ -66,7 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const profile = await api.get<UserProfile>('/api/auth/me', { token: accessToken });
               setUser(profile);
               localStorage.setItem('cbt_user', JSON.stringify(profile));
-            } catch (err) {
+            } catch {
               clearAuth();
             }
           }
@@ -81,7 +90,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initializeAuth();
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
       if (event === 'SIGNED_IN' && session) {
         setToken(session.access_token);
         localStorage.setItem('cbt_access_token', session.access_token);
@@ -100,14 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
-
-  const clearAuth = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('cbt_access_token');
-    localStorage.removeItem('cbt_user');
-  };
+  }, [clearAuth, supabase]);
 
   const login = async (credentials: LoginRequest): Promise<UserProfile> => {
     try {

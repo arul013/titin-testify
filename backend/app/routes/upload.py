@@ -25,7 +25,7 @@ async def upload_audio(
     Access restricted to Admin & Super Admin.
     """
     # 1. Validate file type
-    if not file.content_type.startswith("audio/"):
+    if not file.content_type or not file.content_type.startswith("audio/"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="File yang diunggah harus berformat audio (mp3, wav, m4a, dsb).",
@@ -45,7 +45,8 @@ async def upload_audio(
         )
 
     # 3. Generate unique filename
-    file_ext = file.filename.split(".")[-1]
+    original_name = file.filename or ""
+    file_ext = original_name.rsplit(".", 1)[-1] if "." in original_name else "mp3"
     unique_filename = f"{uuid.uuid4().hex}.{file_ext}"
     r2_key = f"listening/{unique_filename}"
 
