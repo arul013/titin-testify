@@ -66,7 +66,13 @@ export default function UserManagementPage() {
       <Modal
         open={p.modalOpen}
         onClose={p.closeUserModal}
-        title={p.editingUser ? 'Edit Detail User' : 'Tambah User Baru'}
+        title={
+          p.editingUser
+            ? 'Edit Detail User'
+            : p.isSuperAdmin
+              ? 'Tambah User Baru'
+              : 'Tambah Peserta Baru'
+        }
       >
         <UserForm
           key={`u-${p.editingUser?.id ?? 'new'}-${p.modalOpen}`}

@@ -54,7 +54,7 @@ export const UsersToolbar: React.FC<UsersToolbarProps> = ({
           className="font-bold gap-2 shadow-md"
           leftIcon={<UserPlus className="w-4 h-4" />}
         >
-          Tambah User
+          {isSuperAdmin ? 'Tambah User' : 'Tambah Peserta'}
         </Button>
       </div>
     </div>
