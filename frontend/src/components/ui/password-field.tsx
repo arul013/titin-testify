@@ -20,6 +20,10 @@ interface PasswordFieldProps {
   defaultVisible?: boolean;
   /** Tampilkan tombol generate password acak. */
   showGenerate?: boolean;
+  /** Tampilkan tombol salin (saat ada nilai). */
+  showCopy?: boolean;
+  /** Class tambahan untuk elemen <input> (mis. warna teks di background gelap). */
+  className?: string;
 }
 
 /**
@@ -37,8 +41,15 @@ export const PasswordField: React.FC<PasswordFieldProps> = ({
   error,
   defaultVisible = false,
   showGenerate = true,
+  showCopy = true,
+  className,
 }) => {
   const [visible, setVisible] = useState(defaultVisible);
+
+  // Sesuaikan padding kanan dengan jumlah tombol yang tampil.
+  const trailingCount = (showGenerate ? 1 : 0) + (showCopy && value ? 1 : 0) + 1;
+  const padClass = trailingCount >= 3 ? 'pr-24' : trailingCount === 2 ? 'pr-16' : 'pr-11';
+  const inputClassName = `${padClass} font-mono ${className ?? ''}`.trim();
 
   const handleGenerate = () => {
     onChange(generatePassword());
@@ -66,7 +77,7 @@ export const PasswordField: React.FC<PasswordFieldProps> = ({
       onChange={(e) => onChange(e.target.value)}
       hint={hint}
       error={error}
-      className="pr-24 font-mono"
+      className={inputClassName}
       rightIcon={
         <div className="flex items-center gap-0.5">
           {showGenerate && (
@@ -81,7 +92,7 @@ export const PasswordField: React.FC<PasswordFieldProps> = ({
               <Sparkles className="w-4 h-4" />
             </button>
           )}
-          {value && (
+          {showCopy && value && (
             <button
               type="button"
               onClick={handleCopy}

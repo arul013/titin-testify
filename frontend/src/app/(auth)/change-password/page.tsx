@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../../features/auth/hooks/useAuth";
-import { Input } from "../../../components/ui/input";
+import { PasswordField } from "../../../components/ui/password-field";
 import { Button } from "../../../components/ui/button";
 import { Card } from "../../../components/ui/card";
 import { api } from "../../../lib/api";
@@ -91,11 +91,11 @@ export default function ChangePasswordPage() {
             <label className="block text-sm font-semibold text-white mb-1.5">
               Password Baru <span className="text-red-300">*</span>
             </label>
-            <Input
-              type="password"
+            <PasswordField
               value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
+              onChange={setNewPassword}
               required
+              showCopy={false}
               className="text-gray-800 focus:ring-2 focus:ring-white/55 focus:border-white transition-all duration-200"
             />
           </div>
@@ -104,11 +104,12 @@ export default function ChangePasswordPage() {
             <label className="block text-sm font-semibold text-white mb-1.5">
               Konfirmasi Password Baru <span className="text-red-300">*</span>
             </label>
-            <Input
-              type="password"
+            <PasswordField
               value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
+              onChange={setConfirmPassword}
               required
+              showGenerate={false}
+              showCopy={false}
               className="text-gray-800 focus:ring-2 focus:ring-white/55 focus:border-white transition-all duration-200"
             />
           </div>

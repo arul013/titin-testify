@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "./hooks/useAuth";
 import { Input } from "../../components/ui/input";
+import { PasswordField } from "../../components/ui/password-field";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { motion } from "framer-motion";
@@ -189,11 +190,12 @@ export const LoginForm: React.FC = () => {
               <label className="block text-sm font-semibold text-white mb-1.5">
                 Password <span className="text-red-300">*</span>
               </label>
-              <Input
-                type="password"
+              <PasswordField
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={setPassword}
                 required
+                showGenerate={false}
+                showCopy={false}
                 className="text-gray-800 focus:ring-2 focus:ring-white/55 focus:border-white transition-all duration-200"
               />
             </div>
