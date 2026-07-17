@@ -107,6 +107,11 @@ class GenerateUsersResponse(BaseModel):
 class ChangePasswordRequest(BaseModel):
     """Request body for changing password."""
     new_password: str = Field(..., min_length=6, description="New password")
+    current_password: str | None = Field(
+        default=None,
+        description="Current password — required for voluntary changes (verified). "
+        "May be omitted only during the forced first-time change.",
+    )
 
 
 class ResetPasswordResponse(BaseModel):

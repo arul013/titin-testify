@@ -3,8 +3,10 @@
 import React, { useState } from 'react';
 import { UserProfile, CreateUserRequest, UpdateUserRequest, UserRole } from '../../types';
 import { Input } from '../../components/ui/input';
+import { PasswordField } from '../../components/ui/password-field';
 import { Button } from '../../components/ui/button';
 import { Select } from '../../components/ui/select';
+import { generatePassword } from '../../lib/password';
 import { useAuth } from '../auth/hooks/useAuth';
 
 interface UserFormProps {
@@ -25,12 +27,22 @@ export const UserForm: React.FC<UserFormProps> = ({
 
   // State di-init langsung dari props. Parent memberi `key` unik agar form
   // remount (state fresh) saat user berbeda dibuka — tidak perlu effect sinkronisasi.
+  const initialRole: UserRole = user?.role || 'peserta';
   const [email, setEmail] = useState(user?.email || '');
-  const [password, setPassword] = useState('');
+  // Peserta: password otomatis dibuat. Admin: manual (kosong).
+  const [password, setPassword] = useState(() =>
+    user ? '' : initialRole === 'peserta' ? generatePassword() : ''
+  );
   const [username, setUsername] = useState(user?.username || '');
   const [fullName, setFullName] = useState(user?.full_name || '');
-  const [role, setRole] = useState<UserRole>(user?.role || 'peserta');
+  const [role, setRole] = useState<UserRole>(initialRole);
   const [isActive, setIsActive] = useState(user?.is_active ?? true);
+
+  // Ganti role menyesuaikan default password: peserta auto-generate, admin manual.
+  const handleRoleChange = (newRole: UserRole) => {
+    setRole(newRole);
+    setPassword(newRole === 'peserta' ? generatePassword() : '');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +74,7 @@ export const UserForm: React.FC<UserFormProps> = ({
         <Select
           label="Pilih Role (Langkah 1)"
           value={role}
-          onChange={(e) => setRole(e.target.value as UserRole)}
+          onChange={(e) => handleRoleChange(e.target.value as UserRole)}
           disabled={isLoading}
         >
           <option value="peserta">Peserta</option>
@@ -112,14 +124,19 @@ export const UserForm: React.FC<UserFormProps> = ({
                 disabled={isLoading}
               />
             )}
-            <Input
+            <PasswordField
               label="Password"
-              type="password"
               placeholder="Minimal 6 karakter"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={setPassword}
               required
               disabled={isLoading}
+              defaultVisible={initialRole === 'peserta'}
+              hint={
+                role === 'peserta'
+                  ? 'Password dibuat otomatis untuk peserta — boleh diubah manual.'
+                  : undefined
+              }
             />
           </>
         )}

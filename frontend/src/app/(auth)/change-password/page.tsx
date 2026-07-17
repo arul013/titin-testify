@@ -1,35 +1,35 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '../../../features/auth/hooks/useAuth';
-import { Input } from '../../../components/ui/input';
-import { Button } from '../../../components/ui/button';
-import { Card } from '../../../components/ui/card';
-import { api } from '../../../lib/api';
-import { getErrorMessage } from '../../../lib/errors';
-import { toast } from '../../../components/ui/toast';
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "../../../features/auth/hooks/useAuth";
+import { Input } from "../../../components/ui/input";
+import { Button } from "../../../components/ui/button";
+import { Card } from "../../../components/ui/card";
+import { api } from "../../../lib/api";
+import { getErrorMessage } from "../../../lib/errors";
+import { toast } from "../../../components/ui/toast";
 
 export default function ChangePasswordPage() {
   const router = useRouter();
   const { user, token, refreshUser, logout } = useAuth();
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (newPassword.length < 6) {
-      toast.error('Password Terlalu Pendek', {
-        description: 'Password baru minimal harus terdiri dari 6 karakter.',
+      toast.error("Password Terlalu Pendek", {
+        description: "Password baru minimal harus terdiri dari 6 karakter.",
       });
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      toast.error('Konfirmasi Salah', {
-        description: 'Password baru dan konfirmasi password tidak cocok.',
+      toast.error("Konfirmasi Salah", {
+        description: "Password baru dan konfirmasi password tidak cocok.",
       });
       return;
     }
@@ -38,27 +38,30 @@ export default function ChangePasswordPage() {
     try {
       // Call endpoint change-password
       await api.post(
-        '/api/auth/change-password',
+        "/api/auth/change-password",
         { new_password: newPassword },
-        { token: token || undefined }
+        { token: token || undefined },
       );
 
-      toast.success('Password Berhasil Diubah', {
-        description: 'Sesi Anda telah diperbarui dengan password baru.',
+      toast.success("Password Berhasil Diubah", {
+        description: "Sesi Anda telah diperbarui dengan password baru.",
       });
 
       // Refresh cache profile and redirect
       await refreshUser();
-      
+
       // Redirect based on role
-      if (user?.role === 'peserta') {
-        router.push('/ujian');
+      if (user?.role === "peserta") {
+        router.push("/ujian");
       } else {
-        router.push('/dashboard');
+        router.push("/dashboard");
       }
     } catch (err) {
-      toast.error('Gagal Mengubah Password', {
-        description: getErrorMessage(err, 'Terjadi kesalahan saat menyimpan password baru.'),
+      toast.error("Gagal Mengubah Password", {
+        description: getErrorMessage(
+          err,
+          "Terjadi kesalahan saat menyimpan password baru.",
+        ),
       });
     } finally {
       setIsLoading(false);
@@ -67,12 +70,18 @@ export default function ChangePasswordPage() {
 
   return (
     <div className="flex flex-col items-center w-full">
-      <Card className="w-full bg-gradient-to-br from-brand-start to-brand-end border-none shadow-2xl shadow-indigo-600/35 text-white p-8 md:p-10 rounded-3xl" variant="default">
+      <Card
+        className="w-full bg-linear-to-br from-brand-start to-brand-end border-none shadow-2xl shadow-indigo-600/35 text-white p-8 md:p-10 rounded-3xl"
+        variant="default"
+      >
         {/* Title */}
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-extrabold text-white font-heading">Ubah Password</h1>
+          <h1 className="text-2xl font-extrabold text-white font-heading">
+            Ubah Password
+          </h1>
           <p className="text-sm text-indigo-100/80 mt-1.5">
-            Anda wajib mengubah password bawaan sebelum dapat melanjutkan ke sistem.
+            Anda wajib mengubah password bawaan sebelum dapat melanjutkan ke
+            sistem.
           </p>
         </div>
 
@@ -114,7 +123,7 @@ export default function ChangePasswordPage() {
             >
               Simpan Password
             </Button>
-            
+
             <button
               type="button"
               onClick={() => logout()}

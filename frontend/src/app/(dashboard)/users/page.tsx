@@ -1,14 +1,14 @@
 'use client';
 
-import { KeyRound, Trash2, Users, AlertTriangle } from 'lucide-react';
+import { KeyRound, Trash2, AlertTriangle } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
-import { Tabs } from '@/components/ui/tabs';
 import { Pagination } from '@/components/ui/pagination';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useUsersPage } from '@/features/users/hooks/useUsersPage';
 import { UsersHeader } from '@/features/users/UsersHeader';
+import { UsersToolbar } from '@/features/users/UsersToolbar';
 import { UserTable } from '@/features/users/UserTable';
 import { UserForm } from '@/features/users/UserForm';
 import { GenerateUsersModal } from '@/features/users/GenerateUsersModal';
@@ -19,21 +19,15 @@ export default function UserManagementPage() {
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
-      <UsersHeader onGenerate={p.generate.onOpen} onAdd={p.openAdd} />
+      <UsersHeader />
 
-      {/* Tab filter khusus Super Admin */}
-      {p.isSuperAdmin && (
-        <div className="flex justify-start">
-          <Tabs
-            value={p.activeTab}
-            onChange={p.onTabChange}
-            tabs={[
-              { id: 'peserta', label: 'Peserta Ujian', icon: <Users className="w-4 h-4" /> },
-              { id: 'admin', label: 'Administrator', icon: <Users className="w-4 h-4" /> },
-            ]}
-          />
-        </div>
-      )}
+      <UsersToolbar
+        isSuperAdmin={p.isSuperAdmin}
+        activeTab={p.activeTab}
+        onTabChange={p.onTabChange}
+        onGenerate={p.generate.onOpen}
+        onAdd={p.openAdd}
+      />
 
       {/* Search + total */}
       <Card className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">

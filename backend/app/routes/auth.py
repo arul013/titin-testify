@@ -58,7 +58,25 @@ async def change_password(
     request: ChangePasswordRequest,
     current_user: UserProfile = Depends(get_current_user),
 ):
-    """Change the password for the current logged-in user."""
-    await AuthService.change_password(current_user.id, request.new_password)
+    """Change the password for the current logged-in user.
+
+    Voluntary changes require the current password (verified). During the
+    forced first-time change (``force_change_password`` = True) it may be omitted.
+    """
+    if current_user.force_change_password:
+        # Forced first-time change: no current password needed.
+        await AuthService.change_password(current_user.id, request.new_password)
+    else:
+        # Voluntary change: verify the current password first.
+        if not request.current_password:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password lama wajib diisi.",
+            )
+        await AuthService.change_password(
+            current_user.id,
+            request.new_password,
+            current_password=request.current_password,
+        )
     return MessageResponse(message="Password berhasil diubah", success=True)
 

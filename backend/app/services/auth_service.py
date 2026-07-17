@@ -181,10 +181,38 @@ class AuthService:
             pass
 
     @staticmethod
-    async def change_password(user_id: str, new_password: str) -> None:
-        """Change the password for the current user and reset force_change_password flag."""
+    async def change_password(
+        user_id: str,
+        new_password: str,
+        current_password: str | None = None,
+    ) -> None:
+        """Change the password for the current user and reset force_change_password flag.
+
+        If ``current_password`` is provided, it is verified first (voluntary change).
+        """
         supabase = get_supabase_admin()
-        
+
+        # 0. Verify current password (voluntary change) via a sign-in attempt.
+        if current_password is not None:
+            try:
+                user_res = supabase.auth.admin.get_user_by_id(user_id)
+                user = user_res.user if hasattr(user_res, "user") else user_res
+                email = user.email
+            except Exception:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Gagal memverifikasi pengguna.",
+                )
+            try:
+                get_supabase_client().auth.sign_in_with_password(
+                    {"email": email, "password": current_password}
+                )
+            except AuthApiError:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Password lama yang Anda masukkan salah.",
+                )
+
         # 1. Update password in Supabase Auth
         try:
             supabase.auth.admin.update_user_by_id(
