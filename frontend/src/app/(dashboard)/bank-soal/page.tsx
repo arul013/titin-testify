@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Pagination } from '@/components/ui/pagination';
 import { useBankSoalPage } from '@/features/questions/hooks/useBankSoalPage';
 import { BankSoalHeader } from '@/features/questions/BankSoalHeader';
+import { BankSoalToolbar } from '@/features/questions/BankSoalToolbar';
 import { BankSoalStats } from '@/features/questions/BankSoalStats';
 import { BankSoalFilters } from '@/features/questions/BankSoalFilters';
 import { PassageTable } from '@/features/questions/PassageTable';
@@ -18,7 +19,12 @@ export default function BankSoalPage() {
 
   return (
     <div className="flex flex-col gap-6 py-2">
-      <BankSoalHeader onAddPassage={bank.openCreatePassage} onAddQuestion={bank.openCreateQuestion} />
+      <BankSoalHeader />
+
+      <BankSoalToolbar
+        onAddPassage={bank.openCreatePassage}
+        onAddQuestion={bank.openCreateQuestion}
+      />
 
       <BankSoalStats stats={bank.stats} />
 
