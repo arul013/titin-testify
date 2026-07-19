@@ -105,7 +105,7 @@ export const QuestionForm: React.FC<QuestionFormProps> = ({
 
   return (
     <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Soal' : 'Tambah Soal Baru'} size="lg">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5 max-h-[70vh] overflow-y-auto pr-1">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         {/* Section, Difficulty, Status row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>

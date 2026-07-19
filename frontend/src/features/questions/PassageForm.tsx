@@ -107,7 +107,7 @@ export const PassageForm: React.FC<PassageFormProps> = ({
 
   return (
     <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Passage Induk' : 'Tambah Passage Induk Baru'} size="lg">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5 max-h-[70vh] overflow-y-auto pr-1">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         {/* Type & Status */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
