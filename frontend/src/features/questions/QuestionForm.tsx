@@ -7,6 +7,7 @@ import { Input, Textarea } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ToggleGroup } from '@/components/ui/toggle-group';
+import { UnderlineEditor } from './UnderlineEditor';
 import { X, Plus, Check, BookOpen, HelpCircle } from 'lucide-react';
 import type { Question } from './hooks/useQuestions';
 
@@ -143,15 +144,32 @@ export const QuestionForm: React.FC<QuestionFormProps> = ({
         <div>
           <label className="block text-xs font-bold text-slate-600 mb-1.5">
             <HelpCircle className="w-3.5 h-3.5 inline mr-1" />
-            Pertanyaan
+            {section === 'written_expression' ? 'Kalimat Soal' : 'Pertanyaan'}
           </label>
-          <Textarea
-            rows={3}
-            value={questionText}
-            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setQuestionText(e.target.value)}
-            placeholder="Tulis pertanyaan di sini..."
-            required
-          />
+          {section === 'written_expression' ? (
+            <>
+              <UnderlineEditor
+                variant="labeled"
+                value={questionText}
+                onChange={setQuestionText}
+                rows={4}
+                required
+                placeholder="Tulis kalimat, lalu blok kata dan klik Tandai A/B/C/D. Contoh: She have lived in Jakarta since five years and likes it."
+              />
+              <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
+                Blok kata pada kalimat, lalu klik <strong>Tandai A/B/C/D</strong> untuk memberi garis
+                bawah berlabel — sesuai format Written Expression.
+              </p>
+            </>
+          ) : (
+            <Textarea
+              rows={3}
+              value={questionText}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setQuestionText(e.target.value)}
+              placeholder="Tulis pertanyaan di sini..."
+              required
+            />
+          )}
         </div>
 
         {/* Options A-D */}

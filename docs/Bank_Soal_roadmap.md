@@ -97,13 +97,19 @@ Catatan verifikasi P1: `tsc --noEmit` bersih untuk `features/questions`; diagnos
 
 Catatan verifikasi P2: `npm run build` (compile + TypeScript) **sukses**, `eslint` bersih, diagnostics IDE nol untuk file yang diubah.
 
-### P3 — Fase lanjutan (effort besar)
-- [ ] Editor visual untuk Written Expression (mengganti sintaks `__kata__` / `[word]{A}` dengan tombol "garis bawahi kata terpilih").
-- [ ] (Opsional) Migrasi `QuestionTable`/`PassageTable` ke `DataTable`.
+### P3 — Fase lanjutan (effort besar) — editor SELESAI (2026-07-23)
+- [x] Editor visual untuk Written Expression (mengganti sintaks `__kata__` / `[word]{A}` dengan tombol "garis bawahi kata terpilih").
+  - Komponen baru **`UnderlineEditor.tsx`**: textarea + toolbar (blok teks → klik tombol menyisipkan markup) + **live preview**. Varian `labeled` (tombol A/B/C/D → `[kata]{X}`, dipakai di soal WE `QuestionForm`) & `plain` (tombol Garis bawahi → `__kata__`, dipakai di materi WE `PassageForm`).
+  - Perender bersama baru **`examText.tsx`** (`renderExamText`) yang mengerti KEDUA format. `QuestionPreview` sekarang memakainya (fungsi lokal `renderTextWithUnderlines` dibuang).
+  - **Perbaikan bug lama:** dulu `PassageForm` menyuruh `__kata__` tapi `QuestionPreview` merender materi WE dengan parser `[kata]{A}` saja → `__kata__` tak muncul bergaris bawah. Perender bersama kini menangani keduanya, jadi konsisten.
+- [~] (Opsional) Migrasi `QuestionTable`/`PassageTable` ke `DataTable` — **DITUTUP, sengaja tidak dikerjakan (2026-07-23).**
+  - **Alasan:** `DataTable` hanya menambah keseragaman visual + sort-by-kolom; tidak menambah skalabilitas nyata (tak ada virtualization/server-pagination — pagination Bank Soal sudah ditangani `useQuestions` + `Pagination`). Tabel bespoke sekarang sudah jalan, role-aware, dan selnya kaya (badge/tag/aksi). Menukarnya = risiko regresi demi manfaat tipis (prinsip YAGNI).
+  - **Catatan arsitektur (untuk Exam Builder / Phase 3):** momen tepat berinvestasi ke "tabel/daftar soal bersama" adalah saat membangun **question picker** di Exam Builder (butuh **seleksi baris** yang `DataTable` belum punya). Saat itu: **pakai ulang `useQuestions`** sebagai sumber (jangan fetch baru), filter wajib `status='published'` (Tayang) + `section`. Detail lengkap ada di **`docs/Exam_Builder_plan.md`**.
 
 ## 7. Pertanyaan terbuka / keputusan menunggu
-- Perilaku sebenarnya "Tayang": apakah langsung dipakai di ujian aktif? (menentukan micro-copy).
+- Perilaku sebenarnya "Tayang": apakah langsung dipakai di ujian aktif? (menentukan micro-copy). — halaman `/ujian` masih **mock** (belum merender soal), jadi format WE baru dipakai di `QuestionPreview` saja.
 - Apakah field URL audio manual masih diperlukan sama sekali (untuk admin teknis), atau dibuang total?
+- ~~Opsi migrasi `DataTable`~~ → **DITUTUP** (lihat P3). Investasi tabel-bersama dipindah ke Exam Builder (question picker dengan seleksi).
 
 ## 8. Catatan
 - **Aturan repo:** jangan pernah `git commit`/`git push` — itu hak pemilik. Perubahan ditinggalkan di working tree saja.

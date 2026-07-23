@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { FileUploader } from '@/components/ui/file-uploader';
-import { Music, FileText, AlertCircle, ChevronDown } from 'lucide-react';
+import { UnderlineEditor } from './UnderlineEditor';
+import { Music, FileText, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { getErrorMessage } from '@/lib/errors';
 import type { Passage } from './hooks/useQuestions';
@@ -196,25 +197,29 @@ export const PassageForm: React.FC<PassageFormProps> = ({
             <FileText className="w-3.5 h-3.5 text-slate-500" />
             {type === 'listening' ? 'Teks Transkrip / Catatan Pembantu (Opsional)' : 'Teks Bacaan'}
           </label>
-          <Textarea
-            rows={10}
-            value={content}
-            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setContent(e.target.value)}
-            placeholder={
-              type === 'written_expression'
-                ? "Tulis kalimat di sini. Gunakan format __kata__ untuk menandai kata yang digarisbawahi. Contoh:\nShe __have__ (A) lived in Jakarta __since__ (B) five years __and__ (C) likes __it__ (D)."
-                : "Tulis teks bacaan di sini..."
-            }
-            required={type !== 'listening'}
-          />
-          {type === 'written_expression' && (
-            <div className="mt-2 p-3 bg-amber-50 border border-amber-100 rounded-xl text-[11px] text-amber-800 leading-relaxed flex gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
-              <div>
-                <strong>Format Penulisan:</strong> Gunakan dobel underscore sebelum dan sesudah kata untuk merender garis bawah. 
-                Sistem akan memformatnya otomatis menjadi <span className="underline font-bold">seperti ini</span> untuk kenyamanan peserta ujian.
-              </div>
-            </div>
+          {type === 'written_expression' ? (
+            <>
+              <UnderlineEditor
+                variant="plain"
+                value={content}
+                onChange={setContent}
+                rows={6}
+                required
+                placeholder="Tulis kalimat, lalu blok kata dan klik Garis bawahi untuk menandai bagian yang digarisbawahi."
+              />
+              <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
+                Blok kata pada teks, lalu klik <strong>Garis bawahi</strong> untuk menandai bagian yang
+                akan tampil bergaris bawah bagi peserta.
+              </p>
+            </>
+          ) : (
+            <Textarea
+              rows={10}
+              value={content}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setContent(e.target.value)}
+              placeholder="Tulis teks bacaan di sini..."
+              required={type !== 'listening'}
+            />
           )}
         </div>
 

@@ -11,6 +11,7 @@ import {
   AlertCircle,
   BookOpen,
 } from "lucide-react";
+import { renderExamText } from "./examText";
 import type { Question, Passage } from "./hooks/useQuestions";
 
 interface QuestionPreviewProps {
@@ -27,36 +28,6 @@ export const QuestionPreview: React.FC<QuestionPreviewProps> = ({
   passage,
 }) => {
   if (!question) return null;
-
-  // Formatting helper for Written Expression (ETS format)
-  const renderTextWithUnderlines = (text: string) => {
-    if (!text) return "";
-
-    // Split by matching "[word]{option}" pattern
-    const parts = text.split(/(\[[^\]]+\]\{[A-Da-d]\})/g);
-
-    return parts.map((part, i) => {
-      const match = part.match(/^\[([^\]]+)\]\{([A-Da-d])\}$/);
-      if (match) {
-        const word = match[1];
-        const option = match[2].toUpperCase();
-        return (
-          <span
-            key={i}
-            className="inline-flex flex-col items-center mx-1 align-top"
-          >
-            <span className="underline decoration-2 decoration-indigo-600/70 font-semibold text-slate-800">
-              {word}
-            </span>
-            <span className="text-[10px] font-extrabold text-indigo-600 select-none leading-none mt-1">
-              {option}
-            </span>
-          </span>
-        );
-      }
-      return part;
-    });
-  };
 
   const difficultyLabel: Record<string, string> = {
     easy: "Mudah",
@@ -148,7 +119,7 @@ export const QuestionPreview: React.FC<QuestionPreviewProps> = ({
                 {passage.content && (
                   <div className="text-slate-700 text-sm leading-loose whitespace-pre-wrap font-sans flex-1 overflow-y-auto max-h-75 bg-white border border-slate-200/50 p-4 rounded-xl shadow-sm">
                     {passage.type === "written_expression"
-                      ? renderTextWithUnderlines(passage.content)
+                      ? renderExamText(passage.content)
                       : passage.content}
                   </div>
                 )}
@@ -170,7 +141,7 @@ export const QuestionPreview: React.FC<QuestionPreviewProps> = ({
             {/* Question Text */}
             <div className="font-extrabold text-slate-800 text-md leading-relaxed">
               {question.section === "written_expression"
-                ? renderTextWithUnderlines(question.question_text)
+                ? renderExamText(question.question_text)
                 : question.question_text}
             </div>
 
@@ -203,7 +174,7 @@ export const QuestionPreview: React.FC<QuestionPreviewProps> = ({
                     </span>
                     <span className="flex-1 leading-normal">
                       {question.section === "written_expression"
-                        ? renderTextWithUnderlines(opt.val)
+                        ? renderExamText(opt.val)
                         : opt.val}
                     </span>
                     {isCorrect && (
