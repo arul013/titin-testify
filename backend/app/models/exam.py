@@ -134,3 +134,23 @@ class ExamListResponse(BaseModel):
 class ExamMessageResponse(BaseModel):
     message: str
     success: bool = True
+
+
+# ─── Pool preview (ketersediaan stok soal per section) ───────────
+
+class PoolPreviewRequest(BaseModel):
+    """Cek ketersediaan stok soal untuk komposisi + pool tertentu (stateless)."""
+    sections: list[ExamSectionInput] = Field(default_factory=list)
+    pool_units: list[ExamPoolUnitInput] = Field(default_factory=list)
+
+
+class SectionAvailability(BaseModel):
+    section: QuestionSection
+    target_count: int
+    available_units: int
+    available_questions: int
+    enough: bool
+
+
+class PoolPreviewResponse(BaseModel):
+    sections: list[SectionAvailability]

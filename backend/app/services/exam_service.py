@@ -2,6 +2,7 @@
 Learning Nexus CBT — Exam Builder Service (Manajemen Ujian)
 """
 
+from datetime import datetime, timezone, timedelta
 from fastapi import HTTPException, status
 from postgrest.types import CountMethod
 from app.database import get_supabase_admin
@@ -14,7 +15,17 @@ from app.models.exam import (
     ExamSectionResponse,
     ExamParticipantResponse,
     ExamPoolUnitResponse,
+    SectionAvailability,
+    PoolPreviewResponse,
+    PoolPreviewRequest,
 )
+
+SECTION_LABELS = {
+    "listening": "Listening",
+    "structure": "Structure",
+    "written_expression": "Written Expression",
+    "reading": "Reading",
+}
 
 
 class ExamService:
@@ -269,6 +280,143 @@ class ExamService:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Paket ujian tidak ditemukan.")
         ExamService._assert_owner(existing.data["created_by"], user_id, user_role)
         supabase.table("exams").delete().eq("id", exam_id).execute()
+
+    # ─── Ketersediaan stok & publish ──────────────────────────
+
+    @staticmethod
+    def _resolve_pool_by_section(supabase, pool_units) -> dict:
+        """Kelompokkan pool unit per section (resolve section dari passage/question)."""
+        passage_ids = [u.passage_id for u in pool_units if u.passage_id]
+        question_ids = [u.question_id for u in pool_units if u.question_id]
+        ptype, qsec = {}, {}
+        if passage_ids:
+            r = supabase.table("question_passages").select("id, type").in_("id", passage_ids).execute()
+            ptype = {x["id"]: x["type"] for x in (r.data or [])}
+        if question_ids:
+            r = supabase.table("questions").select("id, section").in_("id", question_ids).execute()
+            qsec = {x["id"]: x["section"] for x in (r.data or [])}
+        grouped: dict = {}
+        for u in pool_units:
+            if u.passage_id and u.passage_id in ptype:
+                grouped.setdefault(ptype[u.passage_id], {"passages": [], "questions": []})["passages"].append(u.passage_id)
+            elif u.question_id and u.question_id in qsec:
+                grouped.setdefault(qsec[u.question_id], {"passages": [], "questions": []})["questions"].append(u.question_id)
+        return grouped
+
+    @staticmethod
+    def _availability(supabase, user_id: str, user_role: str, sections, pool_units) -> list[SectionAvailability]:
+        """Hitung stok soal Tayang per section (menghormati pool & kepemilikan)."""
+        grouped = ExamService._resolve_pool_by_section(supabase, pool_units)
+
+        def owned(q):
+            return q if user_role == "super_admin" else q.eq("created_by", user_id)
+
+        result = []
+        for s in sections:
+            sec = s.section.value if hasattr(s.section, "value") else s.section
+            target = s.target_count
+            g = grouped.get(sec)
+
+            if g and (g["passages"] or g["questions"]):
+                avail_q = 0
+                if g["passages"]:
+                    avail_q += owned(
+                        supabase.table("questions").select("id", count=CountMethod.exact)
+                        .in_("passage_id", g["passages"]).eq("status", "published")
+                    ).execute().count or 0
+                if g["questions"]:
+                    avail_q += owned(
+                        supabase.table("questions").select("id", count=CountMethod.exact)
+                        .in_("id", g["questions"]).eq("status", "published")
+                    ).execute().count or 0
+                avail_u = len(g["passages"]) + len(g["questions"])
+            else:
+                avail_q = owned(
+                    supabase.table("questions").select("id", count=CountMethod.exact)
+                    .eq("section", sec).eq("status", "published")
+                ).execute().count or 0
+                passages_u = owned(
+                    supabase.table("question_passages").select("id", count=CountMethod.exact)
+                    .eq("type", sec).eq("status", "published")
+                ).execute().count or 0
+                standalone_u = owned(
+                    supabase.table("questions").select("id", count=CountMethod.exact)
+                    .eq("section", sec).eq("status", "published").is_("passage_id", "null")
+                ).execute().count or 0
+                avail_u = passages_u + standalone_u
+
+            result.append(SectionAvailability(
+                section=sec,
+                target_count=target,
+                available_units=avail_u,
+                available_questions=avail_q,
+                enough=avail_q >= target,
+            ))
+        return result
+
+    @staticmethod
+    async def pool_preview(request: PoolPreviewRequest, user_id: str, user_role: str) -> PoolPreviewResponse:
+        supabase = get_supabase_admin()
+        return PoolPreviewResponse(
+            sections=ExamService._availability(supabase, user_id, user_role, request.sections, request.pool_units)
+        )
+
+    @staticmethod
+    async def publish_exam(exam_id: str, user_id: str, user_role: str) -> ExamDetailResponse:
+        """Validasi lengkap lalu set status 'published'."""
+        supabase = get_supabase_admin()
+        detail = await ExamService.get_exam(exam_id, user_id, user_role)  # + cek kepemilikan
+
+        active = [s for s in detail.sections if s.target_count > 0]
+        if not active:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                                "Tambahkan minimal satu bagian dengan jumlah soal sebelum menayangkan.")
+
+        if not detail.participants:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                                "Tambahkan minimal satu peserta sebelum menayangkan.")
+
+        # Stok soal Tayang
+        avail = ExamService._availability(supabase, user_id, user_role, active, detail.pool_units)
+        short = [a for a in avail if not a.enough]
+        if short:
+            msgs = [
+                f"{SECTION_LABELS.get(a.section.value, a.section.value)} (butuh {a.target_count}, tersedia {a.available_questions})"
+                for a in short
+            ]
+            raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                                "Stok soal Tayang belum cukup: " + "; ".join(msgs) + ".")
+
+        # Jadwal + safety net 5 menit (bila dijadwalkan)
+        if detail.starts_at:
+            now = datetime.now(timezone.utc)
+            starts = detail.starts_at
+            if starts.tzinfo is None:
+                starts = starts.replace(tzinfo=timezone.utc)
+            if detail.ends_at:
+                ends = detail.ends_at
+                if ends.tzinfo is None:
+                    ends = ends.replace(tzinfo=timezone.utc)
+                if ends <= starts:
+                    raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                                        "Jadwal selesai harus setelah waktu mulai.")
+            if starts < now - timedelta(minutes=5):
+                raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                                    "Waktu mulai sudah lewat lebih dari 5 menit. Perbarui jadwal atau matikan penjadwalan.")
+
+        supabase.table("exams").update({"status": "published"}).eq("id", exam_id).execute()
+        return await ExamService.get_exam(exam_id, user_id, user_role)
+
+    @staticmethod
+    async def unpublish_exam(exam_id: str, user_id: str, user_role: str) -> ExamDetailResponse:
+        """Kembalikan paket ujian ke status 'draft'."""
+        supabase = get_supabase_admin()
+        existing = supabase.table("exams").select("created_by").eq("id", exam_id).single().execute()
+        if not existing.data:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Paket ujian tidak ditemukan.")
+        ExamService._assert_owner(existing.data["created_by"], user_id, user_role)
+        supabase.table("exams").update({"status": "draft"}).eq("id", exam_id).execute()
+        return await ExamService.get_exam(exam_id, user_id, user_role)
 
     # ─── Response builders ────────────────────────────────────
 

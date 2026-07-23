@@ -31,7 +31,18 @@ export default function ManajemenUjianPage() {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const { exams, total, isLoading, getExam, createExam, updateExam, deleteExam } = useExams({
+  const {
+    exams,
+    total,
+    isLoading,
+    getExam,
+    createExam,
+    updateExam,
+    deleteExam,
+    poolPreview,
+    publishExam,
+    unpublishExam,
+  } = useExams({
     search: debouncedSearch,
     page,
     perPage: PER_PAGE,
@@ -62,7 +73,7 @@ export default function ManajemenUjianPage() {
     }
   };
 
-  const handleSubmit = async (payload: Record<string, unknown>) => {
+  const handleSaveDraft = async (payload: Record<string, unknown>) => {
     try {
       if (editingDetail) {
         await updateExam(editingDetail.id, payload);
@@ -75,6 +86,34 @@ export default function ManajemenUjianPage() {
       setEditingDetail(null);
     } catch (err) {
       toast.error(getErrorMessage(err, 'Gagal menyimpan paket ujian.'));
+    }
+  };
+
+  const handlePublish = async (payload: Record<string, unknown>) => {
+    try {
+      let id: string;
+      if (editingDetail) {
+        await updateExam(editingDetail.id, payload);
+        id = editingDetail.id;
+      } else {
+        const created = await createExam(payload);
+        id = created.id;
+      }
+      await publishExam(id);
+      toast.success('Ujian berhasil ditayangkan.');
+      setMode('list');
+      setEditingDetail(null);
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Gagal menayangkan ujian.'));
+    }
+  };
+
+  const handleUnpublish = async (id: string) => {
+    try {
+      await unpublishExam(id);
+      toast.success('Ujian dikembalikan ke draf.');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Gagal mengubah status ujian.'));
     }
   };
 
@@ -119,7 +158,9 @@ export default function ManajemenUjianPage() {
             setMode('list');
             setEditingDetail(null);
           }}
-          onSubmit={handleSubmit}
+          onSaveDraft={handleSaveDraft}
+          onPublish={handlePublish}
+          fetchPreview={poolPreview}
         />
       ) : (
         <>
@@ -140,6 +181,7 @@ export default function ManajemenUjianPage() {
               currentUserRole={user?.role}
               onEdit={(exam) => openEdit(exam.id)}
               onDelete={(id) => setPendingDeleteId(id)}
+              onUnpublish={handleUnpublish}
             />
 
             <Pagination

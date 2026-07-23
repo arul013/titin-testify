@@ -8,16 +8,26 @@ from fastapi import APIRouter, Depends, Query
 from app.models.exam import (
     CreateExamRequest,
     UpdateExamRequest,
-    ExamResponse,
     ExamDetailResponse,
     ExamListResponse,
     ExamMessageResponse,
+    PoolPreviewRequest,
+    PoolPreviewResponse,
 )
 from app.models.user import UserProfile
 from app.services.exam_service import ExamService
 from app.dependencies import require_admin
 
 router = APIRouter(tags=["Exam Builder"])
+
+
+@router.post("/api/exams/pool-preview", response_model=PoolPreviewResponse)
+async def pool_preview(
+    request: PoolPreviewRequest,
+    current_user: UserProfile = Depends(require_admin),
+):
+    """Cek ketersediaan stok soal Tayang untuk komposisi + pool tertentu (stateless)."""
+    return await ExamService.pool_preview(request, current_user.id, current_user.role.value)
 
 
 @router.get("/api/exams", response_model=ExamListResponse)
@@ -75,3 +85,21 @@ async def delete_exam(
     """Hapus paket ujian beserta komposisi & peserta (owner atau super_admin)."""
     await ExamService.delete_exam(exam_id, current_user.id, current_user.role.value)
     return ExamMessageResponse(message="Paket ujian berhasil dihapus.")
+
+
+@router.post("/api/exams/{exam_id}/publish", response_model=ExamDetailResponse)
+async def publish_exam(
+    exam_id: str,
+    current_user: UserProfile = Depends(require_admin),
+):
+    """Tayangkan paket ujian (validasi stok/jadwal/peserta + safety net 5 menit)."""
+    return await ExamService.publish_exam(exam_id, current_user.id, current_user.role.value)
+
+
+@router.post("/api/exams/{exam_id}/unpublish", response_model=ExamDetailResponse)
+async def unpublish_exam(
+    exam_id: str,
+    current_user: UserProfile = Depends(require_admin),
+):
+    """Kembalikan paket ujian ke status Draf."""
+    return await ExamService.unpublish_exam(exam_id, current_user.id, current_user.role.value)

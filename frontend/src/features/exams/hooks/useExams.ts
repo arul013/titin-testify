@@ -73,6 +73,23 @@ interface ExamListResponse {
   per_page: number;
 }
 
+export interface SectionAvailability {
+  section: ExamSectionId;
+  target_count: number;
+  available_units: number;
+  available_questions: number;
+  enough: boolean;
+}
+
+export interface PoolPreviewResponse {
+  sections: SectionAvailability[];
+}
+
+export interface PoolPreviewPayload {
+  sections: { section: ExamSectionId; target_count: number }[];
+  pool_units: ExamPoolUnit[];
+}
+
 // ─── Hook ────────────────────────────────────────────────────
 
 export function useExams(filters?: {
@@ -146,5 +163,35 @@ export function useExams(filters?: {
     refetch();
   };
 
-  return { exams, total, isLoading, refetch, getExam, createExam, updateExam, deleteExam };
+  const poolPreview = (payload: PoolPreviewPayload) =>
+    api.request<PoolPreviewResponse>('/api/exams/pool-preview', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
+  const publishExam = async (id: string) => {
+    const res = await api.request<ExamDetail>(`/api/exams/${id}/publish`, { method: 'POST' });
+    refetch();
+    return res;
+  };
+
+  const unpublishExam = async (id: string) => {
+    const res = await api.request<ExamDetail>(`/api/exams/${id}/unpublish`, { method: 'POST' });
+    refetch();
+    return res;
+  };
+
+  return {
+    exams,
+    total,
+    isLoading,
+    refetch,
+    getExam,
+    createExam,
+    updateExam,
+    deleteExam,
+    poolPreview,
+    publishExam,
+    unpublishExam,
+  };
 }

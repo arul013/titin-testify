@@ -196,7 +196,10 @@ Validasi penting saat Tayang: stok bank **Tayang** cukup untuk memenuhi target t
   - Reuse `usePassages` + `useQuestions` (filter `status='published'` + section; standalone = `passage_id === null`) + `QuestionPreview` (tombol mata pada soal tunggal). `pool_units` disimpan lewat payload create/update.
   - **Verifikasi:** build sukses, diagnostics nol. Belum diuji live.
   - Catatan: daftar unit dibatasi `per_page=100` per section (cukup untuk umumnya; pagination picker bisa ditambah nanti bila bank besar).
-- **E3 — Validasi & Tayangkan:** pool-preview berbasis unit, cek stok/jadwal/peserta, publish, daftar paket + status Draf/Tayang.
+- **E3 — Validasi & Tayangkan** ✅ **SELESAI — 2026-07-23.**
+  - Backend: `POST /api/exams/pool-preview` (stok per section berbasis unit, stateless), `POST /api/exams/{id}/publish` (validasi: ≥1 section target>0, ≥1 peserta, stok cukup tiap section, jadwal valid, **safety net starts_at ≥ now−5menit** bila dijadwalkan → set `published`), `POST /api/exams/{id}/unpublish` (→ draft). Helper `_availability`/`_resolve_pool_by_section` di service.
+  - Frontend: langkah **Review** (`steps/StepReview.tsx`) — ringkasan + cek ketersediaan stok per section (butuh vs tersedia, ✓/⚠) + banner kesiapan; tombol **Tayangkan** di footer wizard; aksi **Jadikan Draf** (unpublish) di `ExamTable` untuk ujian Tayang. `useExams` + `poolPreview`/`publishExam`/`unpublishExam`. Alur Tayangkan = simpan (create/update) → publish by id (validasi keras di server).
+  - **Verifikasi:** backend import OK + diagnostics nol; frontend build sukses + diagnostics nol. **Belum diuji live.**
 - **E4 — Handoff ke Exam Engine (Phase 4):** kontrak data sesi + **snapshot per peserta menjaga grouping materi**; enforcement whitelist di `/ujian`.
 
 ## 11. Catatan

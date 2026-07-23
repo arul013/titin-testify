@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Edit2, Trash2, Clock, Users, CalendarClock, ClipboardList } from 'lucide-react';
+import { Edit2, Trash2, Clock, Users, CalendarClock, ClipboardList, Undo2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -14,6 +14,7 @@ interface ExamTableProps {
   currentUserRole?: string;
   onEdit: (exam: Exam) => void;
   onDelete: (id: string) => void;
+  onUnpublish: (id: string) => void;
 }
 
 function formatSchedule(starts: string | null, ends: string | null): string {
@@ -38,6 +39,7 @@ export const ExamTable: React.FC<ExamTableProps> = ({
   currentUserRole,
   onEdit,
   onDelete,
+  onUnpublish,
 }) => {
   const isSuperAdmin = currentUserRole === 'super_admin';
 
@@ -124,6 +126,15 @@ export const ExamTable: React.FC<ExamTableProps> = ({
               )}
               <td className="py-4 px-6 whitespace-nowrap text-right">
                 <div className="flex items-center justify-end gap-2.5">
+                  {exam.status === 'published' && (
+                    <button
+                      onClick={() => onUnpublish(exam.id)}
+                      title="Jadikan Draf"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50/40 transition-colors"
+                    >
+                      <Undo2 className="w-4 h-4" />
+                    </button>
+                  )}
                   <Button
                     variant="secondary"
                     size="sm"

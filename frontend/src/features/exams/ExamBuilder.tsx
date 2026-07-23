@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Rocket } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { WorkflowStepper, type WorkflowStep } from '@/components/ui/WorkflowStepper';
@@ -10,20 +10,25 @@ import { StepDetail } from './steps/StepDetail';
 import { StepComposition } from './steps/StepComposition';
 import { StepSource } from './steps/StepSource';
 import { StepParticipants } from './steps/StepParticipants';
+import { StepReview } from './steps/StepReview';
 import {
   ALL_SECTIONS,
   type ExamDetail,
   type ExamPoolUnit,
   type ExamSectionId,
+  type PoolPreviewPayload,
+  type PoolPreviewResponse,
 } from './hooks/useExams';
 
 interface ExamBuilderProps {
   initial: ExamDetail | null;
   onCancel: () => void;
-  onSubmit: (payload: Record<string, unknown>) => Promise<void>;
+  onSaveDraft: (payload: Record<string, unknown>) => Promise<void>;
+  onPublish: (payload: Record<string, unknown>) => Promise<void>;
+  fetchPreview: (payload: PoolPreviewPayload) => Promise<PoolPreviewResponse>;
 }
 
-const STEP_LABELS = ['Detail', 'Komposisi', 'Sumber Soal', 'Peserta'];
+const STEP_LABELS = ['Detail', 'Komposisi', 'Sumber Soal', 'Peserta', 'Review'];
 
 // Semua jadwal ujian dipatok WIB (UTC+7 tetap, tanpa DST) — tak peduli zona
 // perangkat admin/peserta. Jadi input & tampilan selalu waktu WIB.
@@ -53,11 +58,18 @@ function partsToIso(date: string, time: string): string | null {
   return isNaN(d.getTime()) ? null : d.toISOString();
 }
 
-export const ExamBuilder: React.FC<ExamBuilderProps> = ({ initial, onCancel, onSubmit }) => {
+export const ExamBuilder: React.FC<ExamBuilderProps> = ({
+  initial,
+  onCancel,
+  onSaveDraft,
+  onPublish,
+  fetchPreview,
+}) => {
   const isEditing = !!initial;
 
   const [step, setStep] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
 
   // Detail
   const [title, setTitle] = useState(initial?.title || '');
@@ -165,13 +177,29 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({ initial, onCancel, onS
     if (!validate()) return;
     setIsSaving(true);
     try {
-      await onSubmit(buildPayload());
+      await onSaveDraft(buildPayload());
     } finally {
       setIsSaving(false);
     }
   };
 
+  const handlePublish = async () => {
+    if (!validate()) return;
+    setIsPublishing(true);
+    try {
+      await onPublish(buildPayload());
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
   const isLastStep = step === STEP_LABELS.length - 1;
+
+  const sectionsInput = enabledSections.map((s) => ({ section: s, target_count: counts[s] as number }));
+  const scheduleLabel =
+    !scheduled || !startDate
+      ? 'Kapan saja'
+      : `${startDate} ${startTime || '00:00'} WIB${endDate ? ` – ${endDate} ${endTime || '00:00'} WIB` : ''}`;
 
   return (
     <Card className="bg-white border border-slate-100 rounded-3xl p-6 shadow-md shadow-slate-100 flex flex-col gap-6">
@@ -241,6 +269,21 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({ initial, onCancel, onS
         {step === 3 && (
           <StepParticipants selectedIds={participantIds} onChange={setParticipantIds} />
         )}
+        {step === 4 && (
+          <StepReview
+            title={title}
+            durationMinutes={Number(duration) || 0}
+            passingGrade={passingGrade === '' ? null : Number(passingGrade)}
+            scheduleLabel={scheduleLabel}
+            shuffleQuestions={shuffleQuestions}
+            shuffleOptions={shuffleOptions}
+            allowRetake={allowRetake}
+            participantsCount={participantIds.length}
+            sections={sectionsInput}
+            poolUnits={poolUnits}
+            fetchPreview={fetchPreview}
+          />
+        )}
       </div>
 
       {/* Footer nav */}
@@ -261,12 +304,13 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({ initial, onCancel, onS
             variant="secondary"
             onClick={handleSaveDraft}
             loading={isSaving}
+            disabled={isPublishing}
             className="font-bold gap-2"
             leftIcon={<Check className="w-4 h-4" />}
           >
             Simpan Draf
           </Button>
-          {!isLastStep && (
+          {!isLastStep ? (
             <Button
               variant="primary"
               onClick={() => setStep((s) => s + 1)}
@@ -274,6 +318,17 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({ initial, onCancel, onS
             >
               Lanjut
               <ChevronRight className="w-4 h-4" />
+            </Button>
+          ) : (
+            <Button
+              variant="primary"
+              onClick={handlePublish}
+              loading={isPublishing}
+              disabled={isSaving}
+              className="font-bold gap-2"
+              leftIcon={<Rocket className="w-4 h-4" />}
+            >
+              Tayangkan
             </Button>
           )}
         </div>
