@@ -135,11 +135,11 @@ DELETE /api/exams/{id}
 POST   /api/exams/{id}/publish    set Tayang (validasi di bawah)
 GET    /api/exams/{id}/pool-preview   stok tersedia per section dalam UNIT (materi utuh + soal tunggal) & total soal
 ```
-Validasi penting saat Tayang: stok bank **Tayang** cukup untuk memenuhi target tiap section (berbasis unit, materi utuh); `starts_at < ends_at`; **passing_grade opsional** (jika diisi harus 0–100); **minimal 1 peserta**; minimal 1 section dengan target > 0.
+Validasi penting saat Tayang: stok bank **Tayang** cukup untuk memenuhi target tiap section (berbasis unit, materi utuh); `starts_at < ends_at`; **passing_grade opsional** (jika diisi harus 0–100); **minimal 1 peserta**; minimal 1 section dengan target > 0; **bila dijadwalkan, `starts_at` ≥ now(UTC) − 5 menit** (safety net; anytime bila `starts_at` null).
 
 ## 8. Alur UI (wizard "Buat Paket Ujian")
 
-1. **Detail** — nama, deskripsi, durasi, **nilai kelulusan (opsional)**, jadwal mulai/selesai, opsi acak (urutan antar-unit & pilihan jawaban). (Token TIDAK di sini — fase akhir.)
+1. **Detail** — nama, deskripsi, durasi, **nilai kelulusan (opsional)**, opsi acak (urutan antar-unit & pilihan jawaban), dan **checkbox "Tetapkan jadwal ujian (WIB)"** (default off = anytime; on → Waktu Mulai wajib + Waktu Selesai opsional, semua **WIB**). (Token TIDAK di sini — fase akhir.)
 2. **Komposisi** — pilih section yang dipakai (**boleh satu saja**), isi **target jumlah soal** per section; tampilkan **stok tersedia** dari bank Tayang dalam bentuk **unit** (mis. "Reading: 3 materi + 5 soal tunggal = 26 soal tersedia; target 20"). Peringatkan bila stok kurang; tampilkan **total aktual** karena materi utuh bisa membuat total ≠ target.
 3. **Sumber soal (hybrid)** — biarkan acak dari seluruh pool section, ATAU persempit (filter tag/kesulitan), ATAU centang manual **unit** (materi utuh / soal tunggal) lewat **question picker** (reuse `useQuestions` + `QuestionPreview`).
 4. **Peserta (whitelist)** — (opsional: input dulu perkiraan jumlah peserta sbg panduan) lalu buka daftar **peserta yang sudah ada** dari Manajemen User → search + multi-select (1 orang, beberapa, atau "pilih semua"). Hanya yang ditandai yang nanti bisa ujian.
@@ -159,6 +159,21 @@ Validasi penting saat Tayang: stok bank **Tayang** cukup untuk memenuhi target t
    - Kasus nyata: tutor sering menguji hanya 5 soal, 10 soal, "5 soal reading saja", atau "10 soal structure saja". → **Komposisi boleh 1 section saja / jumlah kecil**; tidak ada kewajiban mengisi semua section.
    - **Passing grade opsional** (nullable) — admin isi bila perlu, boleh dikosongkan.
    - **Bobot fleksibel:** default semua soal bobot sama; sediakan opsi override (mis. bobot per section) tapi jangan dipaksakan.
+
+7. **Zona waktu → SELALU WIB (UTC+7 tetap, tanpa DST); penjadwalan opsional via checkbox.** (diputuskan 2026-07-23)
+   - Semua input & tampilan waktu ujian **dipatok WIB** untuk semua peran (admin/super_admin/peserta), tak peduli zona perangkat. Admin di WIT ketik `10:00` = `10:00 WIB`. Implementasi frontend: gabung sebagai `...T10:00:00+07:00` saat simpan; tampilkan dgn `timeZone:'Asia/Jakarta'`. Backend tetap simpan `timestamptz` (instant UTC) — tak berubah. Beri label **"WIB"** di UI.
+   - ⚠️ **Bug saat ini:** `ExamBuilder`/`ExamTable` masih pakai zona **browser lokal** (bukan WIB) → harus diperbaiki.
+   - **Checkbox "Tetapkan jadwal ujian (WIB)"** — **default TIDAK dicentang** → `starts_at`/`ends_at` null → ujian bisa diakses **kapan saja** setelah Tayang (durasi per-peserta tetap berlaku). Dicentang → **Waktu Mulai wajib**, **Waktu Selesai opsional**. (Infer "anytime" dari `starts_at == null`; tak perlu kolom baru.)
+   - **Safety net 5 menit:** bila dijadwalkan, `starts_at` tidak boleh > 5 menit di masa lalu. **Ditegakkan keras hanya saat Tayangkan** (backend otoritatif + frontend); di builder cukup **warning lembut**, draf boleh berwaktu lampau. DatePicker DS **tidak** diubah (validasi via pesan, bukan blok pilihan).
+   - **Pembeda konsep:** *Jadwal (window `starts_at`–`ends_at`)* = kapan boleh mulai; *Total Waktu (`duration_minutes`)* = hitung mundur per-peserta setelah menekan Mulai.
+
+8. **Pengerjaan ulang (retake) → boolean, diset di builder.** (diputuskan 2026-07-23)
+   - Kolom baru `exams.allow_retake boolean NOT NULL DEFAULT false` (migrasi `005`). Checkbox di builder "Izinkan mengerjakan ulang" (default OFF = sekali saja).
+   - **Config disimpan sekarang; PENEGAKAN di Phase 4** (butuh tabel *attempts*): bila `allow_retake=false` & peserta sudah menyelesaikan → tombol Mulai terkunci.
+
+9. **Countdown ke waktu mulai → Phase 4 (halaman ujian peserta), BUKAN builder.**
+   - Datanya sudah cukup (`starts_at`). Countdown = selisih `starts_at − now` (timezone-agnostic; otomatis benar di zona mana pun; WIB hanya untuk label).
+   - ⚠️ **Jangan percaya jam perangkat peserta:** tombol "Mulai" harus **di-gate server** (`now(UTC) ≥ starts_at`); countdown sebaiknya sinkron ke **waktu server**, bukan `Date.now()` lokal.
 
 ## 10. Rencana bertahap (§9 sudah dijawab — siap dieksekusi)
 

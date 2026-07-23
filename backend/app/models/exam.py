@@ -41,6 +41,7 @@ class CreateExamRequest(BaseModel):
     passing_grade: Optional[int] = Field(None, ge=0, le=100, description="Nilai kelulusan (opsional)")
     shuffle_questions: bool = False
     shuffle_options: bool = False
+    allow_retake: bool = False
     status: ContentStatus = Field(default=ContentStatus.DRAFT)
     starts_at: Optional[datetime] = None
     ends_at: Optional[datetime] = None
@@ -67,6 +68,7 @@ class UpdateExamRequest(BaseModel):
     passing_grade: Optional[int] = Field(None, ge=0, le=100)
     shuffle_questions: Optional[bool] = None
     shuffle_options: Optional[bool] = None
+    allow_retake: Optional[bool] = None
     status: Optional[ContentStatus] = None
     starts_at: Optional[datetime] = None
     ends_at: Optional[datetime] = None
@@ -104,6 +106,7 @@ class ExamResponse(BaseModel):
     passing_grade: Optional[int] = None
     shuffle_questions: bool = False
     shuffle_options: bool = False
+    allow_retake: bool = False
     status: ContentStatus
     starts_at: Optional[datetime] = None
     ends_at: Optional[datetime] = None

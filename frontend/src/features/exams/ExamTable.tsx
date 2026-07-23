@@ -17,17 +17,19 @@ interface ExamTableProps {
 }
 
 function formatSchedule(starts: string | null, ends: string | null): string {
-  if (!starts && !ends) return '—';
+  if (!starts && !ends) return 'Kapan saja';
+  // Selalu tampilkan dalam WIB (Asia/Jakarta), tak peduli zona perangkat.
   const fmt = (iso: string) =>
     new Date(iso).toLocaleString('id-ID', {
+      timeZone: 'Asia/Jakarta',
       day: 'numeric',
       month: 'short',
       hour: '2-digit',
       minute: '2-digit',
     });
-  if (starts && ends) return `${fmt(starts)} – ${fmt(ends)}`;
-  if (starts) return `Mulai ${fmt(starts)}`;
-  return `Selesai ${fmt(ends as string)}`;
+  if (starts && ends) return `${fmt(starts)} – ${fmt(ends)} WIB`;
+  if (starts) return `Mulai ${fmt(starts)} WIB`;
+  return `Selesai ${fmt(ends as string)} WIB`;
 }
 
 export const ExamTable: React.FC<ExamTableProps> = ({

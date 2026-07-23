@@ -20,13 +20,13 @@ export const StepComposition: React.FC<StepCompositionProps> = ({
   const total = ALL_SECTIONS.reduce((sum, s) => sum + (counts[s] ?? 0), 0);
 
   return (
-    <div className="flex flex-col gap-4 max-w-2xl">
+    <div className="flex flex-col gap-4">
       <p className="text-sm text-slate-500">
         Pilih bagian yang diujikan dan target jumlah soal per bagian. Boleh hanya satu bagian
         (mis. &ldquo;10 soal Structure saja&rdquo;).
       </p>
 
-      <div className="flex flex-col gap-2.5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {ALL_SECTIONS.map((section) => {
           const enabled = counts[section] !== undefined;
           return (
@@ -44,10 +44,12 @@ export const StepComposition: React.FC<StepCompositionProps> = ({
               {enabled && (
                 <div className="flex items-center gap-2 shrink-0">
                   <Input
-                    type="number"
-                    min={1}
+                    inputMode="numeric"
                     value={String(counts[section] ?? 1)}
-                    onChange={(e) => onCountChange(section, Math.max(1, Number(e.target.value) || 1))}
+                    onChange={(e) => {
+                      const d = e.target.value.replace(/[^0-9]/g, '');
+                      onCountChange(section, d === '' ? 1 : Math.max(1, Number(d)));
+                    }}
                     className="w-24 text-center"
                   />
                   <span className="text-xs font-medium text-slate-500">soal</span>

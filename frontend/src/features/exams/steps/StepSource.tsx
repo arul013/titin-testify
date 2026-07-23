@@ -77,13 +77,14 @@ export const StepSource: React.FC<StepSourceProps> = ({ enabledSections, poolUni
   const isLoading = pLoading || qLoading;
 
   return (
-    <div className="flex flex-col gap-4 max-w-2xl">
+    <div className="flex flex-col gap-4">
       <p className="text-sm text-slate-500">
         Secara default, soal diambil <strong>acak dari seluruh Bank Soal (Tayang)</strong> untuk tiap
         bagian. Kamu bisa mempersempit ke materi/soal tertentu di bawah (opsional).
       </p>
 
       <Tabs
+        className="self-start"
         tabs={enabledSections.map((s) => ({ id: s, label: SECTION_LABELS[s] }))}
         value={activeSection ?? ''}
         onChange={(id) => setActiveSection(id as ExamSectionId)}
@@ -124,7 +125,7 @@ export const StepSource: React.FC<StepSourceProps> = ({ enabledSections, poolUni
               <p className="text-xs font-bold text-slate-600 mb-2 flex items-center gap-1.5">
                 <Layers className="w-3.5 h-3.5 text-indigo-600" /> Materi (unit utuh)
               </p>
-              <div className="flex flex-col gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {passages.map((p) => (
                   <label
                     key={p.id}
@@ -152,7 +153,7 @@ export const StepSource: React.FC<StepSourceProps> = ({ enabledSections, poolUni
               <p className="text-xs font-bold text-slate-600 mb-2 flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-indigo-600" /> Soal tunggal
               </p>
-              <div className="flex flex-col gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {standalone.map((q) => (
                   <div
                     key={q.id}

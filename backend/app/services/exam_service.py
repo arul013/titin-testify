@@ -3,6 +3,7 @@ Learning Nexus CBT — Exam Builder Service (Manajemen Ujian)
 """
 
 from fastapi import HTTPException, status
+from postgrest.types import CountMethod
 from app.database import get_supabase_admin
 from app.models.exam import (
     CreateExamRequest,
@@ -95,6 +96,7 @@ class ExamService:
             "passing_grade": request.passing_grade,
             "shuffle_questions": request.shuffle_questions,
             "shuffle_options": request.shuffle_options,
+            "allow_retake": request.allow_retake,
             "status": request.status.value,
             "starts_at": ExamService._iso(request.starts_at),
             "ends_at": ExamService._iso(request.ends_at),
@@ -126,7 +128,7 @@ class ExamService:
         supabase = get_supabase_admin()
 
         query = supabase.table("exams").select(
-            "*, profiles!exams_created_by_fkey(full_name)", count="exact"
+            "*, profiles!exams_created_by_fkey(full_name)", count=CountMethod.exact
         )
         if user_role != "super_admin":
             query = query.eq("created_by", user_id)
@@ -213,6 +215,7 @@ class ExamService:
             "passing_grade": request.passing_grade,
             "shuffle_questions": request.shuffle_questions,
             "shuffle_options": request.shuffle_options,
+            "allow_retake": request.allow_retake,
             "status": request.status.value if request.status else None,
             "starts_at": ExamService._iso(request.starts_at),
             "ends_at": ExamService._iso(request.ends_at),
@@ -281,7 +284,7 @@ class ExamService:
         ]
 
         participants_count = (
-            supabase.table("exam_participants").select("id", count="exact")
+            supabase.table("exam_participants").select("id", count=CountMethod.exact)
             .eq("exam_id", e["id"]).execute().count or 0
         )
 
@@ -298,6 +301,7 @@ class ExamService:
             passing_grade=e.get("passing_grade"),
             shuffle_questions=e.get("shuffle_questions", False),
             shuffle_options=e.get("shuffle_options", False),
+            allow_retake=e.get("allow_retake", False),
             status=e["status"],
             starts_at=e.get("starts_at"),
             ends_at=e.get("ends_at"),

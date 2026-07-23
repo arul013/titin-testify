@@ -49,6 +49,7 @@ export interface Exam {
   passing_grade: number | null;
   shuffle_questions: boolean;
   shuffle_options: boolean;
+  allow_retake: boolean;
   status: ExamStatus;
   starts_at: string | null;
   ends_at: string | null;

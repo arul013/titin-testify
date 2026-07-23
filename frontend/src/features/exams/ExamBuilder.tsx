@@ -25,19 +25,31 @@ interface ExamBuilderProps {
 
 const STEP_LABELS = ['Detail', 'Komposisi', 'Sumber Soal', 'Peserta'];
 
-/** Ubah ISO → nilai input datetime-local (waktu lokal). */
-function toLocalInput(iso: string | null): string {
-  if (!iso) return '';
+// Semua jadwal ujian dipatok WIB (UTC+7 tetap, tanpa DST) — tak peduli zona
+// perangkat admin/peserta. Jadi input & tampilan selalu waktu WIB.
+
+/** Ubah ISO (instant UTC) → bagian tanggal (YYYY-MM-DD) & jam (HH:MM) dalam WIB. */
+function isoToParts(iso: string | null): { date: string; time: string } {
+  if (!iso) return { date: '', time: '' };
   const d = new Date(iso);
-  if (isNaN(d.getTime())) return '';
-  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-  return local.toISOString().slice(0, 16);
+  if (isNaN(d.getTime())) return { date: '', time: '' };
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '';
+  return { date: `${get('year')}-${get('month')}-${get('day')}`, time: `${get('hour')}:${get('minute')}` };
 }
 
-/** Ubah nilai datetime-local (lokal) → ISO UTC untuk backend. */
-function fromLocalInput(local: string): string | null {
-  if (!local) return null;
-  const d = new Date(local);
+/** Gabung tanggal + jam (dianggap WIB) → ISO UTC untuk backend. Jam kosong → 00:00. */
+function partsToIso(date: string, time: string): string | null {
+  if (!date) return null;
+  const d = new Date(`${date}T${time || '00:00'}:00+07:00`);
   return isNaN(d.getTime()) ? null : d.toISOString();
 }
 
@@ -56,8 +68,14 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({ initial, onCancel, onS
   );
   const [shuffleQuestions, setShuffleQuestions] = useState(initial?.shuffle_questions ?? false);
   const [shuffleOptions, setShuffleOptions] = useState(initial?.shuffle_options ?? false);
-  const [startsAt, setStartsAt] = useState(toLocalInput(initial?.starts_at ?? null));
-  const [endsAt, setEndsAt] = useState(toLocalInput(initial?.ends_at ?? null));
+  const [allowRetake, setAllowRetake] = useState(initial?.allow_retake ?? false);
+  const [scheduled, setScheduled] = useState(!!initial?.starts_at);
+  const _startParts = isoToParts(initial?.starts_at ?? null);
+  const _endParts = isoToParts(initial?.ends_at ?? null);
+  const [startDate, setStartDate] = useState(_startParts.date);
+  const [startTime, setStartTime] = useState(_startParts.time);
+  const [endDate, setEndDate] = useState(_endParts.date);
+  const [endTime, setEndTime] = useState(_endParts.time);
 
   // Komposisi
   const [counts, setCounts] = useState<Partial<Record<ExamSectionId, number>>>(() => {
@@ -103,9 +121,10 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({ initial, onCancel, onS
     passing_grade: passingGrade === '' ? null : Number(passingGrade),
     shuffle_questions: shuffleQuestions,
     shuffle_options: shuffleOptions,
+    allow_retake: allowRetake,
     status: 'draft',
-    starts_at: fromLocalInput(startsAt),
-    ends_at: fromLocalInput(endsAt),
+    starts_at: scheduled ? partsToIso(startDate, startTime) : null,
+    ends_at: scheduled ? partsToIso(endDate, endTime) : null,
     sections: enabledSections.map((s) => ({
       section: s,
       target_count: counts[s],
@@ -125,10 +144,19 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({ initial, onCancel, onS
       setStep(0);
       return false;
     }
-    if (startsAt && endsAt && fromLocalInput(endsAt)! <= fromLocalInput(startsAt)!) {
-      toast.error('Jadwal selesai harus setelah jadwal mulai.');
+    if (scheduled && !startDate) {
+      toast.error('Isi waktu mulai, atau matikan "Tetapkan jadwal ujian".');
       setStep(0);
       return false;
+    }
+    if (scheduled) {
+      const startIso = partsToIso(startDate, startTime);
+      const endIso = partsToIso(endDate, endTime);
+      if (startIso && endIso && endIso <= startIso) {
+        toast.error('Jadwal selesai harus setelah jadwal mulai.');
+        setStep(0);
+        return false;
+      }
     }
     return true;
   };
@@ -182,10 +210,18 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({ initial, onCancel, onS
             setShuffleQuestions={setShuffleQuestions}
             shuffleOptions={shuffleOptions}
             setShuffleOptions={setShuffleOptions}
-            startsAt={startsAt}
-            setStartsAt={setStartsAt}
-            endsAt={endsAt}
-            setEndsAt={setEndsAt}
+            allowRetake={allowRetake}
+            setAllowRetake={setAllowRetake}
+            scheduled={scheduled}
+            setScheduled={setScheduled}
+            startDate={startDate}
+            setStartDate={setStartDate}
+            startTime={startTime}
+            setStartTime={setStartTime}
+            endDate={endDate}
+            setEndDate={setEndDate}
+            endTime={endTime}
+            setEndTime={setEndTime}
           />
         )}
         {step === 1 && (

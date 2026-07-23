@@ -42,7 +42,7 @@ export const StepParticipants: React.FC<StepParticipantsProps> = ({ selectedIds,
   };
 
   return (
-    <div className="flex flex-col gap-4 max-w-2xl">
+    <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <p className="text-sm text-slate-500">
           Tandai peserta yang boleh mengikuti ujian ini. Yang tidak ditandai tidak akan melihat sesi
@@ -73,24 +73,22 @@ export const StepParticipants: React.FC<StepParticipantsProps> = ({ selectedIds,
           </div>
         )}
 
-        <div className="max-h-80 overflow-y-auto divide-y divide-slate-50">
+        <div className="max-h-96 overflow-y-auto p-2 grid grid-cols-1 md:grid-cols-2 gap-1">
           {isLoading ? (
-            <div className="p-4 flex flex-col gap-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-8" />
-              ))}
-            </div>
+            Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-11 rounded-xl" />)
           ) : users.length === 0 ? (
-            <EmptyState
-              icon={<Users />}
-              title="Tidak ada peserta"
-              description="Buat akun peserta dulu di menu Manajemen User, lalu tandai di sini."
-            />
+            <div className="md:col-span-2">
+              <EmptyState
+                icon={<Users />}
+                title="Tidak ada peserta"
+                description="Buat akun peserta dulu di menu Manajemen User, lalu tandai di sini."
+              />
+            </div>
           ) : (
             users.map((u) => (
               <label
                 key={u.id}
-                className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50/60 cursor-pointer transition-colors"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50/60 cursor-pointer transition-colors"
               >
                 <Checkbox checked={selected.has(u.id)} onChange={() => toggle(u.id)} />
                 <div className="min-w-0">
