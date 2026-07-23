@@ -4,6 +4,7 @@ Learning Nexus CBT — Question Bank Service
 
 import json
 from fastapi import HTTPException, status
+from postgrest.types import CountMethod
 from app.database import get_supabase_admin
 from app.models.question import (
     CreatePassageRequest,
@@ -71,7 +72,7 @@ class QuestionService:
         """List passages with pagination and filters."""
         supabase = get_supabase_admin()
 
-        query = supabase.table("question_passages").select("*, profiles!question_passages_created_by_fkey(full_name)", count="exact")
+        query = supabase.table("question_passages").select("*, profiles!question_passages_created_by_fkey(full_name)", count=CountMethod.exact)
 
         # Data isolation: Admin sees own, Super Admin sees all
         if user_role != "super_admin":
@@ -93,7 +94,7 @@ class QuestionService:
         passages = []
         for p in result.data or []:
             # Count child questions for each passage
-            q_count = supabase.table("questions").select("id", count="exact").eq("passage_id", p["id"]).execute()
+            q_count = supabase.table("questions").select("id", count=CountMethod.exact).eq("passage_id", p["id"]).execute()
 
             creator_name = None
             if p.get("profiles"):
@@ -221,7 +222,7 @@ class QuestionService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Passage tidak ditemukan.")
 
         p = result.data[0]
-        q_count = supabase.table("questions").select("id", count="exact").eq("passage_id", p["id"]).execute()
+        q_count = supabase.table("questions").select("id", count=CountMethod.exact).eq("passage_id", p["id"]).execute()
 
         return PassageResponse(
             id=p["id"],
@@ -322,7 +323,7 @@ class QuestionService:
         """List questions with pagination and filters."""
         supabase = get_supabase_admin()
 
-        query = supabase.table("questions").select("*, profiles!questions_created_by_fkey(full_name)", count="exact")
+        query = supabase.table("questions").select("*, profiles!questions_created_by_fkey(full_name)", count=CountMethod.exact)
 
         # Data isolation
         if user_role != "super_admin":
@@ -501,7 +502,7 @@ class QuestionService:
 
         # Build base query filter
         def filtered_query(table: str):
-            q = supabase.table(table).select("id", count="exact")
+            q = supabase.table(table).select("id", count=CountMethod.exact)
             if user_role != "super_admin":
                 q = q.eq("created_by", user_id)
             return q

@@ -76,9 +76,9 @@ export const StepDetail: React.FC<StepDetailProps> = ({
   const pastWarning = scheduled && isStartInPast(startDate, startTime);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Kolom kiri */}
-      <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
+      {/* Field inti — dua kolom sejajar */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <Input
           label="Nama Ujian"
           required
@@ -86,17 +86,6 @@ export const StepDetail: React.FC<StepDetailProps> = ({
           onChange={(e) => setTitle(e.target.value)}
           placeholder="mis. Simulasi TOEFL — Structure & Written Expression"
         />
-        <Textarea
-          label="Deskripsi (opsional)"
-          rows={5}
-          value={description}
-          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
-          placeholder="Catatan singkat tentang ujian ini…"
-        />
-      </div>
-
-      {/* Kolom kanan */}
-      <div className="flex flex-col gap-5">
         <div className="grid grid-cols-2 gap-4">
           <Input
             label="Total Waktu (menit)"
@@ -112,81 +101,92 @@ export const StepDetail: React.FC<StepDetailProps> = ({
             value={passingGrade}
             onChange={(e) => setPassingGrade(digits(e.target.value))}
             placeholder="mis. 70"
-            hint="Kosongkan bila tidak memakai passing grade."
+            hint="Kosongkan bila tak memakai."
           />
         </div>
+      </div>
 
-        {/* Jadwal (opsional, WIB) */}
-        <div className="border border-slate-100 rounded-2xl p-4 bg-slate-50/40 flex flex-col gap-3">
-          <Checkbox
-            checked={scheduled}
-            onChange={setScheduled}
-            label={
-              <span className="inline-flex items-center gap-1.5">
-                <CalendarClock className="w-3.5 h-3.5 text-indigo-600" /> Tetapkan jadwal ujian (WIB)
-              </span>
-            }
-            description="Bila tidak dicentang, ujian bisa diakses kapan saja setelah ditayangkan."
-          />
+      <Textarea
+        label="Deskripsi (opsional)"
+        rows={3}
+        value={description}
+        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
+        placeholder="Catatan singkat tentang ujian ini…"
+      />
 
-          {scheduled && (
-            <div className="flex flex-col gap-4 pt-1">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <span className={fieldLabel}>Waktu Mulai (WIB)</span>
-                  <div className="flex flex-col gap-2">
-                    <DatePicker value={startDate} onChange={setStartDate} placeholder="Pilih tanggal" />
-                    <ClockTimePicker value={startTime} onChange={setStartTime} placeholder="Pilih jam" />
-                  </div>
-                </div>
-                <div>
-                  <span className={fieldLabel}>Waktu Selesai (WIB, opsional)</span>
-                  <div className="flex flex-col gap-2">
-                    <DatePicker value={endDate} onChange={setEndDate} placeholder="Pilih tanggal" />
-                    <ClockTimePicker value={endTime} onChange={setEndTime} placeholder="Pilih jam" />
-                  </div>
+      {/* Jadwal (opsional, WIB) — kartu penuh-lebar */}
+      <div className="border border-slate-200/70 rounded-2xl p-5 bg-white shadow-sm shadow-slate-100/60 flex flex-col gap-4">
+        <Checkbox
+          checked={scheduled}
+          onChange={setScheduled}
+          label={
+            <span className="inline-flex items-center gap-1.5 font-bold text-slate-700">
+              <CalendarClock className="w-4 h-4 text-indigo-600" /> Tetapkan jadwal ujian (WIB)
+            </span>
+          }
+          description="Bila tidak dicentang, ujian bisa diakses kapan saja setelah ditayangkan."
+        />
+
+        {scheduled && (
+          <div className="flex flex-col gap-4 pt-1 border-t border-slate-100">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-4">
+              <div>
+                <span className={fieldLabel}>Waktu Mulai (WIB)</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <DatePicker value={startDate} onChange={setStartDate} placeholder="Tanggal" />
+                  <ClockTimePicker value={startTime} onChange={setStartTime} placeholder="Jam" />
                 </div>
               </div>
-
-              {pastWarning && (
-                <div className="flex gap-2 p-2.5 bg-amber-50 border border-amber-100 rounded-xl text-[11px] text-amber-800 leading-relaxed">
-                  <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
-                  <span>
-                    Waktu mulai sudah lewat. Masih bisa disimpan sebagai draf, tapi saat
-                    <strong> Tayangkan</strong> waktu mulai tidak boleh lebih dari 5 menit yang lalu.
-                  </span>
+              <div>
+                <span className={fieldLabel}>Waktu Selesai (WIB, opsional)</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <DatePicker value={endDate} onChange={setEndDate} placeholder="Tanggal" />
+                  <ClockTimePicker value={endTime} onChange={setEndTime} placeholder="Jam" />
                 </div>
-              )}
-
-              <p className="text-[10px] text-slate-400">
-                Semua waktu dihitung dalam <strong>WIB (GMT+7)</strong>, tidak tergantung lokasi
-                admin maupun peserta.
-              </p>
+              </div>
             </div>
-          )}
-        </div>
 
-        {/* Opsi pengerjaan */}
-        <div className="border border-slate-100 rounded-2xl p-4 bg-slate-50/40 flex flex-col gap-3">
-          <p className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
-            <Shuffle className="w-3.5 h-3.5 text-indigo-600" /> Opsi Pengerjaan
-          </p>
+            {pastWarning && (
+              <div className="flex gap-2 p-3 bg-amber-50 border border-amber-100 rounded-xl text-[11px] text-amber-800 leading-relaxed">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+                <span>
+                  Waktu mulai sudah lewat. Masih bisa disimpan sebagai draf, tapi saat
+                  <strong> Tayangkan</strong> waktu mulai tidak boleh lebih dari 5 menit yang lalu.
+                </span>
+              </div>
+            )}
+
+            <p className="text-[11px] text-slate-400">
+              Semua waktu dihitung dalam <strong>WIB (GMT+7)</strong>, tidak tergantung lokasi admin
+              maupun peserta.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Opsi pengerjaan — kartu penuh-lebar, tiga opsi sejajar */}
+      <div className="border border-slate-200/70 rounded-2xl p-5 bg-white shadow-sm shadow-slate-100/60 flex flex-col gap-4">
+        <p className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+          <Shuffle className="w-4 h-4 text-indigo-600" /> Opsi Pengerjaan
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <Checkbox
             checked={shuffleQuestions}
             onChange={setShuffleQuestions}
             label="Acak urutan soal"
-            description="Urutan diacak antar-unit; soal dalam satu materi tetap berurutan."
+            description="Diacak antar-unit; soal satu materi tetap berurutan."
           />
           <Checkbox
             checked={shuffleOptions}
             onChange={setShuffleOptions}
-            label="Acak pilihan jawaban (A/B/C/D)"
+            label="Acak pilihan jawaban"
+            description="Urutan opsi A/B/C/D diacak tiap peserta."
           />
           <Checkbox
             checked={allowRetake}
             onChange={setAllowRetake}
             label="Izinkan mengerjakan ulang"
-            description="Bila tidak dicentang, peserta hanya bisa mengerjakan satu kali."
+            description="Bila mati, peserta hanya bisa mengerjakan sekali."
           />
         </div>
       </div>
