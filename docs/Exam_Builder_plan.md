@@ -168,7 +168,13 @@ Validasi penting saat Tayang: stok bank **Tayang** cukup untuk memenuhi target t
   - Isolasi data & guard `require_admin` konsisten (admin lihat miliknya, super_admin semua). Validasi: peserta harus akun role `peserta`; pool unit tepat satu dari passage/question.
   - **Verifikasi:** `py_compile` + import modul OK, 5 route terdaftar. **BELUM diuji live** (butuh env Supabase + server).
   - ⚠️ **Aksi user:** jalankan `database/004_exams.sql` di **Supabase SQL Editor** (seperti `003`) sebelum endpoint bisa dipakai.
-- **E1 — Builder inti (frontend):** route `/manajemen-ujian`, wizard Detail + Komposisi (fleksibel, boleh 1 section) + Peserta (whitelist), simpan sebagai Draf. Reuse DS + `useQuestions`.
+- **E1 — Builder inti (frontend)** ✅ **SELESAI — 2026-07-23.**
+  - Route `/manajemen-ujian` (menu sidebar ditambah, ikon `ClipboardCheck`, `show: isAdmin`).
+  - `features/exams/`: `hooks/useExams.ts` (list + CRUD + types), `ExamTable.tsx` (daftar + EmptyState + skeleton), `ExamBuilder.tsx` (orchestrator wizard pakai `WorkflowStepper`), `steps/StepDetail.tsx` + `steps/StepComposition.tsx` + `steps/StepParticipants.tsx`.
+  - Wizard 3 langkah: **Detail** (nama, durasi, passing grade opsional, jadwal datetime-local, acak soal/opsi) → **Komposisi** (pilih section fleksibel + target per section, total) → **Peserta** (whitelist, reuse `useUsers` role=peserta, search + pilih-semua). Simpan sebagai **Draf**.
+  - Halaman toggle list↔builder (pola detail Bank Soal), FAB "Buat Ujian", `ConfirmDialog` hapus, `Pagination`, search.
+  - **Verifikasi:** `npm run build` (compile + TS) sukses, diagnostics IDE nol. **Belum diuji live** (butuh `004_exams.sql` dijalankan + backend + peserta).
+  - Catatan: step **Sumber Soal (picker hybrid)** BELUM ada — itu **E2**. E1 menyimpan `sections` + `participant_ids`; `pool_units` dikirim kosong (acak seluruh pool).
 - **E2 — Question picker hybrid + pool unit:** biarkan-acak / persempit / pilih manual **unit** (materi utuh). Layer seleksi di atas tabel soal (reuse `useQuestions` + `QuestionPreview`).
 - **E3 — Validasi & Tayangkan:** pool-preview berbasis unit, cek stok/jadwal/peserta, publish, daftar paket + status Draf/Tayang.
 - **E4 — Handoff ke Exam Engine (Phase 4):** kontrak data sesi + **snapshot per peserta menjaga grouping materi**; enforcement whitelist di `/ujian`.
