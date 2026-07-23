@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { ChevronLeft, Edit2, Trash2, Plus, Layers } from 'lucide-react';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { QuestionTable } from './QuestionTable';
-import type { Passage, Question } from './hooks/useQuestions';
+import React from "react";
+import { ChevronLeft, Edit2, Trash2, Plus, Layers } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { QuestionTable } from "./QuestionTable";
+import type { Passage, Question } from "./hooks/useQuestions";
 
 interface PassageDetailPanelProps {
   passage: Passage;
@@ -50,11 +50,11 @@ export const PassageDetailPanel: React.FC<PassageDetailPanelProps> = ({
               <ChevronLeft className="w-4 h-4 mr-1" /> Kembali ke Daftar
             </Button>
             <Badge variant="info" className="font-extrabold uppercase text-xs">
-              {passage.type} Group
+              {passage.type}
             </Badge>
           </div>
           <h2 className="text-lg font-extrabold text-slate-800">
-            Mengelola Anak Pertanyaan dari Passage
+            Kelola Soal untuk Materi Ini
           </h2>
           {passage.audio_url && (
             <div className="mt-3 max-w-md bg-slate-50 p-2.5 border border-slate-200/50 rounded-xl">
@@ -62,14 +62,18 @@ export const PassageDetailPanel: React.FC<PassageDetailPanelProps> = ({
             </div>
           )}
           {passage.content && (
-            <div className="mt-3 text-slate-600 text-sm max-h-[140px] overflow-y-auto bg-slate-50 border border-slate-100 p-4 rounded-xl whitespace-pre-wrap leading-relaxed">
+            <div className="mt-3 text-slate-600 text-sm max-h-35 overflow-y-auto bg-slate-50 border border-slate-100 p-4 rounded-xl whitespace-pre-wrap leading-relaxed">
               {passage.content}
             </div>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="secondary" size="sm" onClick={() => onEditPassage(passage)}>
-            <Edit2 className="w-3.5 h-3.5 mr-1.5" /> Edit Passage
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => onEditPassage(passage)}
+          >
+            <Edit2 className="w-3.5 h-3.5 mr-1.5" /> Edit Materi
           </Button>
           <Button
             variant="danger"
@@ -77,10 +81,10 @@ export const PassageDetailPanel: React.FC<PassageDetailPanelProps> = ({
             className="bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 border-none"
             onClick={() => onDeletePassage(passage.id)}
           >
-            <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Hapus Group
+            <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Hapus Materi Ini
           </Button>
           <Button variant="primary" size="sm" onClick={onAddChild}>
-            <Plus className="w-3.5 h-3.5 mr-1.5" /> Tambah Soal Anak
+            <Plus className="w-3.5 h-3.5 mr-1.5" /> Tambah Soal ke Materi
           </Button>
         </div>
       </div>
@@ -88,10 +92,12 @@ export const PassageDetailPanel: React.FC<PassageDetailPanelProps> = ({
       <div>
         <h3 className="text-sm font-extrabold text-slate-700 mb-3 flex items-center gap-2">
           <Layers className="w-4 h-4 text-indigo-600" />
-          Daftar Soal di dalam Group ({questions.length})
+          Daftar Soal dalam Materi Ini ({questions.length})
         </h3>
         {isLoading ? (
-          <div className="py-12 text-center text-slate-500 font-semibold">Memuat soal anak...</div>
+          <div className="py-12 text-center text-slate-500 font-semibold">
+            Memuat soal...
+          </div>
         ) : (
           <QuestionTable
             questions={questions}

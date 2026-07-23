@@ -14,7 +14,7 @@ export const BankSoalStats: React.FC<BankSoalStatsProps> = ({ stats }) => {
 
   const items = [
     { label: 'Total Soal', val: stats.total_questions, icon: <HelpCircle className="w-5 h-5 text-indigo-600" /> },
-    { label: 'Total Passage', val: stats.total_passages, icon: <Layers className="w-5 h-5 text-purple-600" /> },
+    { label: 'Total Materi', val: stats.total_passages, icon: <Layers className="w-5 h-5 text-purple-600" /> },
     { label: 'Listening', val: stats.by_section.listening || 0, icon: <Music className="w-5 h-5 text-indigo-600" /> },
     { label: 'Structure', val: stats.by_section.structure || 0, icon: <FileText className="w-5 h-5 text-amber-600" /> },
     { label: 'Reading', val: stats.by_section.reading || 0, icon: <FileText className="w-5 h-5 text-emerald-600" /> },

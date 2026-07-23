@@ -32,8 +32,8 @@ const DIFFICULTY_OPTIONS = [
 ];
 
 const STATUS_OPTIONS = [
-  { value: 'draft', label: 'Draft' },
-  { value: 'published', label: 'Published' },
+  { value: 'draft', label: 'Draf' },
+  { value: 'published', label: 'Tayang' },
 ];
 
 export const QuestionForm: React.FC<QuestionFormProps> = ({
@@ -109,7 +109,7 @@ export const QuestionForm: React.FC<QuestionFormProps> = ({
         {/* Section, Difficulty, Status row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1.5">Section</label>
+            <label className="block text-xs font-bold text-slate-600 mb-1.5">Bagian Ujian</label>
             <Select value={section} onChange={(e) => setSection(e.target.value)} disabled={!!passageId}>
               {SECTION_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -131,6 +131,10 @@ export const QuestionForm: React.FC<QuestionFormProps> = ({
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </Select>
+            <p className="text-[10px] text-slate-400 mt-1 leading-snug">
+              <span className="font-bold">Draf</span> disimpan tapi belum dipakai ·{' '}
+              <span className="font-bold">Tayang</span> berarti soal siap digunakan.
+            </p>
           </div>
         </div>
 
@@ -201,12 +205,12 @@ export const QuestionForm: React.FC<QuestionFormProps> = ({
 
         {/* Tags */}
         <div>
-          <label className="block text-xs font-bold text-slate-600 mb-1.5">Tag Topik</label>
+          <label className="block text-xs font-bold text-slate-600 mb-1.5">Label Topik (Opsional)</label>
           <div className="flex gap-2">
             <Input
               value={tagInput}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTagInput(e.target.value)}
-              placeholder="Ketik tag lalu tekan Enter..."
+              placeholder="Ketik lalu tekan Enter (mis. grammar, tenses)"
               onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
                 if (e.key === 'Enter') { e.preventDefault(); addTag(); }
               }}

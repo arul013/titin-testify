@@ -19,7 +19,7 @@ export const BankSoalToolbar: React.FC<BankSoalToolbarProps> = ({ onAddPassage, 
         className="font-bold gap-2 shadow-xs border-slate-200"
         leftIcon={<Plus className="w-4 h-4" />}
       >
-        Passage Induk
+        Teks Bacaan / Audio
       </Button>
       <Button
         onClick={onAddQuestion}
@@ -27,7 +27,7 @@ export const BankSoalToolbar: React.FC<BankSoalToolbarProps> = ({ onAddPassage, 
         className="font-bold gap-2 shadow-md"
         leftIcon={<Plus className="w-4 h-4" />}
       >
-        Soal Standalone
+        Soal Tunggal
       </Button>
     </div>
   );

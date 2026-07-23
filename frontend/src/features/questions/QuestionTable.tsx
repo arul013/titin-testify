@@ -82,7 +82,7 @@ export const QuestionTable: React.FC<QuestionTableProps> = ({
             variant="success"
             className="text-[10px] font-extrabold uppercase"
           >
-            Easy
+            Mudah
           </Badge>
         );
       case "medium":
@@ -91,7 +91,7 @@ export const QuestionTable: React.FC<QuestionTableProps> = ({
             variant="warning"
             className="text-[10px] font-extrabold uppercase"
           >
-            Medium
+            Sedang
           </Badge>
         );
       case "hard":
@@ -100,7 +100,7 @@ export const QuestionTable: React.FC<QuestionTableProps> = ({
             variant="danger"
             className="text-[10px] font-extrabold uppercase"
           >
-            Hard
+            Sulit
           </Badge>
         );
       default:
@@ -114,14 +114,14 @@ export const QuestionTable: React.FC<QuestionTableProps> = ({
         variant="success"
         className="flex items-center gap-1 text-[10px] font-extrabold uppercase"
       >
-        <CheckCircle2 className="w-3 h-3" /> Published
+        <CheckCircle2 className="w-3 h-3" /> Tayang
       </Badge>
     ) : (
       <Badge
         variant="neutral"
         className="flex items-center gap-1 text-[10px] font-extrabold uppercase bg-slate-100 text-slate-500"
       >
-        <AlertCircle className="w-3 h-3" /> Draft
+        <AlertCircle className="w-3 h-3" /> Draf
       </Badge>
     );
   };
@@ -144,7 +144,7 @@ export const QuestionTable: React.FC<QuestionTableProps> = ({
                 Pertanyaan
               </th>
               <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Bagian (Section)
+                Bagian
               </th>
               <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">
                 Tingkat Kesulitan
@@ -153,7 +153,7 @@ export const QuestionTable: React.FC<QuestionTableProps> = ({
                 Status
               </th>
               <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Kunci
+                Jawaban
               </th>
               {currentUserRole === "super_admin" && (
                 <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">
@@ -172,7 +172,7 @@ export const QuestionTable: React.FC<QuestionTableProps> = ({
                   colSpan={currentUserRole === "super_admin" ? 7 : 6}
                   className="py-12 text-center text-sm text-slate-400 font-medium"
                 >
-                  Belum ada pertanyaan yang dibuat.
+                  Belum ada soal di sini. Tambahkan lewat tombol di atas.
                 </td>
               </tr>
             ) : (

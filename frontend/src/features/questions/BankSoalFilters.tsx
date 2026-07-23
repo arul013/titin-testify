@@ -19,11 +19,11 @@ interface BankSoalFiltersProps {
 
 const TABS: { id: BankSoalTab; label: string }[] = [
   { id: 'all', label: 'Semua Soal' },
-  { id: 'passages', label: 'Passage Bacaan & Audio' },
-  { id: 'listening', label: 'Listening Group' },
+  { id: 'passages', label: 'Teks Bacaan & Audio' },
+  { id: 'listening', label: 'Listening' },
   { id: 'structure', label: 'Structure' },
   { id: 'written_expression', label: 'Written Expression' },
-  { id: 'reading', label: 'Reading Group' },
+  { id: 'reading', label: 'Reading' },
 ];
 
 export const BankSoalFilters: React.FC<BankSoalFiltersProps> = ({
@@ -63,7 +63,7 @@ export const BankSoalFilters: React.FC<BankSoalFiltersProps> = ({
           <Input
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder={activeTab === 'passages' ? 'Cari teks passage...' : 'Cari teks pertanyaan...'}
+            placeholder={activeTab === 'passages' ? 'Cari teks bacaan / audio...' : 'Cari teks pertanyaan...'}
             className="pl-10"
           />
         </div>
@@ -72,9 +72,9 @@ export const BankSoalFilters: React.FC<BankSoalFiltersProps> = ({
         {activeTab !== 'passages' ? (
           <Select value={difficulty} onChange={(e) => onDifficultyChange(e.target.value)}>
             <option value="">Semua Tingkat Kesulitan</option>
-            <option value="easy">Easy (Mudah)</option>
-            <option value="medium">Medium (Sedang)</option>
-            <option value="hard">Hard (Sulit)</option>
+            <option value="easy">Mudah</option>
+            <option value="medium">Sedang</option>
+            <option value="hard">Sulit</option>
           </Select>
         ) : (
           <div />
@@ -82,9 +82,9 @@ export const BankSoalFilters: React.FC<BankSoalFiltersProps> = ({
 
         {/* Status Filter */}
         <Select value={statusFilter} onChange={(e) => onStatusChange(e.target.value)}>
-          <option value="">Semua Status Publikasi</option>
-          <option value="draft">Draft</option>
-          <option value="published">Published</option>
+          <option value="">Semua Status</option>
+          <option value="draft">Draf</option>
+          <option value="published">Tayang</option>
         </Select>
       </div>
     </>

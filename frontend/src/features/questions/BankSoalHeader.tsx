@@ -10,8 +10,8 @@ export const BankSoalHeader: React.FC = () => {
         Bank Soal
       </h1>
       <p className="text-gray-500 mt-1.5 font-medium">
-        Kelola daftar soal ujian, transkrip listening audio, dan teks bacaan ujian secara terisolasi
-        dan dinamis.
+        Tempat mengelola semua soal ujian — baik soal yang berdiri sendiri maupun soal
+        yang berbagi teks bacaan atau audio yang sama.
       </p>
     </div>
   );

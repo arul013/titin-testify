@@ -198,14 +198,14 @@ export function useBankSoalPage() {
     try {
       if (editingPassage) {
         await updatePassage(editingPassage.id, data);
-        toast.success('Passage berhasil diperbarui.');
+        toast.success('Materi berhasil diperbarui.');
       } else {
         await createPassage(data);
-        toast.success('Passage baru berhasil ditambahkan.');
+        toast.success('Materi baru berhasil ditambahkan.');
       }
       refetchStats();
     } catch (err) {
-      toast.error(getErrorMessage(err, 'Gagal menyimpan passage.'));
+      toast.error(getErrorMessage(err, 'Gagal menyimpan materi.'));
     }
   };
 
@@ -224,17 +224,17 @@ export function useBankSoalPage() {
   const deletePassageWithConfirm = async (id: string) => {
     if (
       !confirm(
-        'Menghapus passage ini akan menghapus semua anak pertanyaan di dalamnya. Lanjutkan?'
+        'Menghapus materi ini akan ikut menghapus semua soal di dalamnya. Lanjutkan?'
       )
     )
       return;
     try {
       await deletePassage(id);
-      toast.success('Passage beserta soal terkait berhasil dihapus.');
+      toast.success('Materi beserta soalnya berhasil dihapus.');
       refetchStats();
       setSelectedPassage(null);
     } catch (err) {
-      toast.error(getErrorMessage(err, 'Gagal menghapus passage.'));
+      toast.error(getErrorMessage(err, 'Gagal menghapus materi.'));
     }
   };
 

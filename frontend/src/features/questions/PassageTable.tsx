@@ -30,14 +30,14 @@ export const PassageTable: React.FC<PassageTableProps> = ({
   return (
     <div className="overflow-x-auto border border-slate-100 rounded-2xl">
       {isLoading ? (
-        <div className="py-20 text-center text-slate-500 font-bold">Memuat data passage...</div>
+        <div className="py-20 text-center text-slate-500 font-bold">Memuat materi...</div>
       ) : (
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50/70 border-b border-slate-100">
-              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase">Konten / Ringkasan</th>
-              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase">Tipe Passage</th>
-              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase">Jumlah Pertanyaan</th>
+              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase">Isi Materi</th>
+              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase">Jenis</th>
+              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase">Jumlah Soal</th>
               <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase">Status</th>
               {isSuperAdmin && (
                 <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase">Pembuat</th>
@@ -52,7 +52,8 @@ export const PassageTable: React.FC<PassageTableProps> = ({
                   colSpan={isSuperAdmin ? 6 : 5}
                   className="py-12 text-center text-sm text-slate-400 font-medium"
                 >
-                  Belum ada passage induk yang dibuat.
+                  Belum ada teks bacaan atau audio. Buat satu lewat tombol
+                  &ldquo;Teks Bacaan / Audio&rdquo; untuk menyusun soal yang berbagi materi yang sama.
                 </td>
               </tr>
             ) : (
@@ -64,7 +65,7 @@ export const PassageTable: React.FC<PassageTableProps> = ({
                       <div className="font-semibold text-slate-800 text-sm line-clamp-2 leading-relaxed">
                         {p.content || (
                           <span className="text-indigo-600 font-bold flex items-center gap-1">
-                            <Music className="w-3.5 h-3.5" /> Audio Listening Group
+                            <Music className="w-3.5 h-3.5" /> Audio Listening
                           </span>
                         )}
                       </div>
@@ -82,7 +83,7 @@ export const PassageTable: React.FC<PassageTableProps> = ({
                         variant={p.status === 'published' ? 'success' : 'neutral'}
                         className="text-[10px] font-extrabold uppercase"
                       >
-                        {p.status}
+                        {p.status === 'published' ? 'Tayang' : 'Draf'}
                       </Badge>
                     </td>
                     {isSuperAdmin && (
@@ -98,7 +99,7 @@ export const PassageTable: React.FC<PassageTableProps> = ({
                           className="h-8 py-0 font-bold text-xs"
                           onClick={() => onManage(p)}
                         >
-                          <Layers className="w-3.5 h-3.5 mr-1" /> Kelola Soal
+                          <Layers className="w-3.5 h-3.5 mr-1" /> Buka & Kelola
                         </Button>
                         {canModify && (
                           <>

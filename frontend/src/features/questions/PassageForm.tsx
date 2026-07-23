@@ -5,7 +5,7 @@ import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import { Music, FileText, AlertCircle } from 'lucide-react';
+import { Music, FileText, AlertCircle, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { getErrorMessage } from '@/lib/errors';
 import type { Passage } from './hooks/useQuestions';
@@ -26,8 +26,8 @@ const TYPE_OPTIONS = [
 ];
 
 const STATUS_OPTIONS = [
-  { value: 'draft', label: 'Draft' },
-  { value: 'published', label: 'Published' },
+  { value: 'draft', label: 'Draf' },
+  { value: 'published', label: 'Tayang' },
 ];
 
 export const PassageForm: React.FC<PassageFormProps> = ({
@@ -45,6 +45,9 @@ export const PassageForm: React.FC<PassageFormProps> = ({
   const [status, setStatus] = useState(initialData?.status || 'draft');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  // Jalur "tempel URL audio" adalah opsi lanjutan (untuk admin teknis). Tersembunyi
+  // secara default; otomatis terbuka bila record lama memang sudah punya URL manual.
+  const [showAudioUrlInput, setShowAudioUrlInput] = useState(!!initialData?.audio_url);
 
   const isEditing = !!initialData;
 
@@ -78,10 +81,10 @@ export const PassageForm: React.FC<PassageFormProps> = ({
       }
 
       setAudioUrl(responseData.audio_url);
-      toast.success('Audio berhasil diunggah ke Cloudflare R2!');
+      toast.success('Audio berhasil diunggah.');
     } catch (err) {
       console.error('Error uploading audio:', err);
-      toast.error(getErrorMessage(err, 'Gagal mengunggah file audio. Pastikan kredensial R2 di .env backend sudah benar.'));
+      toast.error(getErrorMessage(err, 'Gagal mengunggah audio. Coba lagi, atau hubungi admin bila masalah berlanjut.'));
     } finally {
       setIsUploading(false);
     }
@@ -106,12 +109,12 @@ export const PassageForm: React.FC<PassageFormProps> = ({
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Passage Induk' : 'Tambah Passage Induk Baru'} size="lg">
+    <Modal open={open} onClose={onClose} title={isEditing ? 'Edit Materi' : 'Tambah Materi Baru'} size="lg">
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         {/* Type & Status */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1.5">Jenis Passage</label>
+            <label className="block text-xs font-bold text-slate-600 mb-1.5">Jenis Materi</label>
             <Select value={type} onChange={(e) => setType(e.target.value)} disabled={isEditing}>
               {TYPE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -119,12 +122,16 @@ export const PassageForm: React.FC<PassageFormProps> = ({
             </Select>
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1.5">Status Publikasi</label>
+            <label className="block text-xs font-bold text-slate-600 mb-1.5">Status</label>
             <Select value={status} onChange={(e) => setStatus(e.target.value)}>
               {STATUS_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </Select>
+            <p className="text-[10px] text-slate-400 mt-1 leading-snug">
+              <span className="font-bold">Draf</span> disimpan tapi belum dipakai ·{' '}
+              <span className="font-bold">Tayang</span> berarti materi siap digunakan.
+            </p>
           </div>
         </div>
 
@@ -136,30 +143,43 @@ export const PassageForm: React.FC<PassageFormProps> = ({
               Pengaturan Audio Listening
             </h4>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1.5">Unggah File Audio</label>
-                <div className="flex items-center justify-center w-full">
-                  <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-indigo-200 rounded-xl cursor-pointer bg-white hover:bg-indigo-50/20 hover:border-indigo-400 transition-colors">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <Music className="w-6 h-6 text-indigo-500 mb-1" />
-                      <p className="text-[10px] text-slate-500 font-medium">Klik untuk pilih file audio</p>
-                    </div>
-                    <input type="file" accept="audio/*" className="hidden" onChange={handleAudioUpload} disabled={isUploading} />
-                  </label>
-                </div>
-                {isUploading && <p className="text-[10px] text-indigo-600 animate-pulse mt-1">Mengunggah audio...</p>}
+            <div>
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">Unggah File Audio</label>
+              <div className="flex items-center justify-center w-full">
+                <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-indigo-200 rounded-xl cursor-pointer bg-white hover:bg-indigo-50/20 hover:border-indigo-400 transition-colors">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <Music className="w-6 h-6 text-indigo-500 mb-1" />
+                    <p className="text-[10px] text-slate-500 font-medium">Klik untuk pilih file audio</p>
+                  </div>
+                  <input type="file" accept="audio/*" className="hidden" onChange={handleAudioUpload} disabled={isUploading} />
+                </label>
               </div>
+              {isUploading && <p className="text-[10px] text-indigo-600 animate-pulse mt-1">Mengunggah audio...</p>}
+            </div>
 
-              <div className="flex flex-col justify-end">
-                <label className="block text-xs font-bold text-slate-600 mb-1.5">URL Audio Langsung</label>
-                <Input
-                  value={audioUrl}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAudioUrl(e.target.value)}
-                  placeholder="https://example.com/audio.mp3"
-                  className="font-mono text-xs"
-                />
-              </div>
+            {/* Opsi lanjutan: tempel URL audio (untuk admin teknis) — tersembunyi default */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowAudioUrlInput((v) => !v)}
+                className="flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-indigo-600 transition-colors"
+              >
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAudioUrlInput ? 'rotate-180' : ''}`} />
+                Opsi lanjutan: tempel URL audio
+              </button>
+              {showAudioUrlInput && (
+                <div className="mt-2">
+                  <Input
+                    value={audioUrl}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAudioUrl(e.target.value)}
+                    placeholder="https://example.com/audio.mp3"
+                    className="font-mono text-xs"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Tempel tautan audio bila Anda sudah punya file di layanan lain.
+                  </p>
+                </div>
+              )}
             </div>
 
             {audioUrl && (
@@ -175,7 +195,7 @@ export const PassageForm: React.FC<PassageFormProps> = ({
         <div>
           <label className="text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1">
             <FileText className="w-3.5 h-3.5 text-slate-500" />
-            {type === 'listening' ? 'Teks Transkrip / Catatan Pembantu (Opsional)' : 'Teks Bacaan / Passage'}
+            {type === 'listening' ? 'Teks Transkrip / Catatan Pembantu (Opsional)' : 'Teks Bacaan'}
           </label>
           <Textarea
             rows={10}
@@ -203,7 +223,7 @@ export const PassageForm: React.FC<PassageFormProps> = ({
         <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
           <Button type="button" variant="ghost" onClick={onClose}>Batal</Button>
           <Button type="submit" variant="primary" loading={isSubmitting}>
-            {isEditing ? 'Simpan Passage' : 'Tambah Passage'}
+            {isEditing ? 'Simpan Materi' : 'Tambah Materi'}
           </Button>
         </div>
       </form>

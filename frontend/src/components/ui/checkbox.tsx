@@ -73,7 +73,9 @@ export function Checkbox({
         className={cn(
           "flex items-center justify-center rounded-md border-2 transition-colors",
           BOX[size],
-          checked ? FILL[variant] : "border-gray-300 bg-white group-hover:border-gray-400",
+          checked
+            ? FILL[variant]
+            : "border-gray-300 bg-white group-hover:border-gray-400",
           "peer-focus-visible:ring-2 peer-focus-visible:ring-offset-1",
           RING[variant],
           disabled && "opacity-50",
@@ -81,11 +83,13 @@ export function Checkbox({
       >
         <motion.span
           initial={false}
-          animate={checked ? { scale: 1, opacity: 1 } : { scale: 0, opacity: 0 }}
+          animate={
+            checked ? { scale: 1, opacity: 1 } : { scale: 0, opacity: 0 }
+          }
           transition={{ type: "spring", stiffness: 500, damping: 25 }}
           className="text-white"
         >
-          <Check className={cn(ICON[size], "stroke-[3]")} />
+          <Check className={cn(ICON[size], "stroke-3")} />
         </motion.span>
       </span>
     </span>
@@ -95,7 +99,11 @@ export function Checkbox({
     return (
       <label
         htmlFor={cbId}
-        className={cn("group inline-flex", disabled ? "cursor-not-allowed" : "cursor-pointer", className)}
+        className={cn(
+          "group inline-flex",
+          disabled ? "cursor-not-allowed" : "cursor-pointer",
+          className,
+        )}
       >
         {control}
       </label>
@@ -105,12 +113,18 @@ export function Checkbox({
   return (
     <label
       htmlFor={cbId}
-      className={cn("group flex items-start gap-3", disabled ? "cursor-not-allowed" : "cursor-pointer", className)}
+      className={cn(
+        "group flex items-start gap-3",
+        disabled ? "cursor-not-allowed" : "cursor-pointer",
+        className,
+      )}
     >
       <span className="mt-0.5">{control}</span>
       <div className="min-w-0">
         {label && <p className="text-sm font-medium text-gray-700">{label}</p>}
-        {description && <p className="mt-0.5 text-xs text-gray-400">{description}</p>}
+        {description && (
+          <p className="mt-0.5 text-xs text-gray-400">{description}</p>
+        )}
       </div>
     </label>
   );

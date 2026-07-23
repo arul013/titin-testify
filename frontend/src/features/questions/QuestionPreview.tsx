@@ -58,6 +58,12 @@ export const QuestionPreview: React.FC<QuestionPreviewProps> = ({
     });
   };
 
+  const difficultyLabel: Record<string, string> = {
+    easy: "Mudah",
+    medium: "Sedang",
+    hard: "Sulit",
+  };
+
   const getSectionLabel = (section: string) => {
     switch (section) {
       case "listening":
@@ -77,7 +83,7 @@ export const QuestionPreview: React.FC<QuestionPreviewProps> = ({
     <Modal
       open={open}
       onClose={onClose}
-      title="Pratinjau Soal (Preview Mode)"
+      title="Pratinjau Soal"
       size="lg"
     >
       <div className="flex flex-col gap-6 max-h-[75vh] overflow-y-auto pr-1">
@@ -96,13 +102,13 @@ export const QuestionPreview: React.FC<QuestionPreviewProps> = ({
             }
             className="font-extrabold uppercase text-[10px]"
           >
-            Tingkat: {question.difficulty}
+            Tingkat: {difficultyLabel[question.difficulty] ?? question.difficulty}
           </Badge>
           <Badge
             variant={question.status === "published" ? "success" : "neutral"}
             className="font-extrabold uppercase text-[10px]"
           >
-            {question.status}
+            {question.status === "published" ? "Tayang" : "Draf"}
           </Badge>
           {question.tags &&
             question.tags.map((tag) => (
@@ -121,7 +127,7 @@ export const QuestionPreview: React.FC<QuestionPreviewProps> = ({
           <div className="lg:col-span-6 flex flex-col gap-4 bg-slate-50/70 border border-slate-100 p-5 rounded-2xl">
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200/60 pb-2">
               <FileText className="w-4 h-4 text-slate-400" />
-              Materi Soal (Passage / Audio)
+              Materi Soal (Teks Bacaan / Audio)
             </h3>
 
             {passage ? (
@@ -149,8 +155,7 @@ export const QuestionPreview: React.FC<QuestionPreviewProps> = ({
               </div>
             ) : (
               <div className="text-slate-400 text-xs italic flex items-center justify-center h-48 border border-dashed border-slate-200 rounded-xl bg-white">
-                Soal ini tidak menggunakan teks bacaan (passage) atau audio
-                kelompok (Standalone).
+                Soal ini berdiri sendiri — tidak memakai teks bacaan atau audio bersama.
               </div>
             )}
           </div>
