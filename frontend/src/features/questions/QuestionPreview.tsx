@@ -11,7 +11,8 @@ import {
   AlertCircle,
   BookOpen,
 } from "lucide-react";
-import { renderExamText, renderPassageLines } from "./examText";
+import { renderExamText } from "./examText";
+import { PassageView } from "./PassageView";
 import type { Question, Passage } from "./hooks/useQuestions";
 
 interface QuestionPreviewProps {
@@ -118,9 +119,11 @@ export const QuestionPreview: React.FC<QuestionPreviewProps> = ({
                 )}
                 {passage.content && (
                   <div className="text-slate-700 text-sm leading-loose whitespace-pre-wrap font-sans flex-1 overflow-y-auto max-h-75 bg-white border border-slate-200/50 p-4 rounded-xl shadow-sm">
-                    {passage.type === "reading"
-                      ? renderPassageLines(passage.content)
-                      : renderExamText(passage.content)}
+                    {passage.type === "reading" ? (
+                      <PassageView content={passage.content} />
+                    ) : (
+                      renderExamText(passage.content)
+                    )}
                   </div>
                 )}
                 {passage.image_url && (
