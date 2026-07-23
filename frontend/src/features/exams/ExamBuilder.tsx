@@ -8,8 +8,14 @@ import { Button } from '@/components/ui/button';
 import { WorkflowStepper, type WorkflowStep } from '@/components/ui/WorkflowStepper';
 import { StepDetail } from './steps/StepDetail';
 import { StepComposition } from './steps/StepComposition';
+import { StepSource } from './steps/StepSource';
 import { StepParticipants } from './steps/StepParticipants';
-import { ALL_SECTIONS, type ExamDetail, type ExamSectionId } from './hooks/useExams';
+import {
+  ALL_SECTIONS,
+  type ExamDetail,
+  type ExamPoolUnit,
+  type ExamSectionId,
+} from './hooks/useExams';
 
 interface ExamBuilderProps {
   initial: ExamDetail | null;
@@ -17,7 +23,7 @@ interface ExamBuilderProps {
   onSubmit: (payload: Record<string, unknown>) => Promise<void>;
 }
 
-const STEP_LABELS = ['Detail', 'Komposisi', 'Peserta'];
+const STEP_LABELS = ['Detail', 'Komposisi', 'Sumber Soal', 'Peserta'];
 
 /** Ubah ISO → nilai input datetime-local (waktu lokal). */
 function toLocalInput(iso: string | null): string {
@@ -62,10 +68,15 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({ initial, onCancel, onS
     return init;
   });
 
+  // Sumber soal (pool units)
+  const [poolUnits, setPoolUnits] = useState<ExamPoolUnit[]>(initial?.pool_units ?? []);
+
   // Peserta
   const [participantIds, setParticipantIds] = useState<string[]>(
     initial?.participants?.map((p) => p.user_id) ?? [],
   );
+
+  const enabledSections = ALL_SECTIONS.filter((s) => counts[s] !== undefined);
 
   const toggleSection = (section: ExamSectionId, enabled: boolean) => {
     setCounts((prev) => {
@@ -95,10 +106,11 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({ initial, onCancel, onS
     status: 'draft',
     starts_at: fromLocalInput(startsAt),
     ends_at: fromLocalInput(endsAt),
-    sections: ALL_SECTIONS.filter((s) => counts[s] !== undefined).map((s) => ({
+    sections: enabledSections.map((s) => ({
       section: s,
       target_count: counts[s],
     })),
+    pool_units: poolUnits,
     participant_ids: participantIds,
   });
 
@@ -184,6 +196,13 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({ initial, onCancel, onS
           />
         )}
         {step === 2 && (
+          <StepSource
+            enabledSections={enabledSections}
+            poolUnits={poolUnits}
+            onChange={setPoolUnits}
+          />
+        )}
+        {step === 3 && (
           <StepParticipants selectedIds={participantIds} onChange={setParticipantIds} />
         )}
       </div>

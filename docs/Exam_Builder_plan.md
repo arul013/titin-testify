@@ -175,7 +175,12 @@ Validasi penting saat Tayang: stok bank **Tayang** cukup untuk memenuhi target t
   - Halaman toggle list↔builder (pola detail Bank Soal), FAB "Buat Ujian", `ConfirmDialog` hapus, `Pagination`, search.
   - **Verifikasi:** `npm run build` (compile + TS) sukses, diagnostics IDE nol. **Belum diuji live** (butuh `004_exams.sql` dijalankan + backend + peserta).
   - Catatan: step **Sumber Soal (picker hybrid)** BELUM ada — itu **E2**. E1 menyimpan `sections` + `participant_ids`; `pool_units` dikirim kosong (acak seluruh pool).
-- **E2 — Question picker hybrid + pool unit:** biarkan-acak / persempit / pilih manual **unit** (materi utuh). Layer seleksi di atas tabel soal (reuse `useQuestions` + `QuestionPreview`).
+- **E2 — Question picker hybrid + pool unit** ✅ **SELESAI — 2026-07-23.**
+  - Langkah baru **"Sumber Soal"** (`features/exams/steps/StepSource.tsx`) disisipkan di wizard antara Komposisi & Peserta → wizard kini 4 langkah.
+  - Per section (Tabs, hanya section aktif dari Komposisi): default **acak dari semua**; bisa dipersempit dengan mencentang **unit** — materi utuh (`passage_id`) atau soal tunggal (`question_id`). Badge menandai "Acak dari semua" vs "Dibatasi ke N unit".
+  - Reuse `usePassages` + `useQuestions` (filter `status='published'` + section; standalone = `passage_id === null`) + `QuestionPreview` (tombol mata pada soal tunggal). `pool_units` disimpan lewat payload create/update.
+  - **Verifikasi:** build sukses, diagnostics nol. Belum diuji live.
+  - Catatan: daftar unit dibatasi `per_page=100` per section (cukup untuk umumnya; pagination picker bisa ditambah nanti bila bank besar).
 - **E3 — Validasi & Tayangkan:** pool-preview berbasis unit, cek stok/jadwal/peserta, publish, daftar paket + status Draf/Tayang.
 - **E4 — Handoff ke Exam Engine (Phase 4):** kontrak data sesi + **snapshot per peserta menjaga grouping materi**; enforcement whitelist di `/ujian`.
 
