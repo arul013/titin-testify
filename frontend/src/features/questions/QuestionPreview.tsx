@@ -11,7 +11,7 @@ import {
   AlertCircle,
   BookOpen,
 } from "lucide-react";
-import { renderExamText } from "./examText";
+import { renderExamText, renderPassageLines } from "./examText";
 import type { Question, Passage } from "./hooks/useQuestions";
 
 interface QuestionPreviewProps {
@@ -118,10 +118,18 @@ export const QuestionPreview: React.FC<QuestionPreviewProps> = ({
                 )}
                 {passage.content && (
                   <div className="text-slate-700 text-sm leading-loose whitespace-pre-wrap font-sans flex-1 overflow-y-auto max-h-75 bg-white border border-slate-200/50 p-4 rounded-xl shadow-sm">
-                    {passage.type === "written_expression"
-                      ? renderExamText(passage.content)
-                      : passage.content}
+                    {passage.type === "reading"
+                      ? renderPassageLines(passage.content)
+                      : renderExamText(passage.content)}
                   </div>
+                )}
+                {passage.image_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={passage.image_url}
+                    alt="Gambar materi"
+                    className="max-w-full rounded-xl border border-slate-200/50 shadow-sm"
+                  />
                 )}
               </div>
             ) : (
@@ -139,11 +147,18 @@ export const QuestionPreview: React.FC<QuestionPreviewProps> = ({
             </h3>
 
             {/* Question Text */}
-            <div className="font-extrabold text-slate-800 text-md leading-relaxed">
-              {question.section === "written_expression"
-                ? renderExamText(question.question_text)
-                : question.question_text}
+            <div className="font-extrabold text-slate-800 text-md leading-relaxed whitespace-pre-wrap">
+              {renderExamText(question.question_text)}
             </div>
+
+            {question.image_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={question.image_url}
+                alt="Gambar soal"
+                className="max-w-full rounded-xl border border-slate-200/50 shadow-sm"
+              />
+            )}
 
             {/* Options list */}
             <div className="flex flex-col gap-3">
@@ -172,11 +187,7 @@ export const QuestionPreview: React.FC<QuestionPreviewProps> = ({
                     >
                       {opt.label}
                     </span>
-                    <span className="flex-1 leading-normal">
-                      {question.section === "written_expression"
-                        ? renderExamText(opt.val)
-                        : opt.val}
-                    </span>
+                    <span className="flex-1 leading-normal">{renderExamText(opt.val)}</span>
                     {isCorrect && (
                       <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600 shrink-0" />
                     )}

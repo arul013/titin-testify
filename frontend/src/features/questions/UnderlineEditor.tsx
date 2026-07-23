@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef } from 'react';
-import { Underline as UnderlineIcon, Eraser } from 'lucide-react';
+import { Underline as UnderlineIcon, Bold, Italic, Eraser } from 'lucide-react';
 import { Textarea } from '@/components/ui/input';
 import { renderExamText } from './examText';
 
@@ -9,8 +9,9 @@ interface UnderlineEditorProps {
   value: string;
   onChange: (value: string) => void;
   /** "labeled" → tombol A/B/C/D menghasilkan `[kata]{A}` (soal Written Expression).
-   *  "plain"   → tombol tunggal menghasilkan `__kata__` (garis bawah polos). */
-  variant?: 'labeled' | 'plain';
+   *  "plain"   → tombol tunggal menghasilkan `__kata__` (garis bawah polos).
+   *  "rich"    → tombol Tebal/Miring/Garis bawah (`**`/`*`/`__`) untuk stem Reading. */
+  variant?: 'labeled' | 'plain' | 'rich';
   rows?: number;
   placeholder?: string;
   required?: boolean;
@@ -48,6 +49,8 @@ export const UnderlineEditor: React.FC<UnderlineEditorProps> = ({
     });
   };
 
+  const richBtn = 'h-7 px-2.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-indigo-700 hover:bg-indigo-50 hover:border-indigo-300 transition-colors inline-flex items-center gap-1.5';
+
   return (
     <div className="flex flex-col gap-2">
       {/* Toolbar */}
@@ -64,6 +67,18 @@ export const UnderlineEditor: React.FC<UnderlineEditorProps> = ({
               Tandai {l}
             </button>
           ))
+        ) : variant === 'rich' ? (
+          <>
+            <button type="button" title="Tebal" onClick={() => wrap('**', '**')} className={richBtn}>
+              <Bold className="w-3.5 h-3.5" /> Tebal
+            </button>
+            <button type="button" title="Miring" onClick={() => wrap('*', '*')} className={richBtn}>
+              <Italic className="w-3.5 h-3.5" /> Miring
+            </button>
+            <button type="button" title="Garis bawah" onClick={() => wrap('__', '__')} className={richBtn}>
+              <UnderlineIcon className="w-3.5 h-3.5" /> Garis bawah
+            </button>
+          </>
         ) : (
           <button
             type="button"

@@ -130,8 +130,10 @@ export const QuestionTable: React.FC<QuestionTableProps> = ({
 
   const cleanHTML = (text: string) => {
     if (!text) return "";
-    // Clean both __word__ and [word]{A} patterns
+    // Buang penanda rich text: **tebal**, *miring*, __garis__, [kata]{A}
     return text
+      .replace(/\*\*([^*]+)\*\*/g, "$1")
+      .replace(/\*([^*]+)\*/g, "$1")
       .replace(/__([^_]+)__/g, "$1")
       .replace(/\[([^\]]+)\]\{[A-Da-d]\}/g, "$1");
   };

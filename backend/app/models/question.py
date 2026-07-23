@@ -46,6 +46,7 @@ class CreatePassageRequest(BaseModel):
     type: QuestionSection = Field(..., description="Passage type")
     content: Optional[str] = Field(None, description="Passage text content")
     audio_url: Optional[str] = Field(None, description="Audio URL for Listening passages")
+    image_url: Optional[str] = Field(None, description="Optional image URL for the passage")
     status: ContentStatus = Field(default=ContentStatus.DRAFT, description="Publication status")
 
 
@@ -53,6 +54,7 @@ class UpdatePassageRequest(BaseModel):
     """Request body for updating a passage."""
     content: Optional[str] = None
     audio_url: Optional[str] = None
+    image_url: Optional[str] = None
     status: Optional[ContentStatus] = None
 
 
@@ -70,6 +72,7 @@ class CreateQuestionRequest(BaseModel):
     option_d: str = Field(..., min_length=1, description="Option D text")
     correct_answer: CorrectAnswer = Field(..., description="Correct answer (a/b/c/d)")
     explanation: Optional[str] = Field(None, description="Answer explanation")
+    image_url: Optional[str] = Field(None, description="Optional image URL for the question")
     status: ContentStatus = Field(default=ContentStatus.DRAFT, description="Publication status")
     tags: list[str] = Field(default_factory=list, description="Topic tags")
     sort_order: int = Field(default=0, description="Order within passage group")
@@ -87,6 +90,7 @@ class UpdateQuestionRequest(BaseModel):
     option_d: Optional[str] = None
     correct_answer: Optional[CorrectAnswer] = None
     explanation: Optional[str] = None
+    image_url: Optional[str] = None
     status: Optional[ContentStatus] = None
     tags: Optional[list[str]] = None
     sort_order: Optional[int] = None
@@ -101,6 +105,7 @@ class PassageResponse(BaseModel):
     type: QuestionSection
     content: Optional[str] = None
     audio_url: Optional[str] = None
+    image_url: Optional[str] = None
     status: ContentStatus
     questions_count: int = 0
     creator_name: Optional[str] = None
@@ -122,6 +127,7 @@ class QuestionResponse(BaseModel):
     option_d: str
     correct_answer: CorrectAnswer
     explanation: Optional[str] = None
+    image_url: Optional[str] = None
     status: ContentStatus
     tags: list[str] = []
     sort_order: int = 0

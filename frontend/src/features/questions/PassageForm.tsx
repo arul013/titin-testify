@@ -7,7 +7,8 @@ import { Input, Textarea } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { FileUploader } from '@/components/ui/file-uploader';
 import { UnderlineEditor } from './UnderlineEditor';
-import { Music, FileText, ChevronDown } from 'lucide-react';
+import { RichPassageEditor } from './RichPassageEditor';
+import { Music, FileText, ChevronDown, Image as ImageIcon, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { getErrorMessage } from '@/lib/errors';
 import type { Passage } from './hooks/useQuestions';
@@ -45,8 +46,10 @@ export const PassageForm: React.FC<PassageFormProps> = ({
   const [content, setContent] = useState(initialData?.content || '');
   const [audioUrl, setAudioUrl] = useState(initialData?.audio_url || '');
   const [status, setStatus] = useState(initialData?.status || 'draft');
+  const [imageUrl, setImageUrl] = useState(initialData?.image_url || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   // Jalur "tempel URL audio" adalah opsi lanjutan (untuk admin teknis). Tersembunyi
   // secara default; otomatis terbuka bila record lama memang sudah punya URL manual.
   const [showAudioUrlInput, setShowAudioUrlInput] = useState(!!initialData?.audio_url);
@@ -89,6 +92,36 @@ export const PassageForm: React.FC<PassageFormProps> = ({
     }
   };
 
+  const uploadImageFile = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('File yang diunggah harus berformat gambar (jpg, png, webp, dsb).');
+      return;
+    }
+    setIsUploadingImage(true);
+    try {
+      const storedToken = localStorage.getItem('cbt_access_token');
+      const formData = new FormData();
+      formData.append('file', file);
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_BASE_URL}/api/questions/upload-image`, {
+        method: 'POST',
+        headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
+        body: formData,
+      });
+      const responseData = await response.json();
+      if (!response.ok) {
+        throw new Error(responseData.detail || 'Gagal mengunggah gambar ke server.');
+      }
+      setImageUrl(responseData.image_url);
+      toast.success('Gambar berhasil diunggah.');
+    } catch (err) {
+      console.error('Error uploading image:', err);
+      toast.error(getErrorMessage(err, 'Gagal mengunggah gambar. Coba lagi, atau hubungi admin bila masalah berlanjut.'));
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -97,6 +130,7 @@ export const PassageForm: React.FC<PassageFormProps> = ({
         type,
         content: type === 'listening' ? (content || null) : content,
         audio_url: type === 'listening' ? audioUrl : null,
+        image_url: imageUrl || null,
         status,
       });
       onClose();
@@ -212,6 +246,22 @@ export const PassageForm: React.FC<PassageFormProps> = ({
                 akan tampil bergaris bawah bagi peserta.
               </p>
             </>
+          ) : type === 'reading' ? (
+            <>
+              <RichPassageEditor
+                value={content}
+                onChange={setContent}
+                rows={12}
+                required
+                placeholder={
+                  'Tulis atau tempel teks bacaan.\nTekan Enter di tiap baris sesuai sumber (menentukan penomoran).\nBlok kata lalu klik Tebal / Miring / Garis bawah untuk memformat.'
+                }
+              />
+              <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
+                Setiap baris (Enter) dihitung untuk penomoran; nomor tampil <strong>tiap 5 baris</strong>.
+                Pemenggalan baris kamu yang menjaga referensi &ldquo;in line 12&rdquo; tetap akurat.
+              </p>
+            </>
           ) : (
             <Textarea
               rows={10}
@@ -222,6 +272,48 @@ export const PassageForm: React.FC<PassageFormProps> = ({
             />
           )}
         </div>
+
+        {/* Gambar materi (opsional) — untuk passage berbasis teks */}
+        {type !== 'listening' && (
+          <div>
+            <label className="text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1">
+              <ImageIcon className="w-3.5 h-3.5 text-slate-500" />
+              Gambar Materi (opsional)
+            </label>
+            {imageUrl ? (
+              <div className="relative inline-block">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imageUrl}
+                  alt="Gambar materi"
+                  className="max-h-48 rounded-xl border border-slate-200"
+                />
+                <button
+                  type="button"
+                  onClick={() => setImageUrl('')}
+                  title="Hapus gambar"
+                  className="absolute -top-2 -right-2 bg-white border border-slate-200 rounded-full p-1 shadow-sm text-slate-500 hover:text-red-600 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <FileUploader
+                variant="dropzone"
+                accept="image/*"
+                disabled={isUploadingImage}
+                icon={<ImageIcon />}
+                label="Klik atau seret gambar ke sini"
+                hint="Format jpg, png, webp, dan sejenisnya"
+                onFilesSelected={([f]) => uploadImageFile(f)}
+                onError={(m) => toast.error(m)}
+              />
+            )}
+            {isUploadingImage && (
+              <p className="text-[10px] text-indigo-600 animate-pulse mt-1">Mengunggah gambar...</p>
+            )}
+          </div>
+        )}
 
         {/* Submit Button */}
         <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">

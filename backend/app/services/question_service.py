@@ -35,6 +35,7 @@ class QuestionService:
             "type": request.type.value,
             "content": request.content,
             "audio_url": request.audio_url,
+            "image_url": request.image_url,
             "status": request.status.value,
         }
 
@@ -53,6 +54,7 @@ class QuestionService:
             type=p["type"],
             content=p.get("content"),
             audio_url=p.get("audio_url"),
+            image_url=p.get("image_url"),
             status=p["status"],
             questions_count=0,
             created_at=p.get("created_at"),
@@ -106,6 +108,7 @@ class QuestionService:
                 type=p["type"],
                 content=p.get("content"),
                 audio_url=p.get("audio_url"),
+            image_url=p.get("image_url"),
                 status=p["status"],
                 questions_count=q_count.count or 0,
                 creator_name=creator_name,
@@ -162,6 +165,7 @@ class QuestionService:
             type=p["type"],
             content=p.get("content"),
             audio_url=p.get("audio_url"),
+            image_url=p.get("image_url"),
             status=p["status"],
             questions_count=len(q_result.data or []),
             creator_name=creator_name,
@@ -184,6 +188,7 @@ class QuestionService:
                 option_d=q["option_d"],
                 correct_answer=q["correct_answer"],
                 explanation=q.get("explanation"),
+                image_url=q.get("image_url"),
                 status=q["status"],
                 tags=q.get("tags", []),
                 sort_order=q.get("sort_order", 0),
@@ -210,6 +215,8 @@ class QuestionService:
             update_data["content"] = request.content
         if request.audio_url is not None:
             update_data["audio_url"] = request.audio_url
+        if request.image_url is not None:
+            update_data["image_url"] = request.image_url
         if request.status is not None:
             update_data["status"] = request.status.value
 
@@ -230,6 +237,7 @@ class QuestionService:
             type=p["type"],
             content=p.get("content"),
             audio_url=p.get("audio_url"),
+            image_url=p.get("image_url"),
             status=p["status"],
             questions_count=q_count.count or 0,
             created_at=p.get("created_at"),
@@ -274,6 +282,7 @@ class QuestionService:
             "option_d": request.option_d,
             "correct_answer": request.correct_answer.value,
             "explanation": request.explanation,
+            "image_url": request.image_url,
             "status": request.status.value,
             "tags": request.tags,
             "sort_order": request.sort_order,
@@ -301,6 +310,7 @@ class QuestionService:
             option_d=q["option_d"],
             correct_answer=q["correct_answer"],
             explanation=q.get("explanation"),
+            image_url=q.get("image_url"),
             status=q["status"],
             tags=q.get("tags", []),
             sort_order=q.get("sort_order", 0),
@@ -364,6 +374,7 @@ class QuestionService:
                 option_d=q["option_d"],
                 correct_answer=q["correct_answer"],
                 explanation=q.get("explanation"),
+                image_url=q.get("image_url"),
                 status=q["status"],
                 tags=q.get("tags", []),
                 sort_order=q.get("sort_order", 0),
@@ -411,6 +422,7 @@ class QuestionService:
             option_d=q["option_d"],
             correct_answer=q["correct_answer"],
             explanation=q.get("explanation"),
+            image_url=q.get("image_url"),
             status=q["status"],
             tags=q.get("tags", []),
             sort_order=q.get("sort_order", 0),
@@ -442,6 +454,7 @@ class QuestionService:
             "option_d": request.option_d,
             "correct_answer": request.correct_answer.value if request.correct_answer else None,
             "explanation": request.explanation,
+            "image_url": request.image_url,
             "status": request.status.value if request.status else None,
             "tags": request.tags,
             "sort_order": request.sort_order,
@@ -473,6 +486,7 @@ class QuestionService:
             option_d=q["option_d"],
             correct_answer=q["correct_answer"],
             explanation=q.get("explanation"),
+            image_url=q.get("image_url"),
             status=q["status"],
             tags=q.get("tags", []),
             sort_order=q.get("sort_order", 0),

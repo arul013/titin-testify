@@ -19,6 +19,7 @@ export interface Question {
   option_d: string;
   correct_answer: string;
   explanation: string | null;
+  image_url: string | null;
   status: string;
   tags: string[];
   sort_order: number;
@@ -33,6 +34,7 @@ export interface Passage {
   type: string;
   content: string | null;
   audio_url: string | null;
+  image_url: string | null;
   status: string;
   questions_count: number;
   creator_name?: string;

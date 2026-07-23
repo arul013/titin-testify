@@ -7,8 +7,11 @@ import { Input, Textarea } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ToggleGroup } from '@/components/ui/toggle-group';
+import { FileUploader } from '@/components/ui/file-uploader';
 import { UnderlineEditor } from './UnderlineEditor';
-import { X, Plus, Check, BookOpen, HelpCircle } from 'lucide-react';
+import { X, Plus, Check, BookOpen, HelpCircle, Image as ImageIcon } from 'lucide-react';
+import { toast } from 'sonner';
+import { getErrorMessage } from '@/lib/errors';
 import type { Question } from './hooks/useQuestions';
 
 interface QuestionFormProps {
@@ -60,9 +63,41 @@ export const QuestionForm: React.FC<QuestionFormProps> = ({
   const [status, setStatus] = useState(initialData?.status || 'draft');
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>(initialData?.tags || []);
+  const [imageUrl, setImageUrl] = useState(initialData?.image_url || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const isEditing = !!initialData;
+
+  const uploadImageFile = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('File yang diunggah harus berformat gambar (jpg, png, webp, dsb).');
+      return;
+    }
+    setIsUploadingImage(true);
+    try {
+      const storedToken = localStorage.getItem('cbt_access_token');
+      const formData = new FormData();
+      formData.append('file', file);
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_BASE_URL}/api/questions/upload-image`, {
+        method: 'POST',
+        headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
+        body: formData,
+      });
+      const responseData = await response.json();
+      if (!response.ok) {
+        throw new Error(responseData.detail || 'Gagal mengunggah gambar ke server.');
+      }
+      setImageUrl(responseData.image_url);
+      toast.success('Gambar berhasil diunggah.');
+    } catch (err) {
+      console.error('Error uploading image:', err);
+      toast.error(getErrorMessage(err, 'Gagal mengunggah gambar. Coba lagi, atau hubungi admin bila masalah berlanjut.'));
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
 
   const addTag = () => {
     const trimmed = tagInput.trim();
@@ -91,6 +126,7 @@ export const QuestionForm: React.FC<QuestionFormProps> = ({
         option_d: optionD,
         correct_answer: correctAnswer,
         explanation: explanation || null,
+        image_url: imageUrl || null,
         status,
         tags,
       });
@@ -161,6 +197,15 @@ export const QuestionForm: React.FC<QuestionFormProps> = ({
                 bawah berlabel — sesuai format Written Expression.
               </p>
             </>
+          ) : section === 'reading' ? (
+            <UnderlineEditor
+              variant="rich"
+              value={questionText}
+              onChange={setQuestionText}
+              rows={3}
+              required
+              placeholder="Tulis pertanyaan. Blok kata lalu klik Tebal/Miring/Garis bawah bila perlu (mis. kata yang diuji)."
+            />
           ) : (
             <Textarea
               rows={3}
@@ -169,6 +214,46 @@ export const QuestionForm: React.FC<QuestionFormProps> = ({
               placeholder="Tulis pertanyaan di sini..."
               required
             />
+          )}
+        </div>
+
+        {/* Gambar soal (opsional) */}
+        <div>
+          <label className="text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1">
+            <ImageIcon className="w-3.5 h-3.5 text-slate-500" />
+            Gambar Soal (opsional)
+          </label>
+          {imageUrl ? (
+            <div className="relative inline-block">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={imageUrl}
+                alt="Gambar soal"
+                className="max-h-48 rounded-xl border border-slate-200"
+              />
+              <button
+                type="button"
+                onClick={() => setImageUrl('')}
+                title="Hapus gambar"
+                className="absolute -top-2 -right-2 bg-white border border-slate-200 rounded-full p-1 shadow-sm text-slate-500 hover:text-red-600 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <FileUploader
+              variant="dropzone"
+              accept="image/*"
+              disabled={isUploadingImage}
+              icon={<ImageIcon />}
+              label="Klik atau seret gambar ke sini"
+              hint="Format jpg, png, webp, dan sejenisnya"
+              onFilesSelected={([f]) => uploadImageFile(f)}
+              onError={(m) => toast.error(m)}
+            />
+          )}
+          {isUploadingImage && (
+            <p className="text-[10px] text-indigo-600 animate-pulse mt-1">Mengunggah gambar...</p>
           )}
         </div>
 
