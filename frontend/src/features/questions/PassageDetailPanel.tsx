@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { QuestionTable } from "./QuestionTable";
+import { BankSoalTableSkeleton } from "./BankSoalTableSkeleton";
 import type { Passage, Question } from "./hooks/useQuestions";
 
 interface PassageDetailPanelProps {
@@ -95,9 +96,7 @@ export const PassageDetailPanel: React.FC<PassageDetailPanelProps> = ({
           Daftar Soal dalam Materi Ini ({questions.length})
         </h3>
         {isLoading ? (
-          <div className="py-12 text-center text-slate-500 font-semibold">
-            Memuat soal...
-          </div>
+          <BankSoalTableSkeleton rows={3} />
         ) : (
           <QuestionTable
             questions={questions}

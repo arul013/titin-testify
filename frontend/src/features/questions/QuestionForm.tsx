@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { ToggleGroup } from '@/components/ui/toggle-group';
 import { X, Plus, Check, BookOpen, HelpCircle } from 'lucide-react';
 import type { Question } from './hooks/useQuestions';
 
@@ -181,12 +182,16 @@ export const QuestionForm: React.FC<QuestionFormProps> = ({
         {/* Correct Answer */}
         <div>
           <label className="block text-xs font-bold text-slate-600 mb-1.5">Jawaban Benar</label>
-          <Select value={correctAnswer} onChange={(e) => setCorrectAnswer(e.target.value)}>
-            <option value="a">A</option>
-            <option value="b">B</option>
-            <option value="c">C</option>
-            <option value="d">D</option>
-          </Select>
+          <ToggleGroup
+            value={correctAnswer}
+            onChange={(v) => v && setCorrectAnswer(v)}
+            options={[
+              { value: 'a', label: 'A' },
+              { value: 'b', label: 'B' },
+              { value: 'c', label: 'C' },
+              { value: 'd', label: 'D' },
+            ]}
+          />
         </div>
 
         {/* Explanation */}

@@ -53,6 +53,10 @@ export function useBankSoalPage() {
   const [previewQuestion, setPreviewQuestion] = useState<Question | null>(null);
   const [previewPassage, setPreviewPassage] = useState<Passage | null>(null);
 
+  // Konfirmasi hapus (menggantikan window.confirm dengan ConfirmDialog).
+  const [pendingDelete, setPendingDelete] = useState<{ kind: 'question' | 'passage'; id: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // Debounce search input
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -209,32 +213,35 @@ export function useBankSoalPage() {
     }
   };
 
-  const deleteQuestionWithConfirm = async (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus soal ini?')) return;
-    try {
-      await deleteQuestion(id);
-      toast.success('Soal berhasil dihapus.');
-      refetchStats();
-      if (selectedPassage) refreshPassageQuestions();
-    } catch (err) {
-      toast.error(getErrorMessage(err, 'Gagal menghapus soal.'));
-    }
-  };
+  // Buka dialog konfirmasi (tabel memanggil ini alih-alih langsung menghapus).
+  const requestDeleteQuestion = (id: string) => setPendingDelete({ kind: 'question', id });
+  const requestDeletePassage = (id: string) => setPendingDelete({ kind: 'passage', id });
+  const cancelDelete = () => setPendingDelete(null);
 
-  const deletePassageWithConfirm = async (id: string) => {
-    if (
-      !confirm(
-        'Menghapus materi ini akan ikut menghapus semua soal di dalamnya. Lanjutkan?'
-      )
-    )
-      return;
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    setIsDeleting(true);
     try {
-      await deletePassage(id);
-      toast.success('Materi beserta soalnya berhasil dihapus.');
+      if (pendingDelete.kind === 'question') {
+        await deleteQuestion(pendingDelete.id);
+        toast.success('Soal berhasil dihapus.');
+        if (selectedPassage) refreshPassageQuestions();
+      } else {
+        await deletePassage(pendingDelete.id);
+        toast.success('Materi beserta soalnya berhasil dihapus.');
+        setSelectedPassage(null);
+      }
       refetchStats();
-      setSelectedPassage(null);
+      setPendingDelete(null);
     } catch (err) {
-      toast.error(getErrorMessage(err, 'Gagal menghapus materi.'));
+      toast.error(
+        getErrorMessage(
+          err,
+          pendingDelete.kind === 'question' ? 'Gagal menghapus soal.' : 'Gagal menghapus materi.'
+        )
+      );
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -307,8 +314,14 @@ export function useBankSoalPage() {
     // actions
     submitQuestion,
     submitPassage,
-    deleteQuestionWithConfirm,
-    deletePassageWithConfirm,
     previewQuestionWithPassage,
+
+    // delete confirmation
+    pendingDelete,
+    isDeleting,
+    requestDeleteQuestion,
+    requestDeletePassage,
+    cancelDelete,
+    confirmDelete,
   };
 }

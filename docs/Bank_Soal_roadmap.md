@@ -86,13 +86,16 @@ Di `frontend/src/features/questions/PassageForm.tsx`:
 
 Catatan verifikasi P1: `tsc --noEmit` bersih untuk `features/questions`; diagnostics IDE hanya menyisakan hint lama `FormEvent is deprecated`.
 
-### P2 — Peningkatan alur & keseragaman DS
-- [ ] Ganti header → `PageHeader`, wrapper → `PageContainer`.
-- [ ] Ganti stats → `StatCard`, tab → `Tabs`, loading → `Skeleton`.
-- [ ] Ganti empty state inline (copy sudah dibimbing di P1) → komponen DS `EmptyState`/`EmptySearch`.
-- [ ] Ganti `confirm()` native → `ConfirmDialog`.
-- [ ] Ganti dropzone audio → `FileUploader`; pilih jawaban → `ToggleGroup`.
-- [ ] Satukan 2 tombol tambah menjadi **satu wizard "Buat Soal"** yang bertanya: *"Apakah soal ini berbagi teks bacaan / audio dengan beberapa soal lain?"* (pakai `WorkflowStepper`).
+### P2 — Peningkatan alur & keseragaman DS ✅ SELESAI (2026-07-23)
+- [x] Ganti header → `PageHeader`, wrapper → `PageContainer`. **Keputusan user: ikut DS penuh sekarang** (Bank Soal jadi pionir; dashboard/users/ujian masih header lama — kandidat migrasi berikutnya). `BankSoalHeader.tsx` & `BankSoalToolbar.tsx` **dihapus** (tak terpakai lagi).
+- [x] Ganti stats → `StatCard` (`BankSoalStats`), tab → `Tabs` (`BankSoalFilters`), loading → `Skeleton` (komponen baru `BankSoalTableSkeleton`, dipakai di `PassageTable`, `PassageDetailPanel`, & tabel soal di `page.tsx`).
+- [x] Ganti empty state inline → komponen DS `EmptyState` (`PassageTable` & `QuestionTable`).
+- [x] Ganti `confirm()` native → `ConfirmDialog`. Alur pindah ke hook (`pendingDelete`/`isDeleting`/`requestDelete*`/`confirmDelete`/`cancelDelete`); dialog dirender di `page.tsx`.
+- [x] Ganti dropzone audio → `FileUploader` (`PassageForm`); pilih jawaban benar → `ToggleGroup` (`QuestionForm`).
+- [x] Satukan 2 tombol tambah menjadi **satu entri "Buat Soal"**. **Iterasi final (keputusan user):** memakai komponen baru **`FAB`** varian *speed-dial 2 aksi* ("Soal Tunggal" & "Soal + Materi Bersama") yang **menggantikan** tombol header sekaligus modal pilihan. Modal `BankSoalCreateChooser` sempat dibuat lalu **dihapus** karena FAB speed-dial sudah mencakup percabangannya tanpa redundansi. (Tetap deviasi dari `WorkflowStepper` — percabangan 1 langkah.)
+  - Catatan tata letak: `PageContainer` diberi `pb-24` agar konten bawah (pagination) tak tertutup FAB (`fixed bottom-right`), karena `(dashboard)/layout.tsx` memakai `<main>` custom tanpa `pb` khusus FAB.
+
+Catatan verifikasi P2: `npm run build` (compile + TypeScript) **sukses**, `eslint` bersih, diagnostics IDE nol untuk file yang diubah.
 
 ### P3 — Fase lanjutan (effort besar)
 - [ ] Editor visual untuk Written Expression (mengganti sintaks `__kata__` / `[word]{A}` dengan tombol "garis bawahi kata terpilih").

@@ -4,6 +4,7 @@ import React from 'react';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { Tabs } from '@/components/ui/tabs';
 import type { BankSoalTab } from './hooks/useBankSoalPage';
 
 interface BankSoalFiltersProps {
@@ -39,21 +40,7 @@ export const BankSoalFilters: React.FC<BankSoalFiltersProps> = ({
   return (
     <>
       {/* Navigation Tabs */}
-      <div className="flex flex-wrap border-b border-slate-100 gap-1 pb-1">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => onTabChange(tab.id)}
-            className={`px-4 py-2.5 text-sm font-bold rounded-xl transition-all ${
-              activeTab === tab.id
-                ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <Tabs tabs={TABS} value={activeTab} onChange={(id) => onTabChange(id as BankSoalTab)} />
 
       {/* Filters row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">

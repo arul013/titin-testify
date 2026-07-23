@@ -1,9 +1,11 @@
 'use client';
 
 import React from 'react';
-import { Music, Layers, Edit2, Trash2 } from 'lucide-react';
+import { Music, Layers, Edit2, Trash2, BookOpen } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
+import { BankSoalTableSkeleton } from './BankSoalTableSkeleton';
 import type { Passage } from './hooks/useQuestions';
 
 interface PassageTableProps {
@@ -30,7 +32,9 @@ export const PassageTable: React.FC<PassageTableProps> = ({
   return (
     <div className="overflow-x-auto border border-slate-100 rounded-2xl">
       {isLoading ? (
-        <div className="py-20 text-center text-slate-500 font-bold">Memuat materi...</div>
+        <div className="p-4">
+          <BankSoalTableSkeleton />
+        </div>
       ) : (
         <table className="w-full text-left border-collapse">
           <thead>
@@ -48,12 +52,12 @@ export const PassageTable: React.FC<PassageTableProps> = ({
           <tbody className="divide-y divide-slate-100">
             {passages.length === 0 ? (
               <tr>
-                <td
-                  colSpan={isSuperAdmin ? 6 : 5}
-                  className="py-12 text-center text-sm text-slate-400 font-medium"
-                >
-                  Belum ada teks bacaan atau audio. Buat satu lewat tombol
-                  &ldquo;Teks Bacaan / Audio&rdquo; untuk menyusun soal yang berbagi materi yang sama.
+                <td colSpan={isSuperAdmin ? 6 : 5} className="p-0">
+                  <EmptyState
+                    icon={<BookOpen />}
+                    title="Belum ada teks bacaan atau audio"
+                    description="Buat lewat tombol “Buat Soal” → “Soal dengan Materi Bersama” untuk menyusun beberapa soal yang berbagi materi yang sama."
+                  />
                 </td>
               </tr>
             ) : (

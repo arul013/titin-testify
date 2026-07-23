@@ -5,6 +5,7 @@ import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { FileUploader } from '@/components/ui/file-uploader';
 import { Music, FileText, AlertCircle, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { getErrorMessage } from '@/lib/errors';
@@ -51,10 +52,7 @@ export const PassageForm: React.FC<PassageFormProps> = ({
 
   const isEditing = !!initialData;
 
-  const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const uploadAudioFile = async (file: File) => {
     // Validate is audio
     if (!file.type.startsWith('audio/')) {
       toast.error('File yang diunggah harus berformat audio (mp3, wav, m4a, dsb).');
@@ -145,15 +143,16 @@ export const PassageForm: React.FC<PassageFormProps> = ({
 
             <div>
               <label className="block text-xs font-bold text-slate-600 mb-1.5">Unggah File Audio</label>
-              <div className="flex items-center justify-center w-full">
-                <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-indigo-200 rounded-xl cursor-pointer bg-white hover:bg-indigo-50/20 hover:border-indigo-400 transition-colors">
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <Music className="w-6 h-6 text-indigo-500 mb-1" />
-                    <p className="text-[10px] text-slate-500 font-medium">Klik untuk pilih file audio</p>
-                  </div>
-                  <input type="file" accept="audio/*" className="hidden" onChange={handleAudioUpload} disabled={isUploading} />
-                </label>
-              </div>
+              <FileUploader
+                variant="dropzone"
+                accept="audio/*"
+                disabled={isUploading}
+                icon={<Music />}
+                label="Klik atau seret file audio ke sini"
+                hint="Format mp3, wav, m4a, dan sejenisnya"
+                onFilesSelected={([f]) => uploadAudioFile(f)}
+                onError={(m) => toast.error(m)}
+              />
               {isUploading && <p className="text-[10px] text-indigo-600 animate-pulse mt-1">Mengunggah audio...</p>}
             </div>
 

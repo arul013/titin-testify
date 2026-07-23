@@ -3,6 +3,7 @@
 import React from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Edit2,
   Trash2,
@@ -11,6 +12,7 @@ import {
   FileText,
   CheckCircle2,
   AlertCircle,
+  HelpCircle,
 } from "lucide-react";
 import type { Question } from "./hooks/useQuestions";
 
@@ -168,11 +170,12 @@ export const QuestionTable: React.FC<QuestionTableProps> = ({
           <tbody className="divide-y divide-slate-100">
             {questions.length === 0 ? (
               <tr>
-                <td
-                  colSpan={currentUserRole === "super_admin" ? 7 : 6}
-                  className="py-12 text-center text-sm text-slate-400 font-medium"
-                >
-                  Belum ada soal di sini. Tambahkan lewat tombol di atas.
+                <td colSpan={currentUserRole === "super_admin" ? 7 : 6} className="p-0">
+                  <EmptyState
+                    icon={<HelpCircle />}
+                    title="Belum ada soal di sini"
+                    description="Tambahkan soal lewat tombol di atas."
+                  />
                 </td>
               </tr>
             ) : (
