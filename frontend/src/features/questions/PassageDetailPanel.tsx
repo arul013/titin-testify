@@ -72,8 +72,12 @@ export const PassageDetailPanel: React.FC<PassageDetailPanelProps> = ({
         </div>
       )}
       {passage.content && (
-        <div className="text-slate-600 text-sm max-h-40 overflow-y-auto bg-slate-50 border border-slate-100 p-4 rounded-xl whitespace-pre-wrap leading-relaxed">
-          {renderExamText(passage.content)}
+        <div className="text-slate-600 text-sm max-h-40 overflow-y-auto bg-slate-50 border border-slate-100 p-4 rounded-xl leading-relaxed">
+          {passage.content.split(/\n\s*\n/).map((para, i) => (
+            <p key={i} className={i ? 'mt-2' : ''}>
+              {renderExamText(para.replace(/\n/g, ' ').trim())}
+            </p>
+          ))}
         </div>
       )}
 

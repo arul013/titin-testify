@@ -41,13 +41,11 @@ export default function BankSoalPage() {
     <PageContainer
       className={bank.isQuestionOpen ? 'space-y-4' : 'space-y-6 pb-24'}
       header={
-        bank.isQuestionOpen ? undefined : (
-          <PageHeader
-            icon={<Library />}
-            title="Bank Soal"
-            subtitle="Tempat mengelola semua soal ujian — baik soal tunggal maupun soal yang berbagi teks bacaan atau audio yang sama."
-          />
-        )
+        <PageHeader
+          icon={<Library />}
+          title="Bank Soal"
+          subtitle="Tempat mengelola semua soal ujian — baik soal tunggal maupun soal yang berbagi teks bacaan atau audio yang sama."
+        />
       }
     >
       {bank.isQuestionOpen ? (
