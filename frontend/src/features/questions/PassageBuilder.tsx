@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input, Textarea } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { ToggleGroup } from '@/components/ui/toggle-group';
-import { FileUploader } from '@/components/ui/file-uploader';
-import { UnderlineEditor } from './UnderlineEditor';
-import { RichPassageEditor } from './RichPassageEditor';
-import { PassageView } from './PassageView';
-import { renderExamText } from './examText';
-import { BankSoalBuilder } from './BankSoalBuilder';
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input, Textarea } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ToggleGroup } from "@/components/ui/toggle-group";
+import { FileUploader } from "@/components/ui/file-uploader";
+import { UnderlineEditor } from "./UnderlineEditor";
+import { RichPassageEditor } from "./RichPassageEditor";
+import { PassageView } from "./PassageView";
+import { renderExamText } from "./examText";
+import { BankSoalBuilder } from "./BankSoalBuilder";
 import {
   Music,
   FileText,
@@ -21,11 +21,10 @@ import {
   Lightbulb,
   CornerDownLeft,
   Hash,
-  Target,
-} from 'lucide-react';
-import { toast } from 'sonner';
-import { getErrorMessage } from '@/lib/errors';
-import type { Passage } from './hooks/useQuestions';
+} from "lucide-react";
+import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/errors";
+import type { Passage } from "./hooks/useQuestions";
 
 interface PassageBuilderProps {
   initialData?: Passage | null;
@@ -36,15 +35,27 @@ interface PassageBuilderProps {
 }
 
 const STATUS_OPTIONS = [
-  { value: 'draft', label: 'Draf' },
-  { value: 'published', label: 'Tayang' },
+  { value: "draft", label: "Draf" },
+  { value: "published", label: "Tayang" },
 ];
 
 const TYPE_META: Record<string, { label: string; short: string }> = {
-  listening: { label: 'Listening Comprehension (Audio)', short: 'Materi Soal (Audio)' },
-  reading: { label: 'Reading Comprehension (Teks)', short: 'Materi Soal (Teks Bacaan)' },
-  structure: { label: 'Structure Section (Teks)', short: 'Materi Soal (Structure)' },
-  written_expression: { label: 'Written Expression (Teks)', short: 'Materi Soal (Written Expression)' },
+  listening: {
+    label: "Listening Comprehension (Audio)",
+    short: "Materi Soal (Audio)",
+  },
+  reading: {
+    label: "Reading Comprehension (Teks)",
+    short: "Materi Soal (Teks Bacaan)",
+  },
+  structure: {
+    label: "Structure Section (Teks)",
+    short: "Materi Soal (Structure)",
+  },
+  written_expression: {
+    label: "Written Expression (Teks)",
+    short: "Materi Soal (Written Expression)",
+  },
 };
 
 export const PassageBuilder: React.FC<PassageBuilderProps> = ({
@@ -53,72 +64,108 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
   onCancel,
   onSubmit,
 }) => {
-  const type = initialData?.type || defaultType || 'reading';
-  const [content, setContent] = useState(initialData?.content || '');
-  const [audioUrl, setAudioUrl] = useState(initialData?.audio_url || '');
-  const [status, setStatus] = useState(initialData?.status || 'draft');
-  const [imageUrl, setImageUrl] = useState(initialData?.image_url || '');
+  const type = initialData?.type || defaultType || "reading";
+  const [content, setContent] = useState(initialData?.content || "");
+  const [audioUrl, setAudioUrl] = useState(initialData?.audio_url || "");
+  const [status, setStatus] = useState(initialData?.status || "draft");
+  const [imageUrl, setImageUrl] = useState(initialData?.image_url || "");
   const [useImage, setUseImage] = useState(!!initialData?.image_url);
-  const [imagePosition, setImagePosition] = useState(initialData?.image_position || 'below');
+  const [imagePosition, setImagePosition] = useState(
+    initialData?.image_position || "below",
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   // Jalur "tempel URL audio" — opsi lanjutan (admin teknis). Tersembunyi default;
   // otomatis terbuka bila record lama memang sudah punya URL manual.
-  const [showAudioUrlInput, setShowAudioUrlInput] = useState(!!initialData?.audio_url);
+  const [showAudioUrlInput, setShowAudioUrlInput] = useState(
+    !!initialData?.audio_url,
+  );
 
   const isEditing = !!initialData;
-  const meta = TYPE_META[type] ?? { label: type, short: 'Materi Soal' };
+  const meta = TYPE_META[type] ?? { label: type, short: "Materi Soal" };
 
   const uploadAudioFile = async (file: File) => {
-    if (!file.type.startsWith('audio/')) {
-      toast.error('File yang diunggah harus berformat audio (mp3, wav, m4a, dsb).');
+    if (!file.type.startsWith("audio/")) {
+      toast.error(
+        "File yang diunggah harus berformat audio (mp3, wav, m4a, dsb).",
+      );
       return;
     }
     setIsUploading(true);
     try {
-      const storedToken = localStorage.getItem('cbt_access_token');
+      const storedToken = localStorage.getItem("cbt_access_token");
       const formData = new FormData();
-      formData.append('file', file);
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${API_BASE_URL}/api/questions/upload-audio`, {
-        method: 'POST',
-        headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
-        body: formData,
-      });
+      formData.append("file", file);
+      const API_BASE_URL =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const response = await fetch(
+        `${API_BASE_URL}/api/questions/upload-audio`,
+        {
+          method: "POST",
+          headers: storedToken
+            ? { Authorization: `Bearer ${storedToken}` }
+            : {},
+          body: formData,
+        },
+      );
       const responseData = await response.json();
-      if (!response.ok) throw new Error(responseData.detail || 'Gagal mengunggah file audio ke server.');
+      if (!response.ok)
+        throw new Error(
+          responseData.detail || "Gagal mengunggah file audio ke server.",
+        );
       setAudioUrl(responseData.audio_url);
-      toast.success('Audio berhasil diunggah.');
+      toast.success("Audio berhasil diunggah.");
     } catch (err) {
-      toast.error(getErrorMessage(err, 'Gagal mengunggah audio. Coba lagi, atau hubungi admin bila masalah berlanjut.'));
+      toast.error(
+        getErrorMessage(
+          err,
+          "Gagal mengunggah audio. Coba lagi, atau hubungi admin bila masalah berlanjut.",
+        ),
+      );
     } finally {
       setIsUploading(false);
     }
   };
 
   const uploadImageFile = async (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      toast.error('File yang diunggah harus berformat gambar (jpg, png, webp, dsb).');
+    if (!file.type.startsWith("image/")) {
+      toast.error(
+        "File yang diunggah harus berformat gambar (jpg, png, webp, dsb).",
+      );
       return;
     }
     setIsUploadingImage(true);
     try {
-      const storedToken = localStorage.getItem('cbt_access_token');
+      const storedToken = localStorage.getItem("cbt_access_token");
       const formData = new FormData();
-      formData.append('file', file);
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${API_BASE_URL}/api/questions/upload-image`, {
-        method: 'POST',
-        headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
-        body: formData,
-      });
+      formData.append("file", file);
+      const API_BASE_URL =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const response = await fetch(
+        `${API_BASE_URL}/api/questions/upload-image`,
+        {
+          method: "POST",
+          headers: storedToken
+            ? { Authorization: `Bearer ${storedToken}` }
+            : {},
+          body: formData,
+        },
+      );
       const responseData = await response.json();
-      if (!response.ok) throw new Error(responseData.detail || 'Gagal mengunggah gambar ke server.');
+      if (!response.ok)
+        throw new Error(
+          responseData.detail || "Gagal mengunggah gambar ke server.",
+        );
       setImageUrl(responseData.image_url);
-      toast.success('Gambar berhasil diunggah.');
+      toast.success("Gambar berhasil diunggah.");
     } catch (err) {
-      toast.error(getErrorMessage(err, 'Gagal mengunggah gambar. Coba lagi, atau hubungi admin bila masalah berlanjut.'));
+      toast.error(
+        getErrorMessage(
+          err,
+          "Gagal mengunggah gambar. Coba lagi, atau hubungi admin bila masalah berlanjut.",
+        ),
+      );
     } finally {
       setIsUploadingImage(false);
     }
@@ -130,11 +177,11 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
     try {
       await onSubmit({
         type,
-        content: type === 'listening' ? content || null : content,
-        audio_url: type === 'listening' ? audioUrl : null,
+        content: type === "listening" ? content || null : content,
+        audio_url: type === "listening" ? audioUrl : null,
         // Kirim '' (bukan null) saat gambar dimatikan agar backend menghapusnya
         // (update passage hanya menerapkan field yang bukan-None).
-        image_url: useImage ? imageUrl : '',
+        image_url: useImage ? imageUrl : "",
         image_position: imagePosition,
         status,
       });
@@ -148,44 +195,60 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
 
   // ─── Panel editor (kiri) ───────────────────────────────────
   const editor = (
-    <form onSubmit={handleSubmit} className={`flex flex-col gap-5 ${type === 'reading' ? 'min-h-full' : ''}`}>
+    <form
+      onSubmit={handleSubmit}
+      className={`flex flex-col gap-5 ${type === "reading" ? "min-h-full" : ""}`}
+    >
       {/* Jenis materi (terkunci) + status */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-bold text-slate-600 mb-1.5">Jenis Materi</label>
+          <label className="block text-xs font-bold text-slate-600 mb-1.5">
+            Jenis Materi
+          </label>
           <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5">
-            {type === 'listening' ? (
+            {type === "listening" ? (
               <Music className="w-4 h-4 text-indigo-600 shrink-0" />
             ) : (
               <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
             )}
-            <span className="text-sm font-semibold text-slate-700 truncate">{meta.label}</span>
+            <span className="text-sm font-semibold text-slate-700 truncate">
+              {meta.label}
+            </span>
           </div>
-          <p className="text-[10px] text-slate-400 mt-1">Jenis materi ditetapkan saat membuat dan tidak bisa diubah.</p>
+          <p className="text-[10px] text-slate-400 mt-1">
+            Jenis materi ditetapkan saat membuat dan tidak bisa diubah.
+          </p>
         </div>
         <div>
-          <label className="block text-xs font-bold text-slate-600 mb-1.5">Status</label>
+          <label className="block text-xs font-bold text-slate-600 mb-1.5">
+            Status
+          </label>
           <Select value={status} onChange={(e) => setStatus(e.target.value)}>
             {STATUS_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
             ))}
           </Select>
           <p className="text-[10px] text-slate-400 mt-1 leading-snug">
-            <span className="font-bold">Draf</span> disimpan tapi belum dipakai ·{' '}
-            <span className="font-bold">Tayang</span> berarti materi siap digunakan.
+            <span className="font-bold">Draf</span> disimpan tapi belum dipakai
+            · <span className="font-bold">Tayang</span> berarti materi siap
+            digunakan.
           </p>
         </div>
       </div>
 
       {/* Listening — pengaturan audio */}
-      {type === 'listening' && (
+      {type === "listening" && (
         <div className="p-4 bg-indigo-50/50 border border-indigo-100 rounded-2xl flex flex-col gap-4">
           <h4 className="text-xs font-bold text-indigo-700 uppercase tracking-wider flex items-center gap-1.5">
             <Music className="w-4 h-4 text-indigo-600" />
             Pengaturan Audio Listening
           </h4>
           <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1.5">Unggah File Audio</label>
+            <label className="block text-xs font-bold text-slate-600 mb-1.5">
+              Unggah File Audio
+            </label>
             <FileUploader
               variant="dropzone"
               accept="audio/*"
@@ -196,7 +259,11 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
               onFilesSelected={([f]) => uploadAudioFile(f)}
               onError={(m) => toast.error(m)}
             />
-            {isUploading && <p className="text-[10px] text-indigo-600 animate-pulse mt-1">Mengunggah audio...</p>}
+            {isUploading && (
+              <p className="text-[10px] text-indigo-600 animate-pulse mt-1">
+                Mengunggah audio...
+              </p>
+            )}
           </div>
           <div>
             <button
@@ -204,26 +271,33 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
               onClick={() => setShowAudioUrlInput((v) => !v)}
               className="flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-indigo-600 transition-colors"
             >
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAudioUrlInput ? 'rotate-180' : ''}`} />
+              <ChevronDown
+                className={`w-3.5 h-3.5 transition-transform ${showAudioUrlInput ? "rotate-180" : ""}`}
+              />
               Opsi lanjutan: tempel URL audio
             </button>
             {showAudioUrlInput && (
               <div className="mt-2">
                 <Input
                   value={audioUrl}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAudioUrl(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setAudioUrl(e.target.value)
+                  }
                   placeholder="https://example.com/audio.mp3"
                   className="font-mono text-xs"
                 />
                 <p className="text-[10px] text-slate-400 mt-1">
-                  Tempel tautan audio bila Anda sudah punya file di layanan lain.
+                  Tempel tautan audio bila Anda sudah punya file di layanan
+                  lain.
                 </p>
               </div>
             )}
           </div>
           {audioUrl && (
             <div className="pt-2 border-t border-indigo-100">
-              <p className="text-[10px] font-bold text-slate-500 mb-1">Preview Player:</p>
+              <p className="text-[10px] font-bold text-slate-500 mb-1">
+                Preview Player:
+              </p>
               <audio src={audioUrl} controls className="w-full h-8" />
             </div>
           )}
@@ -231,12 +305,18 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
       )}
 
       {/* Teks bacaan / transkrip */}
-      <div className={type === 'reading' ? 'flex flex-col flex-1 min-h-[50vh]' : ''}>
+      <div
+        className={
+          type === "reading" ? "flex flex-col flex-1 min-h-[50vh]" : ""
+        }
+      >
         <label className="text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1">
           <FileText className="w-3.5 h-3.5 text-slate-500" />
-          {type === 'listening' ? 'Teks Transkrip / Catatan Pembantu (Opsional)' : 'Teks Bacaan'}
+          {type === "listening"
+            ? "Teks Transkrip / Catatan Pembantu (Opsional)"
+            : "Teks Bacaan"}
         </label>
-        {type === 'written_expression' ? (
+        {type === "written_expression" ? (
           <>
             <UnderlineEditor
               variant="plain"
@@ -248,11 +328,11 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
               placeholder="Tulis kalimat, lalu blok kata dan klik Garis bawahi untuk menandai bagian yang digarisbawahi."
             />
             <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
-              Blok kata pada teks, lalu klik <strong>Garis bawahi</strong> untuk menandai bagian yang
-              akan tampil bergaris bawah bagi peserta.
+              Blok kata pada teks, lalu klik <strong>Garis bawahi</strong> untuk
+              menandai bagian yang akan tampil bergaris bawah bagi peserta.
             </p>
           </>
-        ) : type === 'reading' ? (
+        ) : type === "reading" ? (
           <>
             <div className="flex-1 min-h-0">
               <RichPassageEditor
@@ -263,7 +343,7 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
                 showPreview={false}
                 fill
                 placeholder={
-                  'Tulis atau tempel teks bacaan.\nPisahkan tiap paragraf dengan satu baris kosong (baris pertamanya otomatis menjorok).\nBlok kata lalu klik Tebal / Miring / Garis bawah untuk memformat.'
+                  "Tulis atau tempel teks bacaan.\nPisahkan tiap paragraf dengan satu baris kosong (baris pertamanya otomatis menjorok).\nBlok kata lalu klik Tebal / Miring / Garis bawah untuk memformat."
                 }
               />
             </div>
@@ -275,26 +355,22 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
                 <li className="flex items-start gap-2">
                   <CornerDownLeft className="w-3.5 h-3.5 text-indigo-500 mt-0.5 shrink-0" />
                   <span>
-                    <strong className="text-slate-700">Paragraf baru?</strong> Tekan{' '}
-                    <kbd className="px-1 py-0.5 rounded bg-white border border-slate-200 font-mono text-[10px]">Enter</kbd>{' '}
-                    <strong>dua kali</strong> (sisakan satu baris kosong). Baris pertama tiap paragraf
-                    otomatis <strong>menjorok</strong> — persis gaya bacaan TOEFL.
+                    <strong className="text-slate-700">Paragraf baru?</strong>{" "}
+                    Tekan{" "}
+                    <kbd className="px-1 py-0.5 rounded bg-white border border-slate-200 font-mono text-[10px]">
+                      Enter
+                    </kbd>{" "}
+                    <strong>dua kali</strong> (sisakan satu baris kosong). Baris
+                    pertama tiap paragraf otomatis <strong>menjorok</strong> —
+                    persis gaya bacaan TOEFL.
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
                   <Hash className="w-3.5 h-3.5 text-indigo-500 mt-0.5 shrink-0" />
                   <span>
-                    <strong className="text-slate-700">Nomor baris</strong> muncul otomatis di sisi kiri
-                    setiap <strong>5 baris</strong> — tak perlu kamu ketik.
-                  </span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <Target className="w-3.5 h-3.5 text-indigo-500 mt-0.5 shrink-0" />
-                  <span>
-                    <strong className="text-slate-700">Aman untuk soal &ldquo;baris ke-N&rdquo;:</strong>{' '}
-                    posisi baris yang kamu lihat di sini <strong>sama persis</strong> dengan yang dilihat
-                    peserta saat ujian. Jadi kalau soalmu menyebut &ldquo;kata pada <strong>baris 12</strong>&rdquo;,
-                    peserta pun melihat baris 12 yang sama — tidak akan bergeser.
+                    <strong className="text-slate-700">Nomor baris</strong>{" "}
+                    muncul otomatis di sisi kiri setiap <strong>5 baris</strong>{" "}
+                    — tak perlu kamu ketik.
                   </span>
                 </li>
               </ul>
@@ -304,25 +380,28 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
           <Textarea
             rows={10}
             value={content}
-            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setContent(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+              setContent(e.target.value)
+            }
             placeholder="Tulis teks bacaan di sini..."
-            required={type !== 'listening'}
+            required={type !== "listening"}
           />
         )}
       </div>
 
       {/* Gambar materi (opsional, via checkbox) — untuk passage berbasis teks */}
-      {type !== 'listening' && (
+      {type !== "listening" && (
         <div>
           <Checkbox
             checked={useImage}
             onChange={(v) => {
               setUseImage(v);
-              if (!v) setImageUrl('');
+              if (!v) setImageUrl("");
             }}
             label={
               <span className="inline-flex items-center gap-1.5">
-                <ImageIcon className="w-3.5 h-3.5 text-indigo-600" /> Materi ini memakai gambar
+                <ImageIcon className="w-3.5 h-3.5 text-indigo-600" /> Materi ini
+                memakai gambar
               </span>
             }
           />
@@ -331,10 +410,14 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
               {imageUrl ? (
                 <div className="relative inline-block w-fit">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={imageUrl} alt="Gambar materi" className="max-h-48 rounded-xl border border-slate-200" />
+                  <img
+                    src={imageUrl}
+                    alt="Gambar materi"
+                    className="max-h-48 rounded-xl border border-slate-200"
+                  />
                   <button
                     type="button"
-                    onClick={() => setImageUrl('')}
+                    onClick={() => setImageUrl("")}
                     title="Hapus gambar"
                     className="absolute -top-2 -right-2 bg-white border border-slate-200 rounded-full p-1 shadow-sm text-slate-500 hover:text-red-600 transition-colors"
                   >
@@ -353,18 +436,24 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
                   onError={(m) => toast.error(m)}
                 />
               )}
-              {isUploadingImage && <p className="text-[10px] text-indigo-600 animate-pulse">Mengunggah gambar...</p>}
+              {isUploadingImage && (
+                <p className="text-[10px] text-indigo-600 animate-pulse">
+                  Mengunggah gambar...
+                </p>
+              )}
 
               {/* Posisi gambar relatif teks */}
               <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-xs font-bold text-slate-600">Posisi gambar:</span>
+                <span className="text-xs font-bold text-slate-600">
+                  Posisi gambar:
+                </span>
                 <ToggleGroup
                   size="sm"
                   value={imagePosition}
                   onChange={(v) => v && setImagePosition(v)}
                   options={[
-                    { value: 'below', label: 'Di bawah teks' },
-                    { value: 'above', label: 'Di atas teks' },
+                    { value: "below", label: "Di bawah teks" },
+                    { value: "above", label: "Di atas teks" },
                   ]}
                 />
               </div>
@@ -375,9 +464,11 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
 
       {/* Footer */}
       <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
-        <Button type="button" variant="ghost" onClick={onCancel}>Batal</Button>
+        <Button type="button" variant="ghost" onClick={onCancel}>
+          Batal
+        </Button>
         <Button type="submit" variant="primary" loading={isSubmitting}>
-          {isEditing ? 'Simpan Materi' : 'Tambah Materi'}
+          {isEditing ? "Simpan Materi" : "Tambah Materi"}
         </Button>
       </div>
     </form>
@@ -400,13 +491,17 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
       key="text"
       className="text-slate-700 text-sm leading-loose whitespace-pre-wrap font-sans bg-white border border-slate-200/50 p-4 rounded-xl shadow-sm"
     >
-      {type === 'reading' ? <PassageView content={content} /> : renderExamText(content)}
+      {type === "reading" ? (
+        <PassageView content={content} />
+      ) : (
+        renderExamText(content)
+      )}
     </div>
   ) : null;
   const preview = () => (
     <div className="flex flex-col gap-4 bg-slate-50/70 border border-slate-100 p-5 rounded-2xl">
       <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200/60 pb-2">
-        {type === 'listening' ? (
+        {type === "listening" ? (
           <Music className="w-4 h-4 text-slate-400" />
         ) : (
           <FileText className="w-4 h-4 text-slate-400" />
@@ -429,7 +524,7 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
               <audio src={audioUrl} controls className="w-full h-8" />
             </div>
           )}
-          {imagePosition === 'above'
+          {imagePosition === "above"
             ? [imgNode, textNode]
             : [textNode, imgNode]}
         </div>
@@ -439,7 +534,7 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
 
   return (
     <BankSoalBuilder
-      title={isEditing ? 'Edit Materi' : 'Buat Materi'}
+      title={isEditing ? "Edit Materi" : "Buat Materi"}
       onCancel={onCancel}
       editor={editor}
       preview={preview}

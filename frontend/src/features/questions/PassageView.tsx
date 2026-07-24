@@ -153,8 +153,8 @@ export const PassageView: React.FC<PassageViewProps> = ({
                 {marks.map((m) => (
                   <span
                     key={m.line}
-                    style={{ top: m.top - 3 }}
-                    className="absolute right-0 leading-8 text-base font-bold text-indigo-600"
+                    style={{ top: m.top }}
+                    className="absolute right-0 leading-8 text-lg font-bold text-indigo-600"
                   >
                     {m.line}
                   </span>
