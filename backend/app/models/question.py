@@ -66,13 +66,15 @@ class CreateQuestionRequest(BaseModel):
     section: QuestionSection = Field(..., description="Question section type")
     difficulty: QuestionDifficulty = Field(default=QuestionDifficulty.MEDIUM, description="Difficulty level")
     question_text: str = Field(..., min_length=1, description="The question prompt")
-    option_a: str = Field(..., min_length=1, description="Option A text")
-    option_b: str = Field(..., min_length=1, description="Option B text")
-    option_c: str = Field(..., min_length=1, description="Option C text")
-    option_d: str = Field(..., min_length=1, description="Option D text")
+    # Boleh kosong bila memakai mode "opsi gambar" (options_image_url).
+    option_a: str = Field(default="", description="Option A text")
+    option_b: str = Field(default="", description="Option B text")
+    option_c: str = Field(default="", description="Option C text")
+    option_d: str = Field(default="", description="Option D text")
     correct_answer: CorrectAnswer = Field(..., description="Correct answer (a/b/c/d)")
     explanation: Optional[str] = Field(None, description="Answer explanation")
-    image_url: Optional[str] = Field(None, description="Optional image URL for the question")
+    image_url: Optional[str] = Field(None, description="Optional image URL for the question stem")
+    options_image_url: Optional[str] = Field(None, description="Optional image containing the A/B/C/D choices")
     status: ContentStatus = Field(default=ContentStatus.DRAFT, description="Publication status")
     tags: list[str] = Field(default_factory=list, description="Topic tags")
     sort_order: int = Field(default=0, description="Order within passage group")
@@ -91,6 +93,7 @@ class UpdateQuestionRequest(BaseModel):
     correct_answer: Optional[CorrectAnswer] = None
     explanation: Optional[str] = None
     image_url: Optional[str] = None
+    options_image_url: Optional[str] = None
     status: Optional[ContentStatus] = None
     tags: Optional[list[str]] = None
     sort_order: Optional[int] = None
@@ -128,6 +131,7 @@ class QuestionResponse(BaseModel):
     correct_answer: CorrectAnswer
     explanation: Optional[str] = None
     image_url: Optional[str] = None
+    options_image_url: Optional[str] = None
     status: ContentStatus
     tags: list[str] = []
     sort_order: int = 0

@@ -39,14 +39,14 @@ export const PassageTable: React.FC<PassageTableProps> = ({
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50/70 border-b border-slate-100">
-              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase">Isi Materi</th>
-              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase">Jenis</th>
-              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase">Jumlah Soal</th>
-              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase">Status</th>
+              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase whitespace-nowrap">Isi Materi</th>
+              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase whitespace-nowrap">Jenis</th>
+              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase whitespace-nowrap">Jumlah Soal</th>
+              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase whitespace-nowrap">Status</th>
               {isSuperAdmin && (
-                <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase">Pembuat</th>
+                <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase whitespace-nowrap">Pembuat</th>
               )}
-              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase text-right">Aksi</th>
+              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase whitespace-nowrap text-right">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">

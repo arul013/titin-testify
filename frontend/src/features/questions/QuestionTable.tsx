@@ -144,27 +144,27 @@ export const QuestionTable: React.FC<QuestionTableProps> = ({
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50/70 border-b border-slate-100">
-              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
                 Pertanyaan
               </th>
-              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
                 Bagian
               </th>
-              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
                 Tingkat Kesulitan
               </th>
-              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
                 Status
               </th>
-              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
                 Jawaban
               </th>
               {currentUserRole === "super_admin" && (
-                <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
                   Pembuat
                 </th>
               )}
-              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">
+              <th className="py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap text-right">
                 Aksi
               </th>
             </tr>
@@ -192,7 +192,7 @@ export const QuestionTable: React.FC<QuestionTableProps> = ({
                     className="hover:bg-slate-50/40 transition-colors group"
                   >
                     {/* Question text & tags */}
-                    <td className="py-4 px-6 max-w-md">
+                    <td className="py-4 px-6 max-w-2xl">
                       <div className="font-semibold text-slate-800 text-sm line-clamp-2 leading-relaxed">
                         {cleanHTML(q.question_text)}
                       </div>

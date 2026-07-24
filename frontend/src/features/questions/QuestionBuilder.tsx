@@ -6,6 +6,7 @@ import { Input, Textarea } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ToggleGroup } from '@/components/ui/toggle-group';
 import { FileUploader } from '@/components/ui/file-uploader';
 import { UnderlineEditor } from './UnderlineEditor';
 import { BankSoalBuilder, type BuilderViewMode } from './BankSoalBuilder';
@@ -63,8 +64,11 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
   const [tags, setTags] = useState<string[]>(initialData?.tags || []);
   const [imageUrl, setImageUrl] = useState(initialData?.image_url || '');
   const [useImage, setUseImage] = useState(!!initialData?.image_url);
+  const [answerFormat, setAnswerFormat] = useState(initialData?.options_image_url ? 'image' : 'text');
+  const [optionsImageUrl, setOptionsImageUrl] = useState(initialData?.options_image_url || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isUploadingOptionsImage, setIsUploadingOptionsImage] = useState(false);
 
   const isEditing = !!initialData;
   const answerLabels = ['A', 'B', 'C', 'D'];
@@ -79,12 +83,12 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
   };
   const removeTag = (tag: string) => setTags(tags.filter((t) => t !== tag));
 
-  const uploadImageFile = async (file: File) => {
+  /** Unggah 1 gambar ke R2, kembalikan URL (atau null bila gagal). */
+  const doUploadImage = async (file: File): Promise<string | null> => {
     if (!file.type.startsWith('image/')) {
       toast.error('File yang diunggah harus berformat gambar (jpg, png, webp, dsb).');
-      return;
+      return null;
     }
-    setIsUploadingImage(true);
     try {
       const storedToken = localStorage.getItem('cbt_access_token');
       const formData = new FormData();
@@ -97,12 +101,11 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
       });
       const responseData = await response.json();
       if (!response.ok) throw new Error(responseData.detail || 'Gagal mengunggah gambar ke server.');
-      setImageUrl(responseData.image_url);
       toast.success('Gambar berhasil diunggah.');
+      return responseData.image_url as string;
     } catch (err) {
       toast.error(getErrorMessage(err, 'Gagal mengunggah gambar. Coba lagi, atau hubungi admin bila masalah berlanjut.'));
-    } finally {
-      setIsUploadingImage(false);
+      return null;
     }
   };
 
@@ -122,6 +125,7 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
         correct_answer: correctAnswer,
         explanation: explanation || null,
         image_url: imageUrl || null,
+        options_image_url: answerFormat === 'image' ? optionsImageUrl || null : null,
         status,
         tags,
       });
@@ -147,6 +151,7 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
     correct_answer: correctAnswer,
     explanation: explanation || null,
     image_url: imageUrl || null,
+    options_image_url: answerFormat === 'image' ? optionsImageUrl || null : null,
     status,
     tags,
     sort_order: initialData?.sort_order ?? 0,
@@ -258,7 +263,12 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
                 icon={<ImageIcon />}
                 label="Klik atau seret gambar ke sini"
                 hint="Format jpg, png, webp, dan sejenisnya"
-                onFilesSelected={([f]) => uploadImageFile(f)}
+                onFilesSelected={async ([f]) => {
+                  setIsUploadingImage(true);
+                  const url = await doUploadImage(f);
+                  if (url) setImageUrl(url);
+                  setIsUploadingImage(false);
+                }}
                 onError={(m) => toast.error(m)}
               />
             )}
@@ -267,57 +277,135 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
         )}
       </div>
 
-      {/* Pilihan jawaban + tandai jawaban benar (radio inline) */}
+      {/* Pilihan jawaban — format teks atau gambar */}
       <div>
-        <label className="block text-xs font-bold text-slate-600 mb-2">
-          Pilihan Jawaban{' '}
-          <span className="font-medium text-slate-400">— tandai lingkaran pada jawaban yang benar</span>
-        </label>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {['a', 'b', 'c', 'd'].map((key, i) => {
-            const setters = [setOptionA, setOptionB, setOptionC, setOptionD];
-            const isCorrect = correctAnswer === key;
-            return (
-              <div
-                key={key}
-                className={`rounded-2xl border p-3 transition-colors ${
-                  isCorrect ? 'border-emerald-300 bg-emerald-50/40' : 'border-slate-100'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-bold text-slate-600">Opsi {answerLabels[i]}</span>
-                  <button
-                    type="button"
-                    onClick={() => setCorrectAnswer(key)}
-                    className="inline-flex items-center gap-1.5"
-                    title="Tandai sebagai jawaban benar"
-                  >
-                    <span
-                      className={`h-4 w-4 rounded-full border-2 flex items-center justify-center transition-colors ${
-                        isCorrect ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300'
-                      }`}
-                    >
-                      {isCorrect && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
-                    </span>
-                    <span
-                      className={`text-[11px] font-bold ${
-                        isCorrect ? 'text-emerald-700' : 'text-slate-400 hover:text-slate-600'
-                      }`}
-                    >
-                      {isCorrect ? 'Jawaban benar' : 'Tandai benar'}
-                    </span>
-                  </button>
-                </div>
-                <Input
-                  value={answerValues[i]}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setters[i](e.target.value)}
-                  placeholder={`Isi opsi ${answerLabels[i]}...`}
-                  required
-                />
-              </div>
-            );
-          })}
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+          <label className="text-xs font-bold text-slate-600">Pilihan Jawaban</label>
+          <ToggleGroup
+            size="sm"
+            value={answerFormat}
+            onChange={(v) => v && setAnswerFormat(v)}
+            options={[
+              { value: 'text', label: 'Teks' },
+              { value: 'image', label: 'Gambar' },
+            ]}
+          />
         </div>
+
+        {answerFormat === 'text' ? (
+          <>
+            <p className="text-[11px] text-slate-400 mb-2">Tandai lingkaran pada jawaban yang benar.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {['a', 'b', 'c', 'd'].map((key, i) => {
+                const setters = [setOptionA, setOptionB, setOptionC, setOptionD];
+                const isCorrect = correctAnswer === key;
+                return (
+                  <div
+                    key={key}
+                    className={`rounded-2xl border p-3 transition-colors ${
+                      isCorrect ? 'border-emerald-300 bg-emerald-50/40' : 'border-slate-100'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-bold text-slate-600">Opsi {answerLabels[i]}</span>
+                      <button
+                        type="button"
+                        onClick={() => setCorrectAnswer(key)}
+                        className="inline-flex items-center gap-1.5"
+                        title="Tandai sebagai jawaban benar"
+                      >
+                        <span
+                          className={`h-4 w-4 rounded-full border-2 flex items-center justify-center transition-colors ${
+                            isCorrect ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300'
+                          }`}
+                        >
+                          {isCorrect && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
+                        </span>
+                        <span
+                          className={`text-[11px] font-bold ${
+                            isCorrect ? 'text-emerald-700' : 'text-slate-400 hover:text-slate-600'
+                          }`}
+                        >
+                          {isCorrect ? 'Jawaban benar' : 'Tandai benar'}
+                        </span>
+                      </button>
+                    </div>
+                    <Input
+                      value={answerValues[i]}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setters[i](e.target.value)}
+                      placeholder={`Isi opsi ${answerLabels[i]}...`}
+                      required
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <p className="text-[11px] text-slate-400">
+              Unggah <strong>satu gambar</strong> yang memuat pilihan A/B/C/D, lalu tandai huruf yang benar.
+            </p>
+            {optionsImageUrl ? (
+              <div className="relative inline-block">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={optionsImageUrl} alt="Gambar pilihan jawaban" className="max-h-60 rounded-xl border border-slate-200" />
+                <button
+                  type="button"
+                  onClick={() => setOptionsImageUrl('')}
+                  title="Hapus gambar"
+                  className="absolute -top-2 -right-2 bg-white border border-slate-200 rounded-full p-1 shadow-sm text-slate-500 hover:text-red-600 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <FileUploader
+                variant="dropzone"
+                accept="image/*"
+                disabled={isUploadingOptionsImage}
+                icon={<ImageIcon />}
+                label="Klik atau seret gambar pilihan jawaban ke sini"
+                hint="Satu gambar berisi label A/B/C/D"
+                onFilesSelected={async ([f]) => {
+                  setIsUploadingOptionsImage(true);
+                  const url = await doUploadImage(f);
+                  if (url) setOptionsImageUrl(url);
+                  setIsUploadingOptionsImage(false);
+                }}
+                onError={(m) => toast.error(m)}
+              />
+            )}
+            {isUploadingOptionsImage && (
+              <p className="text-[10px] text-indigo-600 animate-pulse">Mengunggah gambar...</p>
+            )}
+
+            <div>
+              <p className="text-[11px] font-bold text-slate-600 mb-1.5">
+                Jawaban benar (sesuai label pada gambar):
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {['a', 'b', 'c', 'd'].map((key, i) => {
+                  const isCorrect = correctAnswer === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setCorrectAnswer(key)}
+                      className={`h-10 w-10 rounded-xl border-2 font-extrabold transition-colors ${
+                        isCorrect
+                          ? 'border-emerald-500 bg-emerald-500 text-white'
+                          : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                      }`}
+                    >
+                      {answerLabels[i]}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Explanation */}

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { ChevronLeft, SquarePen, Columns2, Eye } from 'lucide-react';
+import { Tabs } from '@/components/ui/tabs';
 
 export type BuilderViewMode = 'edit' | 'split' | 'preview';
 
@@ -15,13 +16,15 @@ interface BankSoalBuilderProps {
   defaultView?: BuilderViewMode;
 }
 
-const MODES: { id: BuilderViewMode; label: string; icon: React.ReactNode }[] = [
-  { id: 'edit', label: 'Editor', icon: <SquarePen className="w-3.5 h-3.5" /> },
-  { id: 'split', label: 'Split', icon: <Columns2 className="w-3.5 h-3.5" /> },
-  { id: 'preview', label: 'Pratinjau', icon: <Eye className="w-3.5 h-3.5" /> },
+const VIEW_TABS = [
+  { id: 'edit', label: 'Editor', icon: <SquarePen /> },
+  { id: 'split', label: 'Split', icon: <Columns2 /> },
+  { id: 'preview', label: 'Pratinjau', icon: <Eye /> },
 ];
 
-const PANEL = 'bg-white border border-slate-100 rounded-2xl p-6 overflow-auto max-h-[calc(100vh-15rem)] shadow-sm shadow-slate-100/60';
+// Tinggi tetap: panel scroll internal, halaman tidak ikut scroll.
+const PANEL =
+  'bg-white border border-slate-100 rounded-2xl p-6 overflow-auto h-[calc(100vh-12rem)] shadow-sm shadow-slate-100/60';
 
 export const BankSoalBuilder: React.FC<BankSoalBuilderProps> = ({
   title,
@@ -33,7 +36,7 @@ export const BankSoalBuilder: React.FC<BankSoalBuilderProps> = ({
   const [view, setView] = useState<BuilderViewMode>(defaultView);
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -47,22 +50,7 @@ export const BankSoalBuilder: React.FC<BankSoalBuilderProps> = ({
           <h2 className="text-lg font-extrabold text-slate-800">{title}</h2>
         </div>
 
-        <div className="inline-flex rounded-xl bg-slate-100 p-1 gap-1">
-          {MODES.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => setView(m.id)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                view === m.id
-                  ? 'bg-white text-indigo-700 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              {m.icon} {m.label}
-            </button>
-          ))}
-        </div>
+        <Tabs tabs={VIEW_TABS} value={view} onChange={(id) => setView(id as BuilderViewMode)} />
       </div>
 
       {/* Body */}

@@ -157,40 +157,69 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
             />
           )}
 
-          <div className="flex flex-col gap-3">
-            {[
-              { key: 'a', val: question.option_a, label: 'A' },
-              { key: 'b', val: question.option_b, label: 'B' },
-              { key: 'c', val: question.option_c, label: 'C' },
-              { key: 'd', val: question.option_d, label: 'D' },
-            ].map((opt) => {
-              const isCorrect = question.correct_answer === opt.key;
-              return (
-                <div
-                  key={opt.key}
-                  className={`flex items-center gap-3.5 border p-3.5 rounded-xl text-sm font-medium transition-all ${
-                    isCorrect
-                      ? 'border-emerald-200 bg-emerald-50/40 text-emerald-800 shadow-sm shadow-emerald-50'
-                      : 'border-slate-100 text-slate-600 bg-slate-50/30'
-                  }`}
-                >
-                  <span
-                    className={`flex shrink-0 items-center justify-center font-bold text-xs h-7 w-7 rounded-lg border ${
+          {question.options_image_url ? (
+            /* Mode opsi gambar: satu gambar berisi A/B/C/D + penanda jawaban benar */
+            <div className="flex flex-col gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={question.options_image_url}
+                alt="Pilihan jawaban"
+                className="max-w-full rounded-xl border border-slate-200/50 shadow-sm"
+              />
+              <div className="flex flex-wrap gap-2">
+                {['a', 'b', 'c', 'd'].map((k, i) => {
+                  const isCorrect = question.correct_answer === k;
+                  return (
+                    <div
+                      key={k}
+                      className={`h-10 w-10 rounded-xl border-2 flex items-center justify-center font-extrabold text-sm ${
+                        isCorrect
+                          ? 'border-emerald-500 bg-emerald-500 text-white'
+                          : 'border-slate-200 bg-white text-slate-500'
+                      }`}
+                    >
+                      {['A', 'B', 'C', 'D'][i]}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {[
+                { key: 'a', val: question.option_a, label: 'A' },
+                { key: 'b', val: question.option_b, label: 'B' },
+                { key: 'c', val: question.option_c, label: 'C' },
+                { key: 'd', val: question.option_d, label: 'D' },
+              ].map((opt) => {
+                const isCorrect = question.correct_answer === opt.key;
+                return (
+                  <div
+                    key={opt.key}
+                    className={`flex items-center gap-3.5 border p-3.5 rounded-xl text-sm font-medium transition-all ${
                       isCorrect
-                        ? 'border-emerald-300 bg-emerald-500 text-white'
-                        : 'border-slate-200 bg-white text-slate-500'
+                        ? 'border-emerald-200 bg-emerald-50/40 text-emerald-800 shadow-sm shadow-emerald-50'
+                        : 'border-slate-100 text-slate-600 bg-slate-50/30'
                     }`}
                   >
-                    {opt.label}
-                  </span>
-                  <span className="flex-1 leading-normal">
-                    {opt.val ? renderExamText(opt.val) : <span className="text-slate-300 italic">—</span>}
-                  </span>
-                  {isCorrect && <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600 shrink-0" />}
-                </div>
-              );
-            })}
-          </div>
+                    <span
+                      className={`flex shrink-0 items-center justify-center font-bold text-xs h-7 w-7 rounded-lg border ${
+                        isCorrect
+                          ? 'border-emerald-300 bg-emerald-500 text-white'
+                          : 'border-slate-200 bg-white text-slate-500'
+                      }`}
+                    >
+                      {opt.label}
+                    </span>
+                    <span className="flex-1 leading-normal">
+                      {opt.val ? renderExamText(opt.val) : <span className="text-slate-300 italic">—</span>}
+                    </span>
+                    {isCorrect && <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600 shrink-0" />}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 

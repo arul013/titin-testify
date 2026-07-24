@@ -20,6 +20,7 @@ export interface Question {
   correct_answer: string;
   explanation: string | null;
   image_url: string | null;
+  options_image_url: string | null;
   status: string;
   tags: string[];
   sort_order: number;

@@ -1,6 +1,6 @@
 'use client';
 
-import { Library, Trash2, FileText, Layers } from 'lucide-react';
+import { Library, Trash2, FileText, Layers, ChevronLeft } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Pagination } from '@/components/ui/pagination';
 import { PageContainer } from '@/components/ui/page-container';
@@ -39,13 +39,15 @@ export default function BankSoalPage() {
 
   return (
     <PageContainer
-      className="space-y-6 pb-24"
+      className={bank.isQuestionOpen ? 'space-y-4' : 'space-y-6 pb-24'}
       header={
-        <PageHeader
-          icon={<Library />}
-          title="Bank Soal"
-          subtitle="Tempat mengelola semua soal ujian — baik soal tunggal maupun soal yang berbagi teks bacaan atau audio yang sama."
-        />
+        bank.isQuestionOpen ? undefined : (
+          <PageHeader
+            icon={<Library />}
+            title="Bank Soal"
+            subtitle="Tempat mengelola semua soal ujian — baik soal tunggal maupun soal yang berbagi teks bacaan atau audio yang sama."
+          />
+        )
       }
     >
       {bank.isQuestionOpen ? (
@@ -65,20 +67,28 @@ export default function BankSoalPage() {
 
           {/* Detail view untuk passage terpilih */}
           {bank.selectedPassage && (
-            <PassageDetailPanel
-              passage={bank.selectedPassage}
-              questions={bank.passageQuestions}
-              isLoading={bank.isPassageQuestionsLoading}
-              currentUserId={bank.user?.id}
-              currentUserRole={bank.user?.role}
-              onBack={() => bank.setSelectedPassage(null)}
-              onEditPassage={bank.openEditPassage}
-              onDeletePassage={bank.requestDeletePassage}
-              onAddChild={bank.openCreateQuestion}
-              onEditQuestion={bank.openEditQuestion}
-              onDeleteQuestion={bank.requestDeleteQuestion}
-              onPreviewQuestion={bank.previewQuestionWithPassage}
-            />
+            <div className="flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={() => bank.setSelectedPassage(null)}
+                className="inline-flex items-center gap-1.5 self-start text-sm font-medium text-slate-400 hover:text-indigo-600 transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" /> Kembali ke Daftar
+              </button>
+              <PassageDetailPanel
+                passage={bank.selectedPassage}
+                questions={bank.passageQuestions}
+                isLoading={bank.isPassageQuestionsLoading}
+                currentUserId={bank.user?.id}
+                currentUserRole={bank.user?.role}
+                onEditPassage={bank.openEditPassage}
+                onDeletePassage={bank.requestDeletePassage}
+                onAddChild={bank.openCreateQuestion}
+                onEditQuestion={bank.openEditQuestion}
+                onDeleteQuestion={bank.requestDeleteQuestion}
+                onPreviewQuestion={bank.previewQuestionWithPassage}
+              />
+            </div>
           )}
 
           {/* Tabel utama + tab + filter */}

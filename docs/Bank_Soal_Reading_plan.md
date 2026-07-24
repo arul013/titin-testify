@@ -79,6 +79,12 @@ ALTER TABLE question_passages   ADD COLUMN IF NOT EXISTS image_url TEXT;
 
 **➡️ Personalisasi Reading (R0–R3) SELESAI.** Sisa: render passage bernomor + gambar untuk **peserta** dilakukan di Phase 4 (Exam Engine).
 
+- **R4 — Pilihan jawaban berupa gambar** ✅ **SELESAI — 2026-07-24.** (dari kasus soal no.36 PDF: opsi A/B/C/D dalam satu gambar; stem tetap teks; admin tandai huruf benar.)
+  - Migrasi `007_options_image.sql` (kolom `options_image_url` di `questions`; ⚠️ **user perlu jalankan**). `option_a..d` diperlonggar (boleh kosong di backend) untuk mode ini.
+  - Backend: `options_image_url` di model/service. Frontend: tipe `Question.options_image_url`.
+  - `QuestionBuilder`: toggle **Format Pilihan Jawaban (Teks/Gambar)**. Mode Gambar → unggah 1 gambar (reuse `/upload-image`) + tombol A/B/C/D untuk menandai benar; input teks disembunyikan; `option_a..d` dikirim kosong. Checkbox "Soal ini memakai gambar" (gambar stem) tetap ada — konsep berbeda.
+  - `QuestionView`: bila `options_image_url` → tampilkan gambar + deretan A/B/C/D (benar ter-highlight); else opsi teks.
+
 ## 8. Keputusan terbuka / catatan
 - Apakah editor rich-text juga dipakai untuk passage **Structure** (teks) — atau khusus Reading dulu? (default: Reading dulu; Structure menyusul bila perlu.)
 - Perlu field sub-tipe reading (vocab/inference/…) untuk analitik nanti? (default: pakai `tags` dulu.)

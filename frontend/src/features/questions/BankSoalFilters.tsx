@@ -40,7 +40,12 @@ export const BankSoalFilters: React.FC<BankSoalFiltersProps> = ({
   return (
     <>
       {/* Navigation Tabs */}
-      <Tabs tabs={TABS} value={activeTab} onChange={(id) => onTabChange(id as BankSoalTab)} />
+      <Tabs
+        className="self-start"
+        tabs={TABS}
+        value={activeTab}
+        onChange={(id) => onTabChange(id as BankSoalTab)}
+      />
 
       {/* Filters row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">

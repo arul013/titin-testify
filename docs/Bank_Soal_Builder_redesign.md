@@ -63,6 +63,11 @@ Pola seperti Exam Builder (`features/exams`), tapi untuk Bank Soal:
     2. **Preview dobel dihapus**: `UnderlineEditor` dapat prop `showPreview` (default true); `QuestionBuilder` set `showPreview={false}` (panel kanan sudah jadi preview). (RichPassageEditor menyusul di B2.)
     3. **Gambar Soal = checkbox** "Soal ini memakai gambar" → uploader muncul saat dicentang (uncheck mengosongkan `image_url`).
     4. **Jawaban benar inline**: hapus `ToggleGroup` terpisah; tiap opsi punya **radio "Tandai benar"** + highlight hijau. Admin cukup klik radio pada opsi benar.
+  - **Polish B1 ronde 2 (2026-07-24, feedback UI):**
+    1. `PassageDetailPanel`: back-link dipindah ke **level-halaman** (di `page.tsx`, di atas card); judul + badge tipe **inline**; konten materi **penuh-lebar** + dirender `renderExamText` (tak lagi mentah `**`).
+    2. `QuestionTable`: kolom PERTANYAAN diperlebar (`max-w-2xl`); header `whitespace-nowrap` (1 baris). `PassageTable`: header `whitespace-nowrap` ("JUMLAH SOAL" dll 1 baris).
+    3. `BankSoalFilters`: tab filter `self-start` (content-width, tak ada space kosong kanan).
+    4. `BankSoalBuilder`: toggle Editor/Split/Pratinjau pakai komponen DS **`Tabs`** (pill gradient); panel **tinggi tetap `h-[calc(100vh-12rem)]` + scroll internal** → halaman tak ikut scroll (Editor/Split/Pratinjau). `page.tsx`: **PageHeader disembunyikan** saat mode builder (ruang lega + no page-scroll). *(Nilai 12rem approx; bisa ditune bila ada sisa/kurang scroll.)*
 - **B2 — Pindahkan editor Soal & Materi ke EditorPanel** (dari modal → panel kiri); pemilih jenis jadi modal ringkas; hapus modal lama.
 - **B3 — Polish:** live update, validasi, edit existing → buka builder, empty/loading, responsif (fallback toggle bila sempit).
 
