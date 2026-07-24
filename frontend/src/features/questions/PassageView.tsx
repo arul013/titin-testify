@@ -8,12 +8,14 @@ import React, { useRef, useState, useCallback, useLayoutEffect, useEffect } from
  *   - Paragraf (dipisah baris kosong), **rata kiri-kanan (justify)** + **indent**
  *     baris pertama tiap paragraf (via CSS; baris terakhir paragraf tidak ikut
  *     ter-justify — default browser).
- *   - **Nomor baris otomatis** dihitung dari pembungkusan teks pada **lebar tetap**
- *     (diukur dari DOM), ditaruh tiap 5 baris di gutter kiri.
+ *   - **Mengisi lebar container** (flex-1) — teks penuh sampai ujung, tanpa
+ *     whitespace kanan & tanpa scroll horizontal.
+ *   - **Nomor baris otomatis** dihitung dari pembungkusan teks yang sebenarnya
+ *     (diukur `offsetTop` dari DOM + ResizeObserver), ditaruh tiap 5 baris.
  *   - Penanda inline: `**tebal**`, `*miring*`, `__garis bawah__`.
  *
- * Lebar dikunci (default 600px) supaya nomor baris konsisten antara sisi admin
- * (preview) dan peserta.
+ * Catatan (Phase 4): agar referensi "line N" konsisten antara sisi admin & peserta,
+ * lebar kolom passage di lembar ujian harus SAMA dengan panel preview builder.
  */
 
 const TOKEN = /(\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*)/g;
@@ -59,14 +61,11 @@ function renderParagraph(text: string): React.ReactNode[] {
 interface PassageViewProps {
   content: string;
   lineNumbers?: boolean;
-  /** Lebar tetap area teks (px). Dikunci agar nomor baris konsisten. */
-  width?: number;
 }
 
 export const PassageView: React.FC<PassageViewProps> = ({
   content,
   lineNumbers = true,
-  width = 880,
 }) => {
   const contentRef = useRef<HTMLDivElement>(null);
   const [marks, setMarks] = useState<{ line: number; top: number }[]>([]);
@@ -99,7 +98,7 @@ export const PassageView: React.FC<PassageViewProps> = ({
 
   useLayoutEffect(() => {
     measure();
-  }, [content, width, measure]);
+  }, [content, measure]);
 
   useEffect(() => {
     let active = true;
@@ -116,36 +115,33 @@ export const PassageView: React.FC<PassageViewProps> = ({
   }, [measure]);
 
   return (
-    <div className="overflow-x-auto">
-      <div className="flex gap-3">
-        {lineNumbers && (
-          <div className="relative w-6 shrink-0 select-none">
-            {marks.map((m) => (
-              <span
-                key={m.line}
-                style={{ top: m.top }}
-                className="absolute right-0 text-[11px] font-bold text-slate-400"
-              >
-                {m.line}
-              </span>
-            ))}
-          </div>
-        )}
-        <div
-          ref={contentRef}
-          className="relative shrink-0 text-base leading-8 text-slate-700 font-sans"
-          style={{ width }}
-        >
-          {paragraphs.map((p, i) => (
-            <p
-              key={i}
-              className={i ? 'mt-3' : ''}
-              style={{ textAlign: 'justify', textIndent: '1.6em' }}
+    <div className="flex gap-3">
+      {lineNumbers && (
+        <div className="relative w-6 shrink-0 select-none">
+          {marks.map((m) => (
+            <span
+              key={m.line}
+              style={{ top: m.top }}
+              className="absolute right-0 text-xs font-bold text-slate-400"
             >
-              {renderParagraph(p)}
-            </p>
+              {m.line}
+            </span>
           ))}
         </div>
+      )}
+      <div
+        ref={contentRef}
+        className="relative flex-1 min-w-0 text-lg leading-8 tracking-wide text-slate-700 font-sans"
+      >
+        {paragraphs.map((p, i) => (
+          <p
+            key={i}
+            className={i ? 'mt-3' : ''}
+            style={{ textAlign: 'justify', textIndent: '1.6em' }}
+          >
+            {renderParagraph(p)}
+          </p>
+        ))}
       </div>
     </div>
   );

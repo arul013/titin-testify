@@ -139,7 +139,7 @@ export const QuestionTable: React.FC<QuestionTableProps> = ({
   };
 
   return (
-    <Card className="overflow-hidden border border-slate-100 shadow-md shadow-slate-100/50 rounded-2xl bg-white">
+    <Card className="p-0 overflow-hidden border border-slate-100 shadow-md shadow-slate-100/50 rounded-2xl bg-white">
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>

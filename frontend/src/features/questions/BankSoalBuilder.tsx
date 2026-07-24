@@ -25,7 +25,7 @@ const VIEW_TABS = [
 // Tinggi tetap: panel scroll internal, halaman tidak ikut scroll.
 // (memperhitungkan: top-nav + PageHeader + breadcrumb + baris judul/tabs + padding)
 const PANEL =
-  'bg-white border border-slate-100 rounded-2xl p-6 overflow-auto h-[calc(100vh-13rem)] shadow-sm shadow-slate-100/60';
+  'bg-white border border-slate-100 rounded-2xl p-6 overflow-auto h-[calc(100vh-12rem)] shadow-sm shadow-slate-100/60';
 
 export const BankSoalBuilder: React.FC<BankSoalBuilderProps> = ({
   title,
