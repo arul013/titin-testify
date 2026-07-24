@@ -29,13 +29,16 @@ const subscribeNoop = () => () => {};
 const getClientSnapshot = () => true;
 const getServerSnapshot = () => false;
 
-export type ModalSize = "sm" | "md" | "lg";
+export type ModalSize = "sm" | "md" | "lg" | "xl" | "2xl" | "3xl";
 export type ModalVariant = "default" | "vivid";
 
 const SIZE: Record<ModalSize, string> = {
   sm: "max-w-sm",
   md: "max-w-md",
   lg: "max-w-lg",
+  xl: "max-w-2xl",
+  "2xl": "max-w-4xl",
+  "3xl": "max-w-6xl",
 };
 
 // FRAME = rim liquid: gradient border tipis (brand) + glow luar (halo brand)

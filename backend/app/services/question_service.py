@@ -11,6 +11,7 @@ from app.models.question import (
     UpdatePassageRequest,
     CreateQuestionRequest,
     UpdateQuestionRequest,
+    ImagePosition,
     PassageResponse,
     QuestionResponse,
     PassageWithQuestionsResponse,
@@ -36,6 +37,7 @@ class QuestionService:
             "content": request.content,
             "audio_url": request.audio_url,
             "image_url": request.image_url,
+            "image_position": request.image_position.value,
             "status": request.status.value,
         }
 
@@ -55,6 +57,7 @@ class QuestionService:
             content=p.get("content"),
             audio_url=p.get("audio_url"),
             image_url=p.get("image_url"),
+            image_position=ImagePosition(p.get("image_position") or "below"),
             status=p["status"],
             questions_count=0,
             created_at=p.get("created_at"),
@@ -108,7 +111,8 @@ class QuestionService:
                 type=p["type"],
                 content=p.get("content"),
                 audio_url=p.get("audio_url"),
-            image_url=p.get("image_url"),
+                image_url=p.get("image_url"),
+                image_position=ImagePosition(p.get("image_position") or "below"),
                 status=p["status"],
                 questions_count=q_count.count or 0,
                 creator_name=creator_name,
@@ -166,6 +170,7 @@ class QuestionService:
             content=p.get("content"),
             audio_url=p.get("audio_url"),
             image_url=p.get("image_url"),
+            image_position=ImagePosition(p.get("image_position") or "below"),
             status=p["status"],
             questions_count=len(q_result.data or []),
             creator_name=creator_name,
@@ -218,6 +223,8 @@ class QuestionService:
             update_data["audio_url"] = request.audio_url
         if request.image_url is not None:
             update_data["image_url"] = request.image_url
+        if request.image_position is not None:
+            update_data["image_position"] = request.image_position.value
         if request.status is not None:
             update_data["status"] = request.status.value
 
@@ -239,6 +246,7 @@ class QuestionService:
             content=p.get("content"),
             audio_url=p.get("audio_url"),
             image_url=p.get("image_url"),
+            image_position=ImagePosition(p.get("image_position") or "below"),
             status=p["status"],
             questions_count=q_count.count or 0,
             created_at=p.get("created_at"),

@@ -11,6 +11,10 @@ interface RichPassageEditorProps {
   rows?: number;
   placeholder?: string;
   required?: boolean;
+  /** Tampilkan kotak pratinjau inline. Matikan bila sudah ada panel preview terpisah. */
+  showPreview?: boolean;
+  /** Textarea mengisi tinggi container (flex-1) — untuk tab Editor halaman-penuh. */
+  fill?: boolean;
 }
 
 /**
@@ -24,6 +28,8 @@ export const RichPassageEditor: React.FC<RichPassageEditorProps> = ({
   rows = 12,
   placeholder,
   required,
+  showPreview = true,
+  fill = false,
 }) => {
   const ref = useRef<HTMLTextAreaElement>(null);
 
@@ -50,7 +56,7 @@ export const RichPassageEditor: React.FC<RichPassageEditorProps> = ({
   ];
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className={`flex flex-col gap-2 ${fill ? 'h-full min-h-0' : ''}`}>
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2">
         <span className="text-[11px] font-bold text-slate-500 pl-1">Blok kata lalu klik:</span>
@@ -66,7 +72,7 @@ export const RichPassageEditor: React.FC<RichPassageEditorProps> = ({
           </button>
         ))}
         <span className="ml-auto text-[10px] text-slate-400 pr-1">
-          Tekan Enter untuk pindah baris (menentukan nomor baris)
+          Pisahkan paragraf dengan satu baris kosong
         </span>
       </div>
 
@@ -76,23 +82,30 @@ export const RichPassageEditor: React.FC<RichPassageEditorProps> = ({
         value={value}
         placeholder={placeholder}
         required={required}
-        className="font-mono text-[13px] leading-relaxed"
+        containerClassName={
+          fill
+            ? 'flex-1 min-h-0 flex flex-col [&>.group]:flex-1 [&>.group]:min-h-0 [&>.group]:flex [&>.group]:flex-col'
+            : undefined
+        }
+        className={`font-mono text-[13px] leading-relaxed ${fill ? 'h-full min-h-0 resize-none' : ''}`}
         onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onChange(e.target.value)}
       />
 
-      {/* Live preview dengan nomor baris */}
-      <div>
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-          Pratinjau (nomor baris otomatis tiap 5 baris)
-        </p>
-        <div className="min-h-16 max-h-72 overflow-y-auto text-sm text-slate-700 bg-white border border-slate-100 rounded-xl p-3">
-          {value ? (
-            renderPassageLines(value)
-          ) : (
-            <span className="text-slate-300 italic">Hasil tampilan akan muncul di sini…</span>
-          )}
+      {/* Live preview dengan nomor baris (opsional — dimatikan bila ada panel preview) */}
+      {showPreview && (
+        <div>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+            Pratinjau (nomor baris otomatis tiap 5 baris)
+          </p>
+          <div className="min-h-16 max-h-72 overflow-y-auto text-sm text-slate-700 bg-white border border-slate-100 rounded-xl p-3">
+            {value ? (
+              renderPassageLines(value)
+            ) : (
+              <span className="text-slate-300 italic">Hasil tampilan akan muncul di sini…</span>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

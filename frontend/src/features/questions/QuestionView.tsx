@@ -61,6 +61,29 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
       ? 'Materi Soal (Audio)'
       : 'Materi Soal (Teks Bacaan)';
 
+  // Teks & gambar materi (urutannya ditentukan passage.image_position).
+  const passageTextNode = passage?.content ? (
+    <div
+      key="text"
+      className="text-slate-700 text-sm leading-loose whitespace-pre-wrap font-sans flex-1 overflow-y-auto max-h-112 bg-white border border-slate-200/50 p-4 rounded-xl shadow-sm"
+    >
+      {passage.type === 'reading' ? (
+        <PassageView content={passage.content} />
+      ) : (
+        renderExamText(passage.content)
+      )}
+    </div>
+  ) : null;
+  const passageImageNode = passage?.image_url ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      key="img"
+      src={passage.image_url}
+      alt="Gambar materi"
+      className="max-w-full rounded-xl border border-slate-200/50 shadow-sm"
+    />
+  ) : null;
+
   return (
     <div className="flex flex-col gap-6">
       {showMeta && (
@@ -120,23 +143,9 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
                   <audio src={passage.audio_url} controls className="w-full h-8" />
                 </div>
               )}
-              {passage.content && (
-                <div className="text-slate-700 text-sm leading-loose whitespace-pre-wrap font-sans flex-1 overflow-y-auto max-h-112 bg-white border border-slate-200/50 p-4 rounded-xl shadow-sm">
-                  {passage.type === 'reading' ? (
-                    <PassageView content={passage.content} />
-                  ) : (
-                    renderExamText(passage.content)
-                  )}
-                </div>
-              )}
-              {passage.image_url && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={passage.image_url}
-                  alt="Gambar materi"
-                  className="max-w-full rounded-xl border border-slate-200/50 shadow-sm"
-                />
-              )}
+              {(passage.image_position === 'above'
+                ? [passageImageNode, passageTextNode]
+                : [passageTextNode, passageImageNode])}
             </div>
           ) : (
             <div className="text-slate-400 text-xs italic flex items-center justify-center h-48 border border-dashed border-slate-200 rounded-xl bg-white">

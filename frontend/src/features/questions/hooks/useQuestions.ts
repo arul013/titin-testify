@@ -36,6 +36,7 @@ export interface Passage {
   content: string | null;
   audio_url: string | null;
   image_url: string | null;
+  image_position: string;
   status: string;
   questions_count: number;
   creator_name?: string;

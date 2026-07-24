@@ -72,19 +72,34 @@ export const PassageDetailPanel: React.FC<PassageDetailPanelProps> = ({
           <audio src={passage.audio_url} controls className="w-full h-8" />
         </div>
       )}
-      {passage.content && (
-        <div className="text-slate-600 text-sm max-h-64 overflow-y-auto bg-slate-50 border border-slate-100 p-4 rounded-xl leading-relaxed">
-          {passage.type === "reading" ? (
-            <PassageView content={passage.content} />
-          ) : (
-            passage.content.split(/\n\s*\n/).map((para, i) => (
-              <p key={i} className={i ? "mt-2" : ""}>
-                {renderExamText(para.replace(/\n/g, " ").trim())}
-              </p>
-            ))
-          )}
-        </div>
-      )}
+      {(() => {
+        const textNode = passage.content ? (
+          <div
+            key="text"
+            className="text-slate-600 text-sm max-h-64 overflow-y-auto bg-slate-50 border border-slate-100 p-4 rounded-xl leading-relaxed"
+          >
+            {passage.type === "reading" ? (
+              <PassageView content={passage.content} />
+            ) : (
+              passage.content.split(/\n\s*\n/).map((para, i) => (
+                <p key={i} className={i ? "mt-2" : ""}>
+                  {renderExamText(para.replace(/\n/g, " ").trim())}
+                </p>
+              ))
+            )}
+          </div>
+        ) : null;
+        const imgNode = passage.image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key="img"
+            src={passage.image_url}
+            alt="Gambar materi"
+            className="max-w-full rounded-xl border border-slate-200/50"
+          />
+        ) : null;
+        return passage.image_position === "above" ? [imgNode, textNode] : [textNode, imgNode];
+      })()}
 
       {/* Daftar soal */}
       <div>

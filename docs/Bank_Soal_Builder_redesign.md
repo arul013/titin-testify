@@ -74,6 +74,12 @@ Pola seperti Exam Builder (`features/exams`), tapi untuk Bank Soal:
   - `UnderlineEditor` plain (WE) kini `showPreview={false}` (panel kanan sudah preview) → tuntas hal "RichPassageEditor menyusul di B2".
   - Hook `useBankSoalPage`: `openCreatePassage` → `openPassageTypeChooser` + `startCreatePassage(type)` (+ `passageDraftType`); `isPassageOpen` kini = builder full-page. `page.tsx`: `isBuilderOpen = isQuestionOpen || isPassageOpen` → render `PassageBuilder`; modal `PassageForm` **dihapus** (file dihapus).
   - Verifikasi: build sukses, tsc & eslint bersih.
+- **B2.1 — Polish builder Materi (2026-07-24, feedback):**
+  1. **Pratinjau internal RichPassageEditor dimatikan** (prop `showPreview`, default true → `false` di PassageBuilder); hint toolbar diperbaiki ("Pisahkan paragraf dengan satu baris kosong"). Tab Editor murni menulis.
+  2. **Textarea Reading isi penuh panel** — prop `fill` di RichPassageEditor (root `h-full`, textarea `flex-1` via `containerClassName` + arbitrary child selector `[&>.group]`); form `h-full` + blok teks `flex-1 min-h-0` saat reading.
+  3. **Gambar Materi = checkbox** "Materi ini memakai gambar" (auto-centang bila edit ber-gambar) → uploader muncul saat dicentang; uncheck mengosongkan.
+  4. **Posisi gambar** (`image_position`: `above`/`below`, default `below`) via ToggleGroup — disimpan per-materi. Diterapkan di preview builder, `QuestionView` (view peserta/preview kanonik), & `PassageDetailPanel` (yang kini juga menampilkan gambar materi). Payload kirim `image_url: ''` saat dimatikan (update passage hanya menerapkan field bukan-None → '' menghapus).
+  5. **DB:** `008_passage_image_position.sql` (kolom + CHECK); backend model (`ImagePosition` enum) + service (create/list/get/update + semua `PassageResponse`); tipe `Passage` FE menambah `image_position`.
 - **B3 — Polish:** live update, validasi, edit existing → buka builder, empty/loading, responsif (fallback toggle bila sempit).
 
 ## 5. Catatan

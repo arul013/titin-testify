@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ToggleGroup } from '@/components/ui/toggle-group';
 import { FileUploader } from '@/components/ui/file-uploader';
 import { UnderlineEditor } from './UnderlineEditor';
 import { RichPassageEditor } from './RichPassageEditor';
@@ -46,6 +48,8 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
   const [audioUrl, setAudioUrl] = useState(initialData?.audio_url || '');
   const [status, setStatus] = useState(initialData?.status || 'draft');
   const [imageUrl, setImageUrl] = useState(initialData?.image_url || '');
+  const [useImage, setUseImage] = useState(!!initialData?.image_url);
+  const [imagePosition, setImagePosition] = useState(initialData?.image_position || 'below');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -118,7 +122,10 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
         type,
         content: type === 'listening' ? content || null : content,
         audio_url: type === 'listening' ? audioUrl : null,
-        image_url: imageUrl || null,
+        // Kirim '' (bukan null) saat gambar dimatikan agar backend menghapusnya
+        // (update passage hanya menerapkan field yang bukan-None).
+        image_url: useImage ? imageUrl : '',
+        image_position: imagePosition,
         status,
       });
       onCancel();
@@ -131,7 +138,7 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
 
   // ─── Panel editor (kiri) ───────────────────────────────────
   const editor = (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+    <form onSubmit={handleSubmit} className={`flex flex-col gap-5 ${type === 'reading' ? 'h-full' : ''}`}>
       {/* Jenis materi (terkunci) + status */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
@@ -214,7 +221,7 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
       )}
 
       {/* Teks bacaan / transkrip */}
-      <div>
+      <div className={type === 'reading' ? 'flex flex-col flex-1 min-h-0' : ''}>
         <label className="text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1">
           <FileText className="w-3.5 h-3.5 text-slate-500" />
           {type === 'listening' ? 'Teks Transkrip / Catatan Pembantu (Opsional)' : 'Teks Bacaan'}
@@ -237,15 +244,19 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
           </>
         ) : type === 'reading' ? (
           <>
-            <RichPassageEditor
-              value={content}
-              onChange={setContent}
-              rows={12}
-              required
-              placeholder={
-                'Tulis atau tempel teks bacaan.\nPisahkan tiap paragraf dengan satu baris kosong (baris pertamanya otomatis menjorok).\nBlok kata lalu klik Tebal / Miring / Garis bawah untuk memformat.'
-              }
-            />
+            <div className="flex-1 min-h-0">
+              <RichPassageEditor
+                value={content}
+                onChange={setContent}
+                rows={12}
+                required
+                showPreview={false}
+                fill
+                placeholder={
+                  'Tulis atau tempel teks bacaan.\nPisahkan tiap paragraf dengan satu baris kosong (baris pertamanya otomatis menjorok).\nBlok kata lalu klik Tebal / Miring / Garis bawah untuk memformat.'
+                }
+              />
+            </div>
             <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
               Nomor baris tampil <strong>tiap 5 baris</strong> dan pemenggalannya dijaga sama di
               preview maupun lembar ujian, sehingga referensi &ldquo;in line 12&rdquo; tetap akurat.
@@ -262,39 +273,65 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
         )}
       </div>
 
-      {/* Gambar materi (opsional) — untuk passage berbasis teks */}
+      {/* Gambar materi (opsional, via checkbox) — untuk passage berbasis teks */}
       {type !== 'listening' && (
         <div>
-          <label className="text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1">
-            <ImageIcon className="w-3.5 h-3.5 text-slate-500" />
-            Gambar Materi (opsional)
-          </label>
-          {imageUrl ? (
-            <div className="relative inline-block">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={imageUrl} alt="Gambar materi" className="max-h-48 rounded-xl border border-slate-200" />
-              <button
-                type="button"
-                onClick={() => setImageUrl('')}
-                title="Hapus gambar"
-                className="absolute -top-2 -right-2 bg-white border border-slate-200 rounded-full p-1 shadow-sm text-slate-500 hover:text-red-600 transition-colors"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
+          <Checkbox
+            checked={useImage}
+            onChange={(v) => {
+              setUseImage(v);
+              if (!v) setImageUrl('');
+            }}
+            label={
+              <span className="inline-flex items-center gap-1.5">
+                <ImageIcon className="w-3.5 h-3.5 text-indigo-600" /> Materi ini memakai gambar
+              </span>
+            }
+          />
+          {useImage && (
+            <div className="mt-3 flex flex-col gap-3">
+              {imageUrl ? (
+                <div className="relative inline-block w-fit">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={imageUrl} alt="Gambar materi" className="max-h-48 rounded-xl border border-slate-200" />
+                  <button
+                    type="button"
+                    onClick={() => setImageUrl('')}
+                    title="Hapus gambar"
+                    className="absolute -top-2 -right-2 bg-white border border-slate-200 rounded-full p-1 shadow-sm text-slate-500 hover:text-red-600 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <FileUploader
+                  variant="dropzone"
+                  accept="image/*"
+                  disabled={isUploadingImage}
+                  icon={<ImageIcon />}
+                  label="Klik atau seret gambar ke sini"
+                  hint="Format jpg, png, webp, dan sejenisnya"
+                  onFilesSelected={([f]) => uploadImageFile(f)}
+                  onError={(m) => toast.error(m)}
+                />
+              )}
+              {isUploadingImage && <p className="text-[10px] text-indigo-600 animate-pulse">Mengunggah gambar...</p>}
+
+              {/* Posisi gambar relatif teks */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-xs font-bold text-slate-600">Posisi gambar:</span>
+                <ToggleGroup
+                  size="sm"
+                  value={imagePosition}
+                  onChange={(v) => v && setImagePosition(v)}
+                  options={[
+                    { value: 'below', label: 'Di bawah teks' },
+                    { value: 'above', label: 'Di atas teks' },
+                  ]}
+                />
+              </div>
             </div>
-          ) : (
-            <FileUploader
-              variant="dropzone"
-              accept="image/*"
-              disabled={isUploadingImage}
-              icon={<ImageIcon />}
-              label="Klik atau seret gambar ke sini"
-              hint="Format jpg, png, webp, dan sejenisnya"
-              onFilesSelected={([f]) => uploadImageFile(f)}
-              onError={(m) => toast.error(m)}
-            />
           )}
-          {isUploadingImage && <p className="text-[10px] text-indigo-600 animate-pulse mt-1">Mengunggah gambar...</p>}
         </div>
       )}
 
@@ -309,7 +346,25 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
   );
 
   // ─── Panel preview (kanan) — materi seperti dilihat peserta ─
-  const hasBody = !!(content || audioUrl || imageUrl);
+  const showImg = useImage && !!imageUrl;
+  const hasBody = !!(content || audioUrl || showImg);
+  const imgNode = showImg ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      key="img"
+      src={imageUrl}
+      alt="Gambar materi"
+      className="max-w-full rounded-xl border border-slate-200/50 shadow-sm"
+    />
+  ) : null;
+  const textNode = content ? (
+    <div
+      key="text"
+      className="text-slate-700 text-sm leading-loose whitespace-pre-wrap font-sans bg-white border border-slate-200/50 p-4 rounded-xl shadow-sm"
+    >
+      {type === 'reading' ? <PassageView content={content} /> : renderExamText(content)}
+    </div>
+  ) : null;
   const preview = () => (
     <div className="flex flex-col gap-4 bg-slate-50/70 border border-slate-100 p-5 rounded-2xl">
       <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200/60 pb-2">
@@ -336,19 +391,9 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
               <audio src={audioUrl} controls className="w-full h-8" />
             </div>
           )}
-          {content && (
-            <div className="text-slate-700 text-sm leading-loose whitespace-pre-wrap font-sans bg-white border border-slate-200/50 p-4 rounded-xl shadow-sm">
-              {type === 'reading' ? <PassageView content={content} /> : renderExamText(content)}
-            </div>
-          )}
-          {imageUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={imageUrl}
-              alt="Gambar materi"
-              className="max-w-full rounded-xl border border-slate-200/50 shadow-sm"
-            />
-          )}
+          {imagePosition === 'above'
+            ? [imgNode, textNode]
+            : [textNode, imgNode]}
         </div>
       )}
     </div>

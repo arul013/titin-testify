@@ -39,6 +39,12 @@ class CorrectAnswer(str, Enum):
     D = "d"
 
 
+class ImagePosition(str, Enum):
+    """Posisi gambar materi relatif terhadap teks bacaan."""
+    ABOVE = "above"
+    BELOW = "below"
+
+
 # ─── Passage Request Models ──────────────────────────────────────
 
 class CreatePassageRequest(BaseModel):
@@ -47,6 +53,7 @@ class CreatePassageRequest(BaseModel):
     content: Optional[str] = Field(None, description="Passage text content")
     audio_url: Optional[str] = Field(None, description="Audio URL for Listening passages")
     image_url: Optional[str] = Field(None, description="Optional image URL for the passage")
+    image_position: ImagePosition = Field(default=ImagePosition.BELOW, description="Image position relative to text")
     status: ContentStatus = Field(default=ContentStatus.DRAFT, description="Publication status")
 
 
@@ -55,6 +62,7 @@ class UpdatePassageRequest(BaseModel):
     content: Optional[str] = None
     audio_url: Optional[str] = None
     image_url: Optional[str] = None
+    image_position: Optional[ImagePosition] = None
     status: Optional[ContentStatus] = None
 
 
@@ -109,6 +117,7 @@ class PassageResponse(BaseModel):
     content: Optional[str] = None
     audio_url: Optional[str] = None
     image_url: Optional[str] = None
+    image_position: ImagePosition = ImagePosition.BELOW
     status: ContentStatus
     questions_count: int = 0
     creator_name: Optional[str] = None
