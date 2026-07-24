@@ -68,7 +68,12 @@ Pola seperti Exam Builder (`features/exams`), tapi untuk Bank Soal:
     2. `QuestionTable`: kolom PERTANYAAN diperlebar (`max-w-2xl`); header `whitespace-nowrap` (1 baris). `PassageTable`: header `whitespace-nowrap` ("JUMLAH SOAL" dll 1 baris).
     3. `BankSoalFilters`: tab filter `self-start` (content-width, tak ada space kosong kanan).
     4. `BankSoalBuilder`: toggle Editor/Split/Pratinjau pakai komponen DS **`Tabs`** (pill gradient); panel **tinggi tetap `h-[calc(100vh-12rem)]` + scroll internal** → halaman tak ikut scroll (Editor/Split/Pratinjau). `page.tsx`: **PageHeader disembunyikan** saat mode builder (ruang lega + no page-scroll). *(Nilai 12rem approx; bisa ditune bila ada sisa/kurang scroll.)*
-- **B2 — Pindahkan editor Soal & Materi ke EditorPanel** (dari modal → panel kiri); pemilih jenis jadi modal ringkas; hapus modal lama.
+- **B2 — Editor Materi ke builder halaman-penuh (SELESAI 2026-07-24):**
+  - `PassageBuilder.tsx` — editor Materi (fields dari `PassageForm` lama, minus Select jenis) di panel kiri + **live preview** materi kanan (reading→`PassageView`, listening→audio player, lainnya→`renderExamText`, + gambar). Pakai shell `BankSoalBuilder` yang sama.
+  - **Jenis materi terkunci** di builder (badge/field read-only) — dipilih lewat modal ringkas `PassageTypeChooser.tsx` (4 kartu: Reading/Listening/Structure/WE) sebelum builder dibuka. Edit → builder langsung (jenis dari record).
+  - `UnderlineEditor` plain (WE) kini `showPreview={false}` (panel kanan sudah preview) → tuntas hal "RichPassageEditor menyusul di B2".
+  - Hook `useBankSoalPage`: `openCreatePassage` → `openPassageTypeChooser` + `startCreatePassage(type)` (+ `passageDraftType`); `isPassageOpen` kini = builder full-page. `page.tsx`: `isBuilderOpen = isQuestionOpen || isPassageOpen` → render `PassageBuilder`; modal `PassageForm` **dihapus** (file dihapus).
+  - Verifikasi: build sukses, tsc & eslint bersih.
 - **B3 — Polish:** live update, validasi, edit existing → buka builder, empty/loading, responsif (fallback toggle bila sempit).
 
 ## 5. Catatan

@@ -154,7 +154,7 @@ export const PassageView: React.FC<PassageViewProps> = ({
                   <span
                     key={m.line}
                     style={{ top: m.top }}
-                    className="absolute right-0 text-xs font-bold text-slate-400"
+                    className="absolute right-0 leading-8 text-base font-bold text-indigo-600"
                   >
                     {m.line}
                   </span>
@@ -169,7 +169,7 @@ export const PassageView: React.FC<PassageViewProps> = ({
                 <p
                   key={i}
                   className={i ? 'mt-3' : ''}
-                  style={{ textAlign: 'justify', textIndent: '1.6em' }}
+                  style={{ textAlign: 'justify', textIndent: '2.5em' }}
                 >
                   {renderParagraph(p)}
                 </p>

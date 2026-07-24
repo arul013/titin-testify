@@ -44,9 +44,13 @@ export function useBankSoalPage() {
   const [isPassageQuestionsLoading, setIsPassageQuestionsLoading] = useState(false);
   const [passageQuestionsRefetch, setPassageQuestionsRefetch] = useState(0);
 
-  // ─── Modal state ───────────────────────────────────────────
+  // ─── Builder / modal state ─────────────────────────────────
   const [isQuestionOpen, setIsQuestionOpen] = useState(false);
+  // Builder Materi halaman-penuh (2-panel). Modal `isPassageTypeChooserOpen`
+  // hanya untuk memilih jenis materi sebelum builder dibuka.
   const [isPassageOpen, setIsPassageOpen] = useState(false);
+  const [isPassageTypeChooserOpen, setIsPassageTypeChooserOpen] = useState(false);
+  const [passageDraftType, setPassageDraftType] = useState<string | undefined>(undefined);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [editingPassage, setEditingPassage] = useState<Passage | null>(null);
@@ -160,19 +164,28 @@ export function useBankSoalPage() {
     setEditingQuestion(null);
   };
 
-  const openCreatePassage = () => {
+  // Buat materi baru: buka modal pemilih jenis dulu.
+  const openPassageTypeChooser = () => setIsPassageTypeChooserOpen(true);
+  const closePassageTypeChooser = () => setIsPassageTypeChooserOpen(false);
+
+  // Jenis dipilih → tutup modal, buka builder materi halaman-penuh.
+  const startCreatePassage = (type: string) => {
     setEditingPassage(null);
+    setPassageDraftType(type);
+    setIsPassageTypeChooserOpen(false);
     setIsPassageOpen(true);
   };
 
   const openEditPassage = (passage: Passage) => {
     setEditingPassage(passage);
+    setPassageDraftType(passage.type);
     setIsPassageOpen(true);
   };
 
   const closePassage = () => {
     setIsPassageOpen(false);
     setEditingPassage(null);
+    setPassageDraftType(undefined);
   };
 
   const closePreview = () => {
@@ -293,9 +306,11 @@ export function useBankSoalPage() {
     passageQuestions,
     isPassageQuestionsLoading,
 
-    // modal state
+    // builder / modal state
     isQuestionOpen,
     isPassageOpen,
+    isPassageTypeChooserOpen,
+    passageDraftType,
     isPreviewOpen,
     editingQuestion,
     editingPassage,
@@ -306,7 +321,9 @@ export function useBankSoalPage() {
     openCreateQuestion,
     openEditQuestion,
     closeQuestion,
-    openCreatePassage,
+    openPassageTypeChooser,
+    closePassageTypeChooser,
+    startCreatePassage,
     openEditPassage,
     closePassage,
     closePreview,

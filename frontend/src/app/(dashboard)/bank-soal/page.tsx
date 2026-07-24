@@ -15,7 +15,8 @@ import { PassageTable } from '@/features/questions/PassageTable';
 import { PassageDetailPanel } from '@/features/questions/PassageDetailPanel';
 import { QuestionTable } from '@/features/questions/QuestionTable';
 import { QuestionBuilder } from '@/features/questions/QuestionBuilder';
-import { PassageForm } from '@/features/questions/PassageForm';
+import { PassageBuilder } from '@/features/questions/PassageBuilder';
+import { PassageTypeChooser } from '@/features/questions/PassageTypeChooser';
 import { QuestionPreview } from '@/features/questions/QuestionPreview';
 
 export default function BankSoalPage() {
@@ -33,13 +34,15 @@ export default function BankSoalPage() {
     {
       icon: <Layers className="w-5 h-5" />,
       label: 'Soal + Materi Bersama',
-      onClick: bank.openCreatePassage,
+      onClick: bank.openPassageTypeChooser,
     },
   ];
 
+  const isBuilderOpen = bank.isQuestionOpen || bank.isPassageOpen;
+
   return (
     <PageContainer
-      className={bank.isQuestionOpen ? 'space-y-4' : 'space-y-6 pb-24'}
+      className={isBuilderOpen ? 'space-y-4' : 'space-y-6 pb-24'}
       header={
         <PageHeader
           icon={<Library />}
@@ -58,6 +61,15 @@ export default function BankSoalPage() {
           passage={bank.selectedPassage}
           onCancel={bank.closeQuestion}
           onSubmit={bank.submitQuestion}
+        />
+      ) : bank.isPassageOpen ? (
+        /* ─── Builder Materi (halaman penuh, 2-panel + preview) ─── */
+        <PassageBuilder
+          key={`p-${bank.editingPassage?.id ?? 'new'}`}
+          initialData={bank.editingPassage}
+          defaultType={bank.passageDraftType}
+          onCancel={bank.closePassage}
+          onSubmit={bank.submitPassage}
         />
       ) : (
         <>
@@ -145,15 +157,10 @@ export default function BankSoalPage() {
       )}
 
       {/* ─── Modals ─── */}
-      <PassageForm
-        key={`p-${bank.editingPassage?.id ?? 'new'}-${bank.isPassageOpen}`}
-        open={bank.isPassageOpen}
-        onClose={bank.closePassage}
-        onSubmit={bank.submitPassage}
-        initialData={bank.editingPassage}
-        defaultType={
-          bank.activeTab !== 'all' && bank.activeTab !== 'passages' ? bank.activeTab : undefined
-        }
+      <PassageTypeChooser
+        open={bank.isPassageTypeChooserOpen}
+        onClose={bank.closePassageTypeChooser}
+        onChoose={bank.startCreatePassage}
       />
 
       <QuestionPreview
