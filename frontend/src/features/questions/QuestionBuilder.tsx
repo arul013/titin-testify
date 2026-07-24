@@ -5,12 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ToggleGroup } from '@/components/ui/toggle-group';
+import { Checkbox } from '@/components/ui/checkbox';
 import { FileUploader } from '@/components/ui/file-uploader';
 import { UnderlineEditor } from './UnderlineEditor';
 import { BankSoalBuilder, type BuilderViewMode } from './BankSoalBuilder';
 import { QuestionView } from './QuestionView';
-import { X, Plus, Check, BookOpen, HelpCircle, Image as ImageIcon } from 'lucide-react';
+import { X, Plus, BookOpen, HelpCircle, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { getErrorMessage } from '@/lib/errors';
 import type { Question, Passage } from './hooks/useQuestions';
@@ -62,6 +62,7 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>(initialData?.tags || []);
   const [imageUrl, setImageUrl] = useState(initialData?.image_url || '');
+  const [useImage, setUseImage] = useState(!!initialData?.image_url);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
@@ -196,6 +197,7 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
             onChange={setQuestionText}
             rows={4}
             required
+            showPreview={false}
             placeholder="Tulis kalimat, lalu blok kata dan klik Tandai A/B/C/D."
           />
         ) : section === 'reading' ? (
@@ -205,6 +207,7 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
             onChange={setQuestionText}
             rows={3}
             required
+            showPreview={false}
             placeholder="Tulis pertanyaan. Blok kata lalu klik Tebal/Miring/Garis bawah bila perlu."
           />
         ) : (
@@ -218,77 +221,103 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
         )}
       </div>
 
-      {/* Gambar soal */}
+      {/* Gambar soal (opsional, via checkbox) */}
       <div>
-        <label className="text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1">
-          <ImageIcon className="w-3.5 h-3.5 text-slate-500" /> Gambar Soal (opsional)
-        </label>
-        {imageUrl ? (
-          <div className="relative inline-block">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={imageUrl} alt="Gambar soal" className="max-h-48 rounded-xl border border-slate-200" />
-            <button
-              type="button"
-              onClick={() => setImageUrl('')}
-              title="Hapus gambar"
-              className="absolute -top-2 -right-2 bg-white border border-slate-200 rounded-full p-1 shadow-sm text-slate-500 hover:text-red-600 transition-colors"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        ) : (
-          <FileUploader
-            variant="dropzone"
-            accept="image/*"
-            disabled={isUploadingImage}
-            icon={<ImageIcon />}
-            label="Klik atau seret gambar ke sini"
-            hint="Format jpg, png, webp, dan sejenisnya"
-            onFilesSelected={([f]) => uploadImageFile(f)}
-            onError={(m) => toast.error(m)}
-          />
-        )}
-        {isUploadingImage && <p className="text-[10px] text-indigo-600 animate-pulse mt-1">Mengunggah gambar...</p>}
-      </div>
-
-      {/* Options A-D */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {['a', 'b', 'c', 'd'].map((key, i) => {
-          const setters = [setOptionA, setOptionB, setOptionC, setOptionD];
-          return (
-            <div key={key}>
-              <label className="block text-xs font-bold text-slate-600 mb-1.5">
-                Opsi {answerLabels[i]}
-                {correctAnswer === key && (
-                  <Badge variant="success" className="ml-2 text-[10px] py-0 px-1.5">
-                    <Check className="w-3 h-3 mr-0.5" /> Jawaban Benar
-                  </Badge>
-                )}
-              </label>
-              <Input
-                value={answerValues[i]}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setters[i](e.target.value)}
-                placeholder={`Isi opsi ${answerLabels[i]}...`}
-                required
-              />
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Correct Answer */}
-      <div>
-        <label className="block text-xs font-bold text-slate-600 mb-1.5">Jawaban Benar</label>
-        <ToggleGroup
-          value={correctAnswer}
-          onChange={(v) => v && setCorrectAnswer(v)}
-          options={[
-            { value: 'a', label: 'A' },
-            { value: 'b', label: 'B' },
-            { value: 'c', label: 'C' },
-            { value: 'd', label: 'D' },
-          ]}
+        <Checkbox
+          checked={useImage}
+          onChange={(v) => {
+            setUseImage(v);
+            if (!v) setImageUrl('');
+          }}
+          label={
+            <span className="inline-flex items-center gap-1.5">
+              <ImageIcon className="w-3.5 h-3.5 text-indigo-600" /> Soal ini memakai gambar
+            </span>
+          }
         />
+        {useImage && (
+          <div className="mt-3">
+            {imageUrl ? (
+              <div className="relative inline-block">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={imageUrl} alt="Gambar soal" className="max-h-48 rounded-xl border border-slate-200" />
+                <button
+                  type="button"
+                  onClick={() => setImageUrl('')}
+                  title="Hapus gambar"
+                  className="absolute -top-2 -right-2 bg-white border border-slate-200 rounded-full p-1 shadow-sm text-slate-500 hover:text-red-600 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <FileUploader
+                variant="dropzone"
+                accept="image/*"
+                disabled={isUploadingImage}
+                icon={<ImageIcon />}
+                label="Klik atau seret gambar ke sini"
+                hint="Format jpg, png, webp, dan sejenisnya"
+                onFilesSelected={([f]) => uploadImageFile(f)}
+                onError={(m) => toast.error(m)}
+              />
+            )}
+            {isUploadingImage && <p className="text-[10px] text-indigo-600 animate-pulse mt-1">Mengunggah gambar...</p>}
+          </div>
+        )}
+      </div>
+
+      {/* Pilihan jawaban + tandai jawaban benar (radio inline) */}
+      <div>
+        <label className="block text-xs font-bold text-slate-600 mb-2">
+          Pilihan Jawaban{' '}
+          <span className="font-medium text-slate-400">— tandai lingkaran pada jawaban yang benar</span>
+        </label>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {['a', 'b', 'c', 'd'].map((key, i) => {
+            const setters = [setOptionA, setOptionB, setOptionC, setOptionD];
+            const isCorrect = correctAnswer === key;
+            return (
+              <div
+                key={key}
+                className={`rounded-2xl border p-3 transition-colors ${
+                  isCorrect ? 'border-emerald-300 bg-emerald-50/40' : 'border-slate-100'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-bold text-slate-600">Opsi {answerLabels[i]}</span>
+                  <button
+                    type="button"
+                    onClick={() => setCorrectAnswer(key)}
+                    className="inline-flex items-center gap-1.5"
+                    title="Tandai sebagai jawaban benar"
+                  >
+                    <span
+                      className={`h-4 w-4 rounded-full border-2 flex items-center justify-center transition-colors ${
+                        isCorrect ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300'
+                      }`}
+                    >
+                      {isCorrect && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
+                    </span>
+                    <span
+                      className={`text-[11px] font-bold ${
+                        isCorrect ? 'text-emerald-700' : 'text-slate-400 hover:text-slate-600'
+                      }`}
+                    >
+                      {isCorrect ? 'Jawaban benar' : 'Tandai benar'}
+                    </span>
+                  </button>
+                </div>
+                <Input
+                  value={answerValues[i]}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setters[i](e.target.value)}
+                  placeholder={`Isi opsi ${answerLabels[i]}...`}
+                  required
+                />
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Explanation */}

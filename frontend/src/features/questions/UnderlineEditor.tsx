@@ -15,6 +15,8 @@ interface UnderlineEditorProps {
   rows?: number;
   placeholder?: string;
   required?: boolean;
+  /** Tampilkan kotak pratinjau inline. Matikan bila sudah ada panel preview terpisah. */
+  showPreview?: boolean;
 }
 
 /**
@@ -29,6 +31,7 @@ export const UnderlineEditor: React.FC<UnderlineEditorProps> = ({
   rows = 4,
   placeholder,
   required,
+  showPreview = true,
 }) => {
   const ref = useRef<HTMLTextAreaElement>(null);
 
@@ -103,16 +106,18 @@ export const UnderlineEditor: React.FC<UnderlineEditorProps> = ({
       />
 
       {/* Live preview */}
-      <div>
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Pratinjau</p>
-        <div className="min-h-11 text-sm text-slate-700 leading-loose bg-white border border-slate-100 rounded-xl p-3">
-          {value ? (
-            renderExamText(value)
-          ) : (
-            <span className="text-slate-300 italic">Hasil tampilan akan muncul di sini…</span>
-          )}
+      {showPreview && (
+        <div>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Pratinjau</p>
+          <div className="min-h-11 text-sm text-slate-700 leading-loose bg-white border border-slate-100 rounded-xl p-3">
+            {value ? (
+              renderExamText(value)
+            ) : (
+              <span className="text-slate-300 italic">Hasil tampilan akan muncul di sini…</span>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

@@ -58,6 +58,11 @@ Pola seperti Exam Builder (`features/exams`), tapi untuk Bank Soal:
   - `page.tsx`: saat `isQuestionOpen` → render `QuestionBuilder` full-width (menggantikan list/detail); FAB/list disembunyikan. Materi masih modal (B2).
   - Verifikasi: build sukses, diagnostics nol (QuestionBuilder hanya hint lama `FormEvent`).
   - Catatan: di **split** pada desktop, panel preview ~½ lebar → passage reading 600px bisa scroll horizontal; pakai mode **Pratinjau** (full) untuk tampilan 2-kolom utuh (sesuai antisipasi "fallback toggle").
+  - **Polish B1 (2026-07-24, dari feedback):**
+    1. **Fix bug bold**: stem `QuestionView` tak lagi `font-extrabold` (jadi `font-medium`) → `**bold**` menonjol. Bold di-render **indigo** (`text-indigo-600`) di `examText` & `PassageView` (disetujui user).
+    2. **Preview dobel dihapus**: `UnderlineEditor` dapat prop `showPreview` (default true); `QuestionBuilder` set `showPreview={false}` (panel kanan sudah jadi preview). (RichPassageEditor menyusul di B2.)
+    3. **Gambar Soal = checkbox** "Soal ini memakai gambar" → uploader muncul saat dicentang (uncheck mengosongkan `image_url`).
+    4. **Jawaban benar inline**: hapus `ToggleGroup` terpisah; tiap opsi punya **radio "Tandai benar"** + highlight hijau. Admin cukup klik radio pada opsi benar.
 - **B2 — Pindahkan editor Soal & Materi ke EditorPanel** (dari modal → panel kiri); pemilih jenis jadi modal ringkas; hapus modal lama.
 - **B3 — Polish:** live update, validasi, edit existing → buka builder, empty/loading, responsif (fallback toggle bila sempit).
 
