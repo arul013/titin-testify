@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { QuestionTable } from "./QuestionTable";
 import { BankSoalTableSkeleton } from "./BankSoalTableSkeleton";
+import { PassageView } from "./PassageView";
 import { renderExamText } from "./examText";
 import type { Passage, Question } from "./hooks/useQuestions";
 
@@ -72,12 +73,16 @@ export const PassageDetailPanel: React.FC<PassageDetailPanelProps> = ({
         </div>
       )}
       {passage.content && (
-        <div className="text-slate-600 text-sm max-h-40 overflow-y-auto bg-slate-50 border border-slate-100 p-4 rounded-xl leading-relaxed">
-          {passage.content.split(/\n\s*\n/).map((para, i) => (
-            <p key={i} className={i ? 'mt-2' : ''}>
-              {renderExamText(para.replace(/\n/g, ' ').trim())}
-            </p>
-          ))}
+        <div className="text-slate-600 text-sm max-h-64 overflow-y-auto bg-slate-50 border border-slate-100 p-4 rounded-xl leading-relaxed">
+          {passage.type === "reading" ? (
+            <PassageView content={passage.content} />
+          ) : (
+            passage.content.split(/\n\s*\n/).map((para, i) => (
+              <p key={i} className={i ? "mt-2" : ""}>
+                {renderExamText(para.replace(/\n/g, " ").trim())}
+              </p>
+            ))
+          )}
         </div>
       )}
 

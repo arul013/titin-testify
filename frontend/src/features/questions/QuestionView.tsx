@@ -53,6 +53,14 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
       ? 'grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch'
       : 'flex flex-col gap-6';
 
+  // Judul kolom materi menyesuaikan isi: audio → "Audio", teks → "Teks Bacaan".
+  const hasAudio = !!passage?.audio_url;
+  const materiLabel = !passage
+    ? 'Materi Soal'
+    : hasAudio
+      ? 'Materi Soal (Audio)'
+      : 'Materi Soal (Teks Bacaan)';
+
   return (
     <div className="flex flex-col gap-6">
       {showMeta && (
@@ -93,8 +101,12 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
         {/* Materi (passage) */}
         <div className="flex flex-col gap-4 bg-slate-50/70 border border-slate-100 p-5 rounded-2xl">
           <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200/60 pb-2">
-            <FileText className="w-4 h-4 text-slate-400" />
-            Materi Soal (Teks Bacaan / Audio)
+            {hasAudio ? (
+              <Music className="w-4 h-4 text-slate-400" />
+            ) : (
+              <FileText className="w-4 h-4 text-slate-400" />
+            )}
+            {materiLabel}
           </h3>
 
           {passage ? (

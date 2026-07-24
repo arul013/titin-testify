@@ -66,7 +66,7 @@ interface PassageViewProps {
 export const PassageView: React.FC<PassageViewProps> = ({
   content,
   lineNumbers = true,
-  width = 600,
+  width = 780,
 }) => {
   const contentRef = useRef<HTMLDivElement>(null);
   const [marks, setMarks] = useState<{ line: number; top: number }[]>([]);
