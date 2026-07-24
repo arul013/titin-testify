@@ -51,7 +51,13 @@ Pola seperti Exam Builder (`features/exams`), tapi untuk Bank Soal:
   - `features/questions/PassageView.tsx`: paragraf (dipisah baris kosong) → `text-align: justify` + `text-indent` baris pertama; tiap kata dibungkus `<span data-w>` lalu **diukur `offsetTop`** (useLayoutEffect + `fonts.ready` + ResizeObserver) untuk menomori tiap 5 baris di gutter; lebar dikunci (default 600px). Marker `**`/`*`/`__`.
   - `QuestionPreview`: passage `reading` → `<PassageView>` (ganti `renderPassageLines`).
   - Verifikasi: build sukses, diagnostics nol. ⚠️ Di modal `QuestionPreview` (lebar ~512px) passage 600px akan **horizontal-scroll** — tampilan utuhnya baru enak di **B1 (panel preview lebar)**.
-- **B1 — Shell builder full-width + 2-panel:** toggle list↔builder di `/bank-soal`; PreviewPanel kanonik; `viewMode` (split default).
+- **B1 — Shell builder full-width + 2-panel** ✅ **SELESAI (Soal) — 2026-07-23.**
+  - `QuestionView.tsx` — **view kanonik** (meta + materi via `PassageView`/audio/gambar + stem + opsi + pembahasan), prop `layout` (`columns`/`stacked`), `showMeta`/`showExplanation`. Dipakai ulang `QuestionPreview` (jadi tipis) & panel preview builder & (nanti) Phase 4.
+  - `BankSoalBuilder.tsx` — shell full-width: header (Kembali + judul) + **segmented `viewMode`** (Editor / Split / Preview); body per mode. `preview` = fungsi `(mode) => node`.
+  - `QuestionBuilder.tsx` — editor Soal (fields dari QuestionForm lama) di panel kiri + **live `QuestionView`** kanan (stacked di split, columns di preview). Menggantikan modal `QuestionForm` (**dihapus**).
+  - `page.tsx`: saat `isQuestionOpen` → render `QuestionBuilder` full-width (menggantikan list/detail); FAB/list disembunyikan. Materi masih modal (B2).
+  - Verifikasi: build sukses, diagnostics nol (QuestionBuilder hanya hint lama `FormEvent`).
+  - Catatan: di **split** pada desktop, panel preview ~½ lebar → passage reading 600px bisa scroll horizontal; pakai mode **Pratinjau** (full) untuk tampilan 2-kolom utuh (sesuai antisipasi "fallback toggle").
 - **B2 — Pindahkan editor Soal & Materi ke EditorPanel** (dari modal → panel kiri); pemilih jenis jadi modal ringkas; hapus modal lama.
 - **B3 — Polish:** live update, validasi, edit existing → buka builder, empty/loading, responsif (fallback toggle bila sempit).
 
