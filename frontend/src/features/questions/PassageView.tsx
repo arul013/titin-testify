@@ -25,7 +25,7 @@ const UNDERLINE_CLS = 'underline decoration-2 decoration-indigo-600/70 font-semi
 
 function styleFor(part: string): { text: string; cls: string } {
   let m = part.match(BOLD);
-  if (m) return { text: m[1], cls: 'font-bold text-slate-900' };
+  if (m) return { text: m[1], cls: 'font-bold text-indigo-600' };
   m = part.match(UND);
   if (m) return { text: m[1], cls: UNDERLINE_CLS };
   m = part.match(ITAL);

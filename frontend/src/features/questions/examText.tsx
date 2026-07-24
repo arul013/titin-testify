@@ -45,7 +45,7 @@ function renderInline(text: string): React.ReactNode {
     const bold = part.match(BOLD);
     if (bold) {
       return (
-        <strong key={i} className="font-bold text-slate-900">
+        <strong key={i} className="font-bold text-indigo-600">
           {bold[1]}
         </strong>
       );

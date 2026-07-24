@@ -140,11 +140,11 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
             Pertanyaan & Pilihan Jawaban
           </h3>
 
-          <div className="font-extrabold text-slate-800 text-md leading-relaxed whitespace-pre-wrap">
+          <div className="text-slate-800 text-base font-medium leading-relaxed whitespace-pre-wrap">
             {question.question_text ? (
               renderExamText(question.question_text)
             ) : (
-              <span className="text-slate-300 italic font-medium">Pertanyaan belum diisi…</span>
+              <span className="text-slate-300 italic">Pertanyaan belum diisi…</span>
             )}
           </div>
 
