@@ -80,7 +80,13 @@ Pola seperti Exam Builder (`features/exams`), tapi untuk Bank Soal:
   3. **Gambar Materi = checkbox** "Materi ini memakai gambar" (auto-centang bila edit ber-gambar) → uploader muncul saat dicentang; uncheck mengosongkan.
   4. **Posisi gambar** (`image_position`: `above`/`below`, default `below`) via ToggleGroup — disimpan per-materi. Diterapkan di preview builder, `QuestionView` (view peserta/preview kanonik), & `PassageDetailPanel` (yang kini juga menampilkan gambar materi). Payload kirim `image_url: ''` saat dimatikan (update passage hanya menerapkan field bukan-None → '' menghapus).
   5. **DB:** `008_passage_image_position.sql` (kolom + CHECK); backend model (`ImagePosition` enum) + service (create/list/get/update + semua `PassageResponse`); tipe `Passage` FE menambah `image_position`.
-- **B3 — Polish:** live update, validasi, edit existing → buka builder, empty/loading, responsif (fallback toggle bila sempit).
+- **B3 — Polish (SELESAI 2026-07-24):**
+  1. **Validasi ramah (non-native):** `required` native dibuang; validasi manual di submit → pesan **inline** (prop `error` DS Input/Select/Textarea + `<p>` merah untuk editor custom) + **auto-scroll** ke field pertama (`id="qf-*"`/`pf-*"` + `scroll-mt-4`) + toast. Soal: pertanyaan wajib, opsi teks terisi, gambar opsi terunggah, gambar soal terunggah bila dicentang. Materi: teks bacaan wajib (non-listening), audio wajib (listening), gambar terunggah bila dicentang. Error hilang saat field diedit.
+  2. **Guard belum disimpan:** builder lacak `dirty` (snapshot state via lazy `useState`); **Kembali/Batal** saat ada editan → `ConfirmDialog` "Buang perubahan?".
+  3. **Responsif sempit:** `BankSoalBuilder` pakai `useSyncExternalStore` + `matchMedia(min-width:1024px)` → di layar <lg tab **Split disembunyikan** & fallback ke Editor.
+  4. **Loading materi saat edit:** hook `isBuilderPassageLoading`; `QuestionView` prop `passageLoading` → panel materi tampil `SkeletonText` (bukan placeholder "berdiri sendiri" yang berkedip).
+  5. **Bersih-bersih:** `renderPassageLines` (renderer lama) dipensiunkan dari `examText`; `RichPassageEditor` prop `showPreview` + pratinjau internal dihapus (kini murni area menulis). `PassageView` kanonik satu-satunya perender Reading.
+  - Verifikasi: build sukses, tsc & eslint bersih.
 
 ## 5. Catatan
 - Preview builder = tampilan peserta → **dipakai ulang Phase 4 (Exam Engine)**. Investasi sekali, kepakai dua kali.

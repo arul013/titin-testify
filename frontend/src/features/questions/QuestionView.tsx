@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Music, FileText, CheckCircle2, AlertCircle, BookOpen } from 'lucide-react';
 import { renderExamText } from './examText';
 import { PassageView } from './PassageView';
+import { SkeletonText } from '@/components/ui/skeleton';
 import type { Question, Passage } from './hooks/useQuestions';
 
 const DIFFICULTY_LABEL: Record<string, string> = {
@@ -35,6 +36,8 @@ interface QuestionViewProps {
   layout?: 'columns' | 'stacked';
   showMeta?: boolean;
   showExplanation?: boolean;
+  /** Materi sedang dimuat (mis. saat edit soal dari daftar) → tampilkan skeleton. */
+  passageLoading?: boolean;
 }
 
 /**
@@ -47,6 +50,7 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
   layout = 'columns',
   showMeta = true,
   showExplanation = true,
+  passageLoading = false,
 }) => {
   const gridClass =
     layout === 'columns'
@@ -138,6 +142,10 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
               {(passage.image_position === 'above'
                 ? [passageImageNode, passageTextNode]
                 : [passageTextNode, passageImageNode])}
+            </div>
+          ) : passageLoading ? (
+            <div className="flex-1 bg-white border border-slate-200/50 p-4 rounded-xl shadow-sm">
+              <SkeletonText lines={6} />
             </div>
           ) : (
             <div className="text-slate-400 text-xs italic flex items-center justify-center h-48 border border-dashed border-slate-200 rounded-xl bg-white">

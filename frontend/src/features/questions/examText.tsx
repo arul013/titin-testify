@@ -10,8 +10,7 @@ import React from 'react';
  *   - `[kata]{A}`      → underline BERLABEL A/B/C/D (khusus Written Expression)
  *
  * `renderExamText` → render inline (stem, opsi, materi non-reading).
- * `renderPassageLines` → render passage per-baris dengan nomor baris (Reading):
- *   baris = pemenggalan `\n` yang ditentukan penulis; nomor tampil tiap 5 baris.
+ * Materi Reading dirender oleh `PassageView` (auto-wrap + nomor baris terukur).
  */
 
 // Urutan alternasi penting: labeled → bold (**) → underline (__) → italic (*).
@@ -76,39 +75,4 @@ function renderInline(text: string): React.ReactNode {
 export function renderExamText(text: string): React.ReactNode {
   if (!text) return '';
   return renderInline(text);
-}
-
-interface PassageLinesOptions {
-  /** Tampilkan nomor baris di margin (tiap 5 baris). Default true. */
-  lineNumbers?: boolean;
-}
-
-/** Render passage per-baris (berdasar `\n`) dengan nomor baris — untuk Reading. */
-export function renderPassageLines(
-  content: string,
-  { lineNumbers = true }: PassageLinesOptions = {},
-): React.ReactNode {
-  if (!content) return null;
-  const lines = content.split('\n');
-
-  return (
-    <div className="flex flex-col">
-      {lines.map((line, idx) => {
-        const n = idx + 1;
-        const showNum = lineNumbers && n % 5 === 0;
-        return (
-          <div key={idx} className="flex gap-3 items-start">
-            {lineNumbers && (
-              <span className="w-6 shrink-0 text-right text-[11px] font-bold text-slate-400 leading-loose select-none pt-px">
-                {showNum ? n : ''}
-              </span>
-            )}
-            <span className="flex-1 leading-loose whitespace-pre-wrap">
-              {line.trim() === '' ? ' ' : renderInline(line)}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
 }

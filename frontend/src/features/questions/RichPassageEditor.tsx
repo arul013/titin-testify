@@ -3,32 +3,26 @@
 import React, { useRef } from 'react';
 import { Bold, Italic, Underline } from 'lucide-react';
 import { Textarea } from '@/components/ui/input';
-import { renderPassageLines } from './examText';
 
 interface RichPassageEditorProps {
   value: string;
   onChange: (value: string) => void;
   rows?: number;
   placeholder?: string;
-  required?: boolean;
-  /** Tampilkan kotak pratinjau inline. Matikan bila sudah ada panel preview terpisah. */
-  showPreview?: boolean;
   /** Textarea mengisi tinggi container (flex-1) — untuk tab Editor halaman-penuh. */
   fill?: boolean;
 }
 
 /**
- * Editor teks bacaan (Reading): toolbar Bold/Italic/Underline (blok kata → klik)
- * + live preview dengan NOMOR BARIS. Baris ditentukan oleh line-break (Enter)
- * yang kamu ketik — persis seperti sumber; nomor tampil tiap 5 baris.
+ * Editor teks bacaan (Reading): toolbar Bold/Italic/Underline (blok kata → klik).
+ * Pratinjau (dengan nomor baris) ditampilkan di panel preview builder via
+ * `PassageView`, jadi editor ini murni area menulis.
  */
 export const RichPassageEditor: React.FC<RichPassageEditorProps> = ({
   value,
   onChange,
   rows = 12,
   placeholder,
-  required,
-  showPreview = true,
   fill = false,
 }) => {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -81,7 +75,6 @@ export const RichPassageEditor: React.FC<RichPassageEditorProps> = ({
         rows={rows}
         value={value}
         placeholder={placeholder}
-        required={required}
         containerClassName={
           fill
             ? 'flex-1 min-h-0 flex flex-col [&>.group]:flex-1 [&>.group]:min-h-0 [&>.group]:flex [&>.group]:flex-col'
@@ -90,22 +83,6 @@ export const RichPassageEditor: React.FC<RichPassageEditorProps> = ({
         className={`font-mono text-[13px] leading-relaxed ${fill ? 'h-full min-h-0 resize-none' : ''}`}
         onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onChange(e.target.value)}
       />
-
-      {/* Live preview dengan nomor baris (opsional — dimatikan bila ada panel preview) */}
-      {showPreview && (
-        <div>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-            Pratinjau (nomor baris otomatis tiap 5 baris)
-          </p>
-          <div className="min-h-16 max-h-72 overflow-y-auto text-sm text-slate-700 bg-white border border-slate-100 rounded-xl p-3">
-            {value ? (
-              renderPassageLines(value)
-            ) : (
-              <span className="text-slate-300 italic">Hasil tampilan akan muncul di sini…</span>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

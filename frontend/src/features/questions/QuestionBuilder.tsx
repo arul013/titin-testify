@@ -7,10 +7,11 @@ import { Select } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ToggleGroup } from '@/components/ui/toggle-group';
 import { FileUploader } from '@/components/ui/file-uploader';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { UnderlineEditor } from './UnderlineEditor';
 import { BankSoalBuilder, type BuilderViewMode } from './BankSoalBuilder';
 import { QuestionView } from './QuestionView';
-import { X, BookOpen, HelpCircle, Image as ImageIcon } from 'lucide-react';
+import { X, BookOpen, HelpCircle, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getErrorMessage } from '@/lib/errors';
 import type { Question, Passage } from './hooks/useQuestions';
@@ -21,6 +22,8 @@ interface QuestionBuilderProps {
   defaultSection?: string;
   /** Passage terkait (untuk konteks preview bila soal berada di dalam materi). */
   passage?: Passage | null;
+  /** Materi masih dimuat (edit soal dari daftar) → preview tampil skeleton. */
+  passageLoading?: boolean;
   onCancel: () => void;
   onSubmit: (data: Record<string, unknown>) => Promise<void>;
 }
@@ -46,6 +49,7 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
   passageId,
   defaultSection,
   passage,
+  passageLoading = false,
   onCancel,
   onSubmit,
 }) => {
@@ -66,10 +70,49 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isUploadingOptionsImage, setIsUploadingOptionsImage] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
 
   const isEditing = !!initialData;
   const answerLabels = ['A', 'B', 'C', 'D'];
   const answerValues = [optionA, optionB, optionC, optionD];
+
+  const clearError = (key: string) =>
+    setErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+
+  /** Validasi manual (pengganti `required` native) — kembalikan map field→pesan. */
+  const validate = (): Record<string, string> => {
+    const e: Record<string, string> = {};
+    if (!questionText.trim()) e.questionText = 'Pertanyaan wajib diisi.';
+    if (answerFormat === 'text') {
+      answerLabels.forEach((label, i) => {
+        if (!answerValues[i].trim()) e[`option${label}`] = `Opsi ${label} wajib diisi.`;
+      });
+    } else if (!optionsImageUrl) {
+      e.optionsImage = 'Unggah gambar pilihan jawaban dulu.';
+    }
+    if (useImage && !imageUrl) e.image = 'Unggah gambar soal, atau matikan opsi gambar.';
+    return e;
+  };
+
+  // Dirty = ada perubahan dari kondisi awal (untuk guard "buang perubahan?").
+  const snapshot = () =>
+    JSON.stringify([
+      section, difficulty, questionText, optionA, optionB, optionC, optionD,
+      correctAnswer, explanation, status, imageUrl, useImage, answerFormat, optionsImageUrl,
+    ]);
+  const [initialSnapshot] = useState(snapshot);
+  const dirty = snapshot() !== initialSnapshot;
+
+  const requestCancel = () => {
+    if (dirty) setConfirmDiscard(true);
+    else onCancel();
+  };
 
   /** Unggah 1 gambar ke R2, kembalikan URL (atau null bila gagal). */
   const doUploadImage = async (file: File): Promise<string | null> => {
@@ -97,8 +140,21 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (ev: React.FormEvent) => {
+    ev.preventDefault();
+    const found = validate();
+    if (Object.keys(found).length > 0) {
+      setErrors(found);
+      toast.error('Lengkapi dulu bagian yang ditandai merah.');
+      const first = Object.keys(found)[0];
+      requestAnimationFrame(() =>
+        document
+          .getElementById(`qf-${first}`)
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+      );
+      return;
+    }
+    setErrors({});
     setIsSubmitting(true);
     try {
       await onSubmit({
@@ -177,7 +233,7 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
       </div>
 
       {/* Question Text */}
-      <div>
+      <div id="qf-questionText" className="scroll-mt-4">
         <label className="block text-xs font-bold text-slate-600 mb-1.5">
           <HelpCircle className="w-3.5 h-3.5 inline mr-1" />
           {section === 'written_expression' ? 'Kalimat Soal' : 'Pertanyaan'}
@@ -186,9 +242,8 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
           <UnderlineEditor
             variant="labeled"
             value={questionText}
-            onChange={setQuestionText}
+            onChange={(v) => { setQuestionText(v); clearError('questionText'); }}
             rows={4}
-            required
             showPreview={false}
             placeholder="Tulis kalimat, lalu blok kata dan klik Tandai A/B/C/D."
           />
@@ -196,9 +251,8 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
           <UnderlineEditor
             variant="rich"
             value={questionText}
-            onChange={setQuestionText}
+            onChange={(v) => { setQuestionText(v); clearError('questionText'); }}
             rows={3}
-            required
             showPreview={false}
             placeholder="Tulis pertanyaan. Blok kata lalu klik Tebal/Miring/Garis bawah bila perlu."
           />
@@ -206,20 +260,26 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
           <Textarea
             rows={3}
             value={questionText}
-            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setQuestionText(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => { setQuestionText(e.target.value); clearError('questionText'); }}
             placeholder="Tulis pertanyaan di sini..."
-            required
+            error={errors.questionText}
           />
+        )}
+        {errors.questionText && section !== 'listening' && section !== 'structure' && (
+          <p className="mt-1.5 text-xs text-red-500">{errors.questionText}</p>
         )}
       </div>
 
       {/* Gambar soal (opsional, via checkbox) */}
-      <div>
+      <div id="qf-image" className="scroll-mt-4">
         <Checkbox
           checked={useImage}
           onChange={(v) => {
             setUseImage(v);
-            if (!v) setImageUrl('');
+            if (!v) {
+              setImageUrl('');
+              clearError('image');
+            }
           }}
           label={
             <span className="inline-flex items-center gap-1.5">
@@ -253,13 +313,17 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
                 onFilesSelected={async ([f]) => {
                   setIsUploadingImage(true);
                   const url = await doUploadImage(f);
-                  if (url) setImageUrl(url);
+                  if (url) {
+                    setImageUrl(url);
+                    clearError('image');
+                  }
                   setIsUploadingImage(false);
                 }}
                 onError={(m) => toast.error(m)}
               />
             )}
             {isUploadingImage && <p className="text-[10px] text-indigo-600 animate-pulse mt-1">Mengunggah gambar...</p>}
+            {errors.image && <p className="mt-1.5 text-xs text-red-500">{errors.image}</p>}
           </div>
         )}
       </div>
@@ -289,7 +353,8 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
                 return (
                   <div
                     key={key}
-                    className={`rounded-2xl border p-3 transition-colors ${
+                    id={`qf-option${answerLabels[i]}`}
+                    className={`scroll-mt-4 rounded-2xl border p-3 transition-colors ${
                       isCorrect ? 'border-emerald-300 bg-emerald-50/40' : 'border-slate-100'
                     }`}
                   >
@@ -319,9 +384,12 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
                     </div>
                     <Input
                       value={answerValues[i]}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setters[i](e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                        setters[i](e.target.value);
+                        clearError(`option${answerLabels[i]}`);
+                      }}
                       placeholder={`Isi opsi ${answerLabels[i]}...`}
-                      required
+                      error={errors[`option${answerLabels[i]}`]}
                     />
                   </div>
                 );
@@ -329,7 +397,7 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
             </div>
           </>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div id="qf-optionsImage" className="scroll-mt-4 flex flex-col gap-3">
             <p className="text-[11px] text-slate-400">
               Unggah <strong>satu gambar</strong> yang memuat pilihan A/B/C/D, lalu tandai huruf yang benar.
             </p>
@@ -357,7 +425,10 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
                 onFilesSelected={async ([f]) => {
                   setIsUploadingOptionsImage(true);
                   const url = await doUploadImage(f);
-                  if (url) setOptionsImageUrl(url);
+                  if (url) {
+                    setOptionsImageUrl(url);
+                    clearError('optionsImage');
+                  }
                   setIsUploadingOptionsImage(false);
                 }}
                 onError={(m) => toast.error(m)}
@@ -366,6 +437,7 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
             {isUploadingOptionsImage && (
               <p className="text-[10px] text-indigo-600 animate-pulse">Mengunggah gambar...</p>
             )}
+            {errors.optionsImage && <p className="text-xs text-red-500">{errors.optionsImage}</p>}
 
             <div>
               <p className="text-[11px] font-bold text-slate-600 mb-1.5">
@@ -411,7 +483,7 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
 
       {/* Footer */}
       <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
-        <Button type="button" variant="ghost" onClick={onCancel}>Batal</Button>
+        <Button type="button" variant="ghost" onClick={requestCancel}>Batal</Button>
         <Button type="submit" variant="primary" loading={isSubmitting}>
           {isEditing ? 'Simpan Perubahan' : 'Tambah Soal'}
         </Button>
@@ -420,17 +492,35 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
   );
 
   return (
-    <BankSoalBuilder
-      title={isEditing ? 'Edit Soal' : 'Buat Soal'}
-      onCancel={onCancel}
-      editor={editor}
-      preview={(mode: BuilderViewMode) => (
-        <QuestionView
-          question={draft}
-          passage={passage ?? null}
-          layout={mode === 'preview' ? 'columns' : 'stacked'}
-        />
-      )}
-    />
+    <>
+      <BankSoalBuilder
+        title={isEditing ? 'Edit Soal' : 'Buat Soal'}
+        onCancel={requestCancel}
+        editor={editor}
+        preview={(mode: BuilderViewMode) => (
+          <QuestionView
+            question={draft}
+            passage={passage ?? null}
+            passageLoading={passageLoading}
+            layout={mode === 'preview' ? 'columns' : 'stacked'}
+          />
+        )}
+      />
+
+      <ConfirmDialog
+        open={confirmDiscard}
+        onClose={() => setConfirmDiscard(false)}
+        title="Buang perubahan?"
+        icon={<Trash2 className="w-4 h-4" />}
+        confirmLabel="Ya, buang"
+        confirmVariant="danger"
+        confirmIcon={<Trash2 className="w-4 h-4" />}
+        onConfirm={onCancel}
+      >
+        <p className="text-sm text-slate-600 leading-relaxed">
+          Ada perubahan yang belum disimpan. Kalau keluar sekarang, perubahan itu akan hilang.
+        </p>
+      </ConfirmDialog>
+    </>
   );
 };

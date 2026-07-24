@@ -59,6 +59,7 @@ export default function BankSoalPage() {
           passageId={bank.builderPassage?.id}
           defaultSection={bank.builderPassage ? bank.builderPassage.type : undefined}
           passage={bank.builderPassage}
+          passageLoading={bank.isBuilderPassageLoading}
           onCancel={bank.closeQuestion}
           onSubmit={bank.submitQuestion}
         />

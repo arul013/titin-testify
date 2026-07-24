@@ -56,6 +56,7 @@ export function useBankSoalPage() {
   // Materi konteks untuk builder Soal (agar preview & passage_id benar walau
   // soal dibuka dari tab "Semua Soal" tanpa selectedPassage aktif).
   const [builderPassage, setBuilderPassage] = useState<Passage | null>(null);
+  const [isBuilderPassageLoading, setIsBuilderPassageLoading] = useState(false);
   const [editingPassage, setEditingPassage] = useState<Passage | null>(null);
   const [previewQuestion, setPreviewQuestion] = useState<Question | null>(null);
   const [previewPassage, setPreviewPassage] = useState<Passage | null>(null);
@@ -173,11 +174,14 @@ export function useBankSoalPage() {
       return;
     }
     setBuilderPassage(null);
+    setIsBuilderPassageLoading(true);
     try {
       const data = await api.request<{ passage: Passage }>(`/api/passages/${question.passage_id}`);
       setBuilderPassage(data.passage);
     } catch (err) {
       console.error('Error fetching passage for edit:', err);
+    } finally {
+      setIsBuilderPassageLoading(false);
     }
   };
 
@@ -185,6 +189,7 @@ export function useBankSoalPage() {
     setIsQuestionOpen(false);
     setEditingQuestion(null);
     setBuilderPassage(null);
+    setIsBuilderPassageLoading(false);
   };
 
   // Buat materi baru: buka modal pemilih jenis dulu.
@@ -337,6 +342,7 @@ export function useBankSoalPage() {
     isPreviewOpen,
     editingQuestion,
     builderPassage,
+    isBuilderPassageLoading,
     editingPassage,
     previewQuestion,
     previewPassage,

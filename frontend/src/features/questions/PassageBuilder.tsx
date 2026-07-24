@@ -7,6 +7,7 @@ import { Select } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import { FileUploader } from "@/components/ui/file-uploader";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { UnderlineEditor } from "./UnderlineEditor";
 import { RichPassageEditor } from "./RichPassageEditor";
 import { PassageView } from "./PassageView";
@@ -21,6 +22,7 @@ import {
   Lightbulb,
   CornerDownLeft,
   Hash,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/errors";
@@ -76,6 +78,8 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   // Jalur "tempel URL audio" — opsi lanjutan (admin teknis). Tersembunyi default;
   // otomatis terbuka bila record lama memang sudah punya URL manual.
   const [showAudioUrlInput, setShowAudioUrlInput] = useState(
@@ -84,6 +88,37 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
 
   const isEditing = !!initialData;
   const meta = TYPE_META[type] ?? { label: type, short: "Materi Soal" };
+
+  const clearError = (key: string) =>
+    setErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+
+  /** Validasi manual (pengganti `required` native). */
+  const validate = (): Record<string, string> => {
+    const e: Record<string, string> = {};
+    if (type === "listening") {
+      if (!audioUrl) e.audio = "Unggah file audio dulu (atau tempel URL audio).";
+    } else if (!content.trim()) {
+      e.content = "Teks bacaan wajib diisi.";
+    }
+    if (useImage && !imageUrl) e.image = "Unggah gambar materi, atau matikan opsi gambar.";
+    return e;
+  };
+
+  // Dirty = ada perubahan dari kondisi awal (untuk guard "buang perubahan?").
+  const snapshot = () =>
+    JSON.stringify([content, audioUrl, status, imageUrl, useImage, imagePosition]);
+  const [initialSnapshot] = useState(snapshot);
+  const dirty = snapshot() !== initialSnapshot;
+
+  const requestCancel = () => {
+    if (dirty) setConfirmDiscard(true);
+    else onCancel();
+  };
 
   const uploadAudioFile = async (file: File) => {
     if (!file.type.startsWith("audio/")) {
@@ -115,6 +150,7 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
           responseData.detail || "Gagal mengunggah file audio ke server.",
         );
       setAudioUrl(responseData.audio_url);
+      clearError("audio");
       toast.success("Audio berhasil diunggah.");
     } catch (err) {
       toast.error(
@@ -158,6 +194,7 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
           responseData.detail || "Gagal mengunggah gambar ke server.",
         );
       setImageUrl(responseData.image_url);
+      clearError("image");
       toast.success("Gambar berhasil diunggah.");
     } catch (err) {
       toast.error(
@@ -171,8 +208,21 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (ev: React.FormEvent) => {
+    ev.preventDefault();
+    const found = validate();
+    if (Object.keys(found).length > 0) {
+      setErrors(found);
+      toast.error("Lengkapi dulu bagian yang ditandai merah.");
+      const first = Object.keys(found)[0];
+      requestAnimationFrame(() =>
+        document
+          .getElementById(`pf-${first}`)
+          ?.scrollIntoView({ behavior: "smooth", block: "center" }),
+      );
+      return;
+    }
+    setErrors({});
     setIsSubmitting(true);
     try {
       await onSubmit({
@@ -245,7 +295,7 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
             <Music className="w-4 h-4 text-indigo-600" />
             Pengaturan Audio Listening
           </h4>
-          <div>
+          <div id="pf-audio" className="scroll-mt-4">
             <label className="block text-xs font-bold text-slate-600 mb-1.5">
               Unggah File Audio
             </label>
@@ -264,6 +314,9 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
                 Mengunggah audio...
               </p>
             )}
+            {errors.audio && (
+              <p className="mt-1.5 text-xs text-red-500">{errors.audio}</p>
+            )}
           </div>
           <div>
             <button
@@ -280,9 +333,10 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
               <div className="mt-2">
                 <Input
                   value={audioUrl}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setAudioUrl(e.target.value)
-                  }
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    setAudioUrl(e.target.value);
+                    clearError("audio");
+                  }}
                   placeholder="https://example.com/audio.mp3"
                   className="font-mono text-xs"
                 />
@@ -306,8 +360,9 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
 
       {/* Teks bacaan / transkrip */}
       <div
+        id="pf-content"
         className={
-          type === "reading" ? "flex flex-col flex-1 min-h-[50vh]" : ""
+          type === "reading" ? "flex flex-col flex-1 min-h-[50vh] scroll-mt-4" : "scroll-mt-4"
         }
       >
         <label className="text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1">
@@ -321,9 +376,11 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
             <UnderlineEditor
               variant="plain"
               value={content}
-              onChange={setContent}
+              onChange={(v) => {
+                setContent(v);
+                clearError("content");
+              }}
               rows={6}
-              required
               showPreview={false}
               placeholder="Tulis kalimat, lalu blok kata dan klik Garis bawahi untuk menandai bagian yang digarisbawahi."
             />
@@ -337,10 +394,11 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
             <div className="flex-1 min-h-0">
               <RichPassageEditor
                 value={content}
-                onChange={setContent}
+                onChange={(v) => {
+                  setContent(v);
+                  clearError("content");
+                }}
                 rows={12}
-                required
-                showPreview={false}
                 fill
                 placeholder={
                   "Tulis atau tempel teks bacaan.\nPisahkan tiap paragraf dengan satu baris kosong (baris pertamanya otomatis menjorok).\nBlok kata lalu klik Tebal / Miring / Garis bawah untuk memformat."
@@ -380,23 +438,30 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
           <Textarea
             rows={10}
             value={content}
-            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-              setContent(e.target.value)
-            }
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
+              setContent(e.target.value);
+              clearError("content");
+            }}
             placeholder="Tulis teks bacaan di sini..."
-            required={type !== "listening"}
+            error={type !== "listening" ? errors.content : undefined}
           />
+        )}
+        {errors.content && type !== "structure" && type !== "listening" && (
+          <p className="mt-1.5 text-xs text-red-500">{errors.content}</p>
         )}
       </div>
 
       {/* Gambar materi (opsional, via checkbox) — untuk passage berbasis teks */}
       {type !== "listening" && (
-        <div>
+        <div id="pf-image" className="scroll-mt-4">
           <Checkbox
             checked={useImage}
             onChange={(v) => {
               setUseImage(v);
-              if (!v) setImageUrl("");
+              if (!v) {
+                setImageUrl("");
+                clearError("image");
+              }
             }}
             label={
               <span className="inline-flex items-center gap-1.5">
@@ -441,6 +506,9 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
                   Mengunggah gambar...
                 </p>
               )}
+              {errors.image && (
+                <p className="text-xs text-red-500">{errors.image}</p>
+              )}
 
               {/* Posisi gambar relatif teks */}
               <div className="flex items-center gap-3 flex-wrap">
@@ -464,7 +532,7 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
 
       {/* Footer */}
       <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
-        <Button type="button" variant="ghost" onClick={onCancel}>
+        <Button type="button" variant="ghost" onClick={requestCancel}>
           Batal
         </Button>
         <Button type="submit" variant="primary" loading={isSubmitting}>
@@ -533,11 +601,28 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
   );
 
   return (
-    <BankSoalBuilder
-      title={isEditing ? "Edit Materi" : "Buat Materi"}
-      onCancel={onCancel}
-      editor={editor}
-      preview={preview}
-    />
+    <>
+      <BankSoalBuilder
+        title={isEditing ? "Edit Materi" : "Buat Materi"}
+        onCancel={requestCancel}
+        editor={editor}
+        preview={preview}
+      />
+
+      <ConfirmDialog
+        open={confirmDiscard}
+        onClose={() => setConfirmDiscard(false)}
+        title="Buang perubahan?"
+        icon={<Trash2 className="w-4 h-4" />}
+        confirmLabel="Ya, buang"
+        confirmVariant="danger"
+        confirmIcon={<Trash2 className="w-4 h-4" />}
+        onConfirm={onCancel}
+      >
+        <p className="text-sm text-slate-600 leading-relaxed">
+          Ada perubahan yang belum disimpan. Kalau keluar sekarang, perubahan itu akan hilang.
+        </p>
+      </ConfirmDialog>
+    </>
   );
 };
