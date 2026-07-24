@@ -1,6 +1,12 @@
-'use client';
+"use client";
 
-import React, { useRef, useState, useCallback, useLayoutEffect, useEffect } from 'react';
+import React, {
+  useRef,
+  useState,
+  useCallback,
+  useLayoutEffect,
+  useEffect,
+} from "react";
 
 /**
  * PassageView — perender kanonik teks bacaan (Reading) untuk preview & lembar
@@ -22,16 +28,17 @@ const BOLD = /^\*\*([^*]+)\*\*$/;
 const UND = /^__([^_]+)__$/;
 const ITAL = /^\*([^*]+)\*$/;
 
-const UNDERLINE_CLS = 'underline decoration-2 decoration-indigo-600/70 font-semibold text-slate-800';
+const UNDERLINE_CLS =
+  "underline decoration-2 decoration-indigo-600/70 font-semibold text-slate-800";
 
 function styleFor(part: string): { text: string; cls: string } {
   let m = part.match(BOLD);
-  if (m) return { text: m[1], cls: 'font-bold text-indigo-600' };
+  if (m) return { text: m[1], cls: "font-bold text-indigo-600" };
   m = part.match(UND);
   if (m) return { text: m[1], cls: UNDERLINE_CLS };
   m = part.match(ITAL);
-  if (m) return { text: m[1], cls: 'italic' };
-  return { text: part, cls: '' };
+  if (m) return { text: m[1], cls: "italic" };
+  return { text: part, cls: "" };
 }
 
 /** Render isi satu paragraf: tiap kata jadi <span data-w> (agar bisa diukur). */
@@ -42,7 +49,7 @@ function renderParagraph(text: string): React.ReactNode[] {
     if (!part) continue;
     const { text: t, cls } = styleFor(part);
     for (const piece of t.split(/(\s+)/)) {
-      if (piece === '') continue;
+      if (piece === "") continue;
       if (/^\s+$/.test(piece)) {
         nodes.push(<React.Fragment key={key++}> </React.Fragment>);
       } else {
@@ -80,9 +87,9 @@ export const PassageView: React.FC<PassageViewProps> = ({
   const [height, setHeight] = useState<number | undefined>(undefined);
   const [marks, setMarks] = useState<{ line: number; top: number }[]>([]);
 
-  const paragraphs = (content || '')
+  const paragraphs = (content || "")
     .split(/\n\s*\n/)
-    .map((p) => p.replace(/\n/g, ' ').trim())
+    .map((p) => p.replace(/\n/g, " ").trim())
     .filter((p) => p.length > 0);
 
   const relayout = useCallback(() => {
@@ -104,7 +111,7 @@ export const PassageView: React.FC<PassageViewProps> = ({
       setMarks([]);
       return;
     }
-    const words = contentEl.querySelectorAll<HTMLElement>('[data-w]');
+    const words = contentEl.querySelectorAll<HTMLElement>("[data-w]");
     const result: { line: number; top: number }[] = [];
     let lineCount = 0;
     let lastTop = -Infinity;
@@ -125,7 +132,9 @@ export const PassageView: React.FC<PassageViewProps> = ({
 
   useEffect(() => {
     let active = true;
-    const fonts = (document as unknown as { fonts?: { ready?: Promise<unknown> } }).fonts;
+    const fonts = (
+      document as unknown as { fonts?: { ready?: Promise<unknown> } }
+    ).fonts;
     fonts?.ready?.then(() => {
       if (active) relayout();
     });
@@ -145,7 +154,11 @@ export const PassageView: React.FC<PassageViewProps> = ({
       <div style={{ height }} className="overflow-hidden">
         <div
           ref={innerRef}
-          style={{ width: canonWidth, transform: `scale(${scale})`, transformOrigin: 'top left' }}
+          style={{
+            width: canonWidth,
+            transform: `scale(${scale})`,
+            transformOrigin: "top left",
+          }}
         >
           <div className="flex gap-3">
             {lineNumbers && (
@@ -153,7 +166,7 @@ export const PassageView: React.FC<PassageViewProps> = ({
                 {marks.map((m) => (
                   <span
                     key={m.line}
-                    style={{ top: m.top - 1 }}
+                    style={{ top: m.top - 0 }}
                     className="absolute right-0 leading-8 text-lg font-bold text-indigo-600"
                   >
                     {m.line}
@@ -168,8 +181,8 @@ export const PassageView: React.FC<PassageViewProps> = ({
               {paragraphs.map((p, i) => (
                 <p
                   key={i}
-                  className={i ? 'mt-3' : ''}
-                  style={{ textAlign: 'justify', textIndent: '2.5em' }}
+                  className={i ? "mt-3" : ""}
+                  style={{ textAlign: "justify", textIndent: "2.5em" }}
                 >
                   {renderParagraph(p)}
                 </p>
