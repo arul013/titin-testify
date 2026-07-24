@@ -8,14 +8,15 @@ import React, { useRef, useState, useCallback, useLayoutEffect, useEffect } from
  *   - Paragraf (dipisah baris kosong), **rata kiri-kanan (justify)** + **indent**
  *     baris pertama tiap paragraf (via CSS; baris terakhir paragraf tidak ikut
  *     ter-justify — default browser).
- *   - **Mengisi lebar container** (flex-1) — teks penuh sampai ujung, tanpa
- *     whitespace kanan & tanpa scroll horizontal.
+ *   - Dua mode lebar:
+ *       • **fill** (default, `width` kosong) — mengisi lebar container (flex-1),
+ *         teks penuh sampai ujung; dipakai di panel detail "Kelola Soal".
+ *       • **lebar tetap** (`width` px) — kolom lebar kunci + **scroll horizontal**
+ *         bila container lebih sempit; dipakai di panel preview builder supaya
+ *         nomor baris konsisten dengan lembar ujian peserta (Phase 4).
  *   - **Nomor baris otomatis** dihitung dari pembungkusan teks yang sebenarnya
  *     (diukur `offsetTop` dari DOM + ResizeObserver), ditaruh tiap 5 baris.
  *   - Penanda inline: `**tebal**`, `*miring*`, `__garis bawah__`.
- *
- * Catatan (Phase 4): agar referensi "line N" konsisten antara sisi admin & peserta,
- * lebar kolom passage di lembar ujian harus SAMA dengan panel preview builder.
  */
 
 const TOKEN = /(\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*)/g;
@@ -61,12 +62,16 @@ function renderParagraph(text: string): React.ReactNode[] {
 interface PassageViewProps {
   content: string;
   lineNumbers?: boolean;
+  /** Lebar tetap (px) + scroll horizontal (preview). Kosong = fill container (detail). */
+  width?: number;
 }
 
 export const PassageView: React.FC<PassageViewProps> = ({
   content,
   lineNumbers = true,
+  width,
 }) => {
+  const fixed = width != null;
   const contentRef = useRef<HTMLDivElement>(null);
   const [marks, setMarks] = useState<{ line: number; top: number }[]>([]);
 
@@ -98,7 +103,7 @@ export const PassageView: React.FC<PassageViewProps> = ({
 
   useLayoutEffect(() => {
     measure();
-  }, [content, measure]);
+  }, [content, measure, width]);
 
   useEffect(() => {
     let active = true;
@@ -114,7 +119,7 @@ export const PassageView: React.FC<PassageViewProps> = ({
     };
   }, [measure]);
 
-  return (
+  const inner = (
     <div className="flex gap-3">
       {lineNumbers && (
         <div className="relative w-6 shrink-0 select-none">
@@ -131,7 +136,10 @@ export const PassageView: React.FC<PassageViewProps> = ({
       )}
       <div
         ref={contentRef}
-        className="relative flex-1 min-w-0 text-lg leading-8 tracking-wide text-slate-700 font-sans"
+        className={`relative text-lg leading-8 tracking-wide text-slate-700 font-sans ${
+          fixed ? 'shrink-0' : 'flex-1 min-w-0 pr-9'
+        }`}
+        style={fixed ? { width } : undefined}
       >
         {paragraphs.map((p, i) => (
           <p
@@ -145,4 +153,6 @@ export const PassageView: React.FC<PassageViewProps> = ({
       </div>
     </div>
   );
+
+  return fixed ? <div className="overflow-x-auto">{inner}</div> : inner;
 };

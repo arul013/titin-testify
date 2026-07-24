@@ -123,7 +123,7 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
               {passage.content && (
                 <div className="text-slate-700 text-sm leading-loose whitespace-pre-wrap font-sans flex-1 overflow-y-auto max-h-112 bg-white border border-slate-200/50 p-4 rounded-xl shadow-sm">
                   {passage.type === 'reading' ? (
-                    <PassageView content={passage.content} />
+                    <PassageView content={passage.content} width={880} />
                   ) : (
                     renderExamText(passage.content)
                   )}
