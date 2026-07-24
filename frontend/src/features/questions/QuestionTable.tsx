@@ -191,23 +191,11 @@ export const QuestionTable: React.FC<QuestionTableProps> = ({
                     key={q.id}
                     className="hover:bg-slate-50/40 transition-colors group"
                   >
-                    {/* Question text & tags */}
+                    {/* Question text */}
                     <td className="py-4 px-6 max-w-2xl">
                       <div className="font-semibold text-slate-800 text-sm line-clamp-2 leading-relaxed">
                         {cleanHTML(q.question_text)}
                       </div>
-                      {q.tags && q.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1.5">
-                          {q.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="text-[10px] font-bold text-indigo-600 bg-indigo-50/50 px-2 py-0.5 rounded-md"
-                            >
-                              #{tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
                     </td>
 
                     {/* Section */}

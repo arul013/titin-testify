@@ -12,7 +12,17 @@ import { RichPassageEditor } from './RichPassageEditor';
 import { PassageView } from './PassageView';
 import { renderExamText } from './examText';
 import { BankSoalBuilder } from './BankSoalBuilder';
-import { Music, FileText, ChevronDown, Image as ImageIcon, X } from 'lucide-react';
+import {
+  Music,
+  FileText,
+  ChevronDown,
+  Image as ImageIcon,
+  X,
+  Lightbulb,
+  CornerDownLeft,
+  Hash,
+  Target,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { getErrorMessage } from '@/lib/errors';
 import type { Passage } from './hooks/useQuestions';
@@ -257,10 +267,36 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
                 }
               />
             </div>
-            <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
-              Nomor baris tampil <strong>tiap 5 baris</strong> dan pemenggalannya dijaga sama di
-              preview maupun lembar ujian, sehingga referensi &ldquo;in line 12&rdquo; tetap akurat.
-            </p>
+            <div className="mt-2 rounded-xl border border-indigo-100 bg-indigo-50/50 p-3 flex flex-col gap-2">
+              <p className="text-[11px] font-extrabold text-indigo-700 flex items-center gap-1.5 uppercase tracking-wide">
+                <Lightbulb className="w-3.5 h-3.5" /> Tips menulis teks bacaan
+              </p>
+              <ul className="flex flex-col gap-2 text-[11px] text-slate-600 leading-relaxed">
+                <li className="flex items-start gap-2">
+                  <CornerDownLeft className="w-3.5 h-3.5 text-indigo-500 mt-0.5 shrink-0" />
+                  <span>
+                    <strong className="text-slate-700">Paragraf baru?</strong> Tekan{' '}
+                    <kbd className="px-1 py-0.5 rounded bg-white border border-slate-200 font-mono text-[10px]">Enter</kbd>{' '}
+                    <strong>dua kali</strong> (sisakan satu baris kosong). Baris pertama tiap paragraf
+                    otomatis <strong>menjorok</strong> — persis gaya bacaan TOEFL.
+                  </span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Hash className="w-3.5 h-3.5 text-indigo-500 mt-0.5 shrink-0" />
+                  <span>
+                    <strong className="text-slate-700">Nomor baris</strong> muncul otomatis di sisi kiri
+                    setiap <strong>5 baris</strong> — tak perlu kamu ketik.
+                  </span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Target className="w-3.5 h-3.5 text-indigo-500 mt-0.5 shrink-0" />
+                  <span>
+                    Pemenggalan baris <strong>dijaga sama</strong> di pratinjau maupun lembar ujian
+                    peserta, jadi soal seperti &ldquo;…in <strong>line 12</strong>&rdquo; tetap akurat.
+                  </span>
+                </li>
+              </ul>
+            </div>
           </>
         ) : (
           <Textarea

@@ -4,14 +4,13 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ToggleGroup } from '@/components/ui/toggle-group';
 import { FileUploader } from '@/components/ui/file-uploader';
 import { UnderlineEditor } from './UnderlineEditor';
 import { BankSoalBuilder, type BuilderViewMode } from './BankSoalBuilder';
 import { QuestionView } from './QuestionView';
-import { X, Plus, BookOpen, HelpCircle, Image as ImageIcon } from 'lucide-react';
+import { X, BookOpen, HelpCircle, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { getErrorMessage } from '@/lib/errors';
 import type { Question, Passage } from './hooks/useQuestions';
@@ -60,8 +59,6 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
   const [correctAnswer, setCorrectAnswer] = useState(initialData?.correct_answer || 'a');
   const [explanation, setExplanation] = useState(initialData?.explanation || '');
   const [status, setStatus] = useState(initialData?.status || 'draft');
-  const [tagInput, setTagInput] = useState('');
-  const [tags, setTags] = useState<string[]>(initialData?.tags || []);
   const [imageUrl, setImageUrl] = useState(initialData?.image_url || '');
   const [useImage, setUseImage] = useState(!!initialData?.image_url);
   const [answerFormat, setAnswerFormat] = useState(initialData?.options_image_url ? 'image' : 'text');
@@ -73,15 +70,6 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
   const isEditing = !!initialData;
   const answerLabels = ['A', 'B', 'C', 'D'];
   const answerValues = [optionA, optionB, optionC, optionD];
-
-  const addTag = () => {
-    const trimmed = tagInput.trim();
-    if (trimmed && !tags.includes(trimmed)) {
-      setTags([...tags, trimmed]);
-      setTagInput('');
-    }
-  };
-  const removeTag = (tag: string) => setTags(tags.filter((t) => t !== tag));
 
   /** Unggah 1 gambar ke R2, kembalikan URL (atau null bila gagal). */
   const doUploadImage = async (file: File): Promise<string | null> => {
@@ -127,7 +115,6 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
         image_url: imageUrl || null,
         options_image_url: answerFormat === 'image' ? optionsImageUrl || null : null,
         status,
-        tags,
       });
       onCancel();
     } catch {
@@ -153,7 +140,7 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
     image_url: imageUrl || null,
     options_image_url: answerFormat === 'image' ? optionsImageUrl || null : null,
     status,
-    tags,
+    tags: initialData?.tags ?? [],
     sort_order: initialData?.sort_order ?? 0,
     creator_name: initialData?.creator_name,
     created_at: '',
@@ -420,34 +407,6 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setExplanation(e.target.value)}
           placeholder="Penjelasan jawaban benar..."
         />
-      </div>
-
-      {/* Tags */}
-      <div>
-        <label className="block text-xs font-bold text-slate-600 mb-1.5">Label Topik (Opsional)</label>
-        <div className="flex gap-2">
-          <Input
-            value={tagInput}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTagInput(e.target.value)}
-            placeholder="Ketik lalu tekan Enter (mis. grammar, tenses)"
-            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-              if (e.key === 'Enter') { e.preventDefault(); addTag(); }
-            }}
-          />
-          <Button type="button" variant="secondary" onClick={addTag} className="shrink-0">
-            <Plus className="w-4 h-4" />
-          </Button>
-        </div>
-        {tags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-2">
-            {tags.map((tag) => (
-              <Badge key={tag} variant="neutral" className="flex items-center gap-1 text-xs cursor-pointer hover:bg-red-50 hover:text-red-600 transition-colors" onClick={() => removeTag(tag)}>
-                {tag}
-                <X className="w-3 h-3" />
-              </Badge>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Footer */}

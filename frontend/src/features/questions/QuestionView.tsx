@@ -109,14 +109,6 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
           >
             {question.status === 'published' ? 'Tayang' : 'Draf'}
           </Badge>
-          {question.tags?.map((tag) => (
-            <span
-              key={tag}
-              className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md"
-            >
-              #{tag}
-            </span>
-          ))}
         </div>
       )}
 
