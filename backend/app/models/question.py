@@ -83,6 +83,7 @@ class CreateQuestionRequest(BaseModel):
     explanation: Optional[str] = Field(None, description="Answer explanation")
     image_url: Optional[str] = Field(None, description="Optional image URL for the question stem")
     options_image_url: Optional[str] = Field(None, description="Optional image containing the A/B/C/D choices")
+    audio_url: Optional[str] = Field(None, description="Audio URL for standalone Listening questions")
     status: ContentStatus = Field(default=ContentStatus.DRAFT, description="Publication status")
     tags: list[str] = Field(default_factory=list, description="Topic tags")
     sort_order: int = Field(default=0, description="Order within passage group")
@@ -102,6 +103,7 @@ class UpdateQuestionRequest(BaseModel):
     explanation: Optional[str] = None
     image_url: Optional[str] = None
     options_image_url: Optional[str] = None
+    audio_url: Optional[str] = None
     status: Optional[ContentStatus] = None
     tags: Optional[list[str]] = None
     sort_order: Optional[int] = None
@@ -141,6 +143,7 @@ class QuestionResponse(BaseModel):
     explanation: Optional[str] = None
     image_url: Optional[str] = None
     options_image_url: Optional[str] = None
+    audio_url: Optional[str] = None
     status: ContentStatus
     tags: list[str] = []
     sort_order: int = 0

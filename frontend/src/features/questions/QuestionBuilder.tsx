@@ -11,7 +11,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { UnderlineEditor } from './UnderlineEditor';
 import { BankSoalBuilder, type BuilderViewMode } from './BankSoalBuilder';
 import { QuestionView } from './QuestionView';
-import { X, BookOpen, HelpCircle, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { X, BookOpen, HelpCircle, Image as ImageIcon, Trash2, Music, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { getErrorMessage } from '@/lib/errors';
 import type { Question, Passage } from './hooks/useQuestions';
@@ -67,6 +67,9 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
   const [useImage, setUseImage] = useState(!!initialData?.image_url);
   const [answerFormat, setAnswerFormat] = useState(initialData?.options_image_url ? 'image' : 'text');
   const [optionsImageUrl, setOptionsImageUrl] = useState(initialData?.options_image_url || '');
+  const [audioUrl, setAudioUrl] = useState(initialData?.audio_url || '');
+  const [isUploadingAudio, setIsUploadingAudio] = useState(false);
+  const [showAudioUrlInput, setShowAudioUrlInput] = useState(!!initialData?.audio_url);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isUploadingOptionsImage, setIsUploadingOptionsImage] = useState(false);
@@ -76,6 +79,8 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
   const isEditing = !!initialData;
   const answerLabels = ['A', 'B', 'C', 'D'];
   const answerValues = [optionA, optionB, optionC, optionD];
+  // Audio soal hanya untuk Listening yang berdiri sendiri (di dalam materi → pakai audio materi).
+  const isListeningStandalone = section === 'listening' && !passageId;
 
   const clearError = (key: string) =>
     setErrors((prev) => {
@@ -97,6 +102,7 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
       e.optionsImage = 'Unggah gambar pilihan jawaban dulu.';
     }
     if (useImage && !imageUrl) e.image = 'Unggah gambar soal, atau matikan opsi gambar.';
+    if (isListeningStandalone && !audioUrl) e.audio = 'Unggah audio untuk soal Listening ini.';
     return e;
   };
 
@@ -104,7 +110,7 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
   const snapshot = () =>
     JSON.stringify([
       section, difficulty, questionText, optionA, optionB, optionC, optionD,
-      correctAnswer, explanation, status, imageUrl, useImage, answerFormat, optionsImageUrl,
+      correctAnswer, explanation, status, imageUrl, useImage, answerFormat, optionsImageUrl, audioUrl,
     ]);
   const [initialSnapshot] = useState(snapshot);
   const dirty = snapshot() !== initialSnapshot;
@@ -140,6 +146,35 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
     }
   };
 
+  /** Unggah file audio ke R2 (untuk Soal Tunggal Listening). */
+  const uploadAudioFile = async (file: File) => {
+    if (!file.type.startsWith('audio/')) {
+      toast.error('File yang diunggah harus berformat audio (mp3, wav, m4a, dsb).');
+      return;
+    }
+    setIsUploadingAudio(true);
+    try {
+      const storedToken = localStorage.getItem('cbt_access_token');
+      const formData = new FormData();
+      formData.append('file', file);
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_BASE_URL}/api/questions/upload-audio`, {
+        method: 'POST',
+        headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
+        body: formData,
+      });
+      const responseData = await response.json();
+      if (!response.ok) throw new Error(responseData.detail || 'Gagal mengunggah file audio ke server.');
+      setAudioUrl(responseData.audio_url);
+      clearError('audio');
+      toast.success('Audio berhasil diunggah.');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Gagal mengunggah audio. Coba lagi, atau hubungi admin bila masalah berlanjut.'));
+    } finally {
+      setIsUploadingAudio(false);
+    }
+  };
+
   const handleSubmit = async (ev: React.FormEvent) => {
     ev.preventDefault();
     const found = validate();
@@ -170,6 +205,8 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
         explanation: explanation || null,
         image_url: imageUrl || null,
         options_image_url: answerFormat === 'image' ? optionsImageUrl || null : null,
+        // '' saat bukan listening-standalone → backend menghapus audio soal.
+        audio_url: isListeningStandalone ? audioUrl : '',
         status,
       });
       onCancel();
@@ -195,6 +232,7 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
     explanation: explanation || null,
     image_url: imageUrl || null,
     options_image_url: answerFormat === 'image' ? optionsImageUrl || null : null,
+    audio_url: isListeningStandalone ? audioUrl || null : null,
     status,
     tags: initialData?.tags ?? [],
     sort_order: initialData?.sort_order ?? 0,
@@ -231,6 +269,60 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
           </Select>
         </div>
       </div>
+
+      {/* Audio soal — hanya Listening yang berdiri sendiri (di dalam materi → audio dari materi) */}
+      {isListeningStandalone && (
+        <div id="qf-audio" className="scroll-mt-4 p-4 bg-indigo-50/50 border border-indigo-100 rounded-2xl flex flex-col gap-4">
+          <h4 className="text-xs font-bold text-indigo-700 uppercase tracking-wider flex items-center gap-1.5">
+            <Music className="w-4 h-4 text-indigo-600" />
+            Audio Soal (Listening)
+          </h4>
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1.5">Unggah File Audio</label>
+            <FileUploader
+              variant="dropzone"
+              accept="audio/*"
+              disabled={isUploadingAudio}
+              icon={<Music />}
+              label="Klik atau seret file audio ke sini"
+              hint="Format mp3, wav, m4a, dan sejenisnya"
+              onFilesSelected={([f]) => uploadAudioFile(f)}
+              onError={(m) => toast.error(m)}
+            />
+            {isUploadingAudio && <p className="text-[10px] text-indigo-600 animate-pulse mt-1">Mengunggah audio...</p>}
+            {errors.audio && <p className="mt-1.5 text-xs text-red-500">{errors.audio}</p>}
+          </div>
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowAudioUrlInput((v) => !v)}
+              className="flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-indigo-600 transition-colors"
+            >
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAudioUrlInput ? 'rotate-180' : ''}`} />
+              Opsi lanjutan: tempel URL audio
+            </button>
+            {showAudioUrlInput && (
+              <div className="mt-2">
+                <Input
+                  value={audioUrl}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    setAudioUrl(e.target.value);
+                    clearError('audio');
+                  }}
+                  placeholder="https://example.com/audio.mp3"
+                  className="font-mono text-xs"
+                />
+              </div>
+            )}
+          </div>
+          {audioUrl && (
+            <div className="pt-2 border-t border-indigo-100">
+              <p className="text-[10px] font-bold text-slate-500 mb-1">Preview Player:</p>
+              <audio src={audioUrl} controls className="w-full h-8" />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Question Text */}
       <div id="qf-questionText" className="scroll-mt-4">

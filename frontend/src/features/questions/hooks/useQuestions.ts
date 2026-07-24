@@ -21,6 +21,7 @@ export interface Question {
   explanation: string | null;
   image_url: string | null;
   options_image_url: string | null;
+  audio_url: string | null;
   status: string;
   tags: string[];
   sort_order: number;

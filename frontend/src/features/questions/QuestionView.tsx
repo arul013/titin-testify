@@ -57,13 +57,18 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
       ? 'grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch'
       : 'flex flex-col gap-6';
 
+  // Audio soal berdiri sendiri (Listening standalone) — bila tak ada materi bersama.
+  const standaloneAudio = !passage ? question.audio_url || '' : '';
+
   // Judul kolom materi menyesuaikan isi: audio → "Audio", teks → "Teks Bacaan".
-  const hasAudio = !!passage?.audio_url;
-  const materiLabel = !passage
-    ? 'Materi Soal'
-    : hasAudio
+  const hasAudio = !!passage?.audio_url || !!standaloneAudio;
+  const materiLabel = passage
+    ? passage.audio_url
       ? 'Materi Soal (Audio)'
-      : 'Materi Soal (Teks Bacaan)';
+      : 'Materi Soal (Teks Bacaan)'
+    : standaloneAudio
+      ? 'Materi Soal (Audio)'
+      : 'Materi Soal';
 
   // Teks & gambar materi (urutannya ditentukan passage.image_position).
   const passageTextNode = passage?.content ? (
@@ -142,6 +147,14 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
               {(passage.image_position === 'above'
                 ? [passageImageNode, passageTextNode]
                 : [passageTextNode, passageImageNode])}
+            </div>
+          ) : standaloneAudio ? (
+            <div className="bg-white border border-slate-200/50 p-4 rounded-xl shadow-sm flex flex-col gap-2">
+              <div className="flex items-center gap-2 text-xs font-bold text-indigo-700">
+                <Music className="w-4 h-4 text-indigo-600" />
+                Listening Audio Player
+              </div>
+              <audio src={standaloneAudio} controls className="w-full h-8" />
             </div>
           ) : passageLoading ? (
             <div className="flex-1 bg-white border border-slate-200/50 p-4 rounded-xl shadow-sm">
