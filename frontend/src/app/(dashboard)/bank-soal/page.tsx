@@ -56,9 +56,9 @@ export default function BankSoalPage() {
         <QuestionBuilder
           key={`q-${bank.editingQuestion?.id ?? 'new'}`}
           initialData={bank.editingQuestion}
-          passageId={bank.selectedPassage?.id}
-          defaultSection={bank.selectedPassage ? bank.selectedPassage.type : undefined}
-          passage={bank.selectedPassage}
+          passageId={bank.builderPassage?.id}
+          defaultSection={bank.builderPassage ? bank.builderPassage.type : undefined}
+          passage={bank.builderPassage}
           onCancel={bank.closeQuestion}
           onSubmit={bank.submitQuestion}
         />

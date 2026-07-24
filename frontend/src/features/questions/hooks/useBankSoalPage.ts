@@ -53,6 +53,9 @@ export function useBankSoalPage() {
   const [passageDraftType, setPassageDraftType] = useState<string | undefined>(undefined);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+  // Materi konteks untuk builder Soal (agar preview & passage_id benar walau
+  // soal dibuka dari tab "Semua Soal" tanpa selectedPassage aktif).
+  const [builderPassage, setBuilderPassage] = useState<Passage | null>(null);
   const [editingPassage, setEditingPassage] = useState<Passage | null>(null);
   const [previewQuestion, setPreviewQuestion] = useState<Question | null>(null);
   const [previewPassage, setPreviewPassage] = useState<Passage | null>(null);
@@ -151,17 +154,37 @@ export function useBankSoalPage() {
   // ─── Modal openers ─────────────────────────────────────────
   const openCreateQuestion = () => {
     setEditingQuestion(null);
+    // Buat soal baru: konteks materi = materi yang sedang dibuka (bila ada).
+    setBuilderPassage(selectedPassage);
     setIsQuestionOpen(true);
   };
 
-  const openEditQuestion = (question: Question) => {
+  const openEditQuestion = async (question: Question) => {
     setEditingQuestion(question);
     setIsQuestionOpen(true);
+
+    if (!question.passage_id) {
+      setBuilderPassage(null);
+      return;
+    }
+    // Reuse materi yang sedang dibuka bila cocok; kalau tidak, muat dari server.
+    if (selectedPassage && selectedPassage.id === question.passage_id) {
+      setBuilderPassage(selectedPassage);
+      return;
+    }
+    setBuilderPassage(null);
+    try {
+      const data = await api.request<{ passage: Passage }>(`/api/passages/${question.passage_id}`);
+      setBuilderPassage(data.passage);
+    } catch (err) {
+      console.error('Error fetching passage for edit:', err);
+    }
   };
 
   const closeQuestion = () => {
     setIsQuestionOpen(false);
     setEditingQuestion(null);
+    setBuilderPassage(null);
   };
 
   // Buat materi baru: buka modal pemilih jenis dulu.
@@ -313,6 +336,7 @@ export function useBankSoalPage() {
     passageDraftType,
     isPreviewOpen,
     editingQuestion,
+    builderPassage,
     editingPassage,
     previewQuestion,
     previewPassage,

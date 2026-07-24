@@ -138,7 +138,7 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
 
   // ─── Panel editor (kiri) ───────────────────────────────────
   const editor = (
-    <form onSubmit={handleSubmit} className={`flex flex-col gap-5 ${type === 'reading' ? 'h-full' : ''}`}>
+    <form onSubmit={handleSubmit} className={`flex flex-col gap-5 ${type === 'reading' ? 'min-h-full' : ''}`}>
       {/* Jenis materi (terkunci) + status */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
@@ -221,7 +221,7 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
       )}
 
       {/* Teks bacaan / transkrip */}
-      <div className={type === 'reading' ? 'flex flex-col flex-1 min-h-0' : ''}>
+      <div className={type === 'reading' ? 'flex flex-col flex-1 min-h-[50vh]' : ''}>
         <label className="text-xs font-bold text-slate-600 mb-1.5 flex items-center gap-1">
           <FileText className="w-3.5 h-3.5 text-slate-500" />
           {type === 'listening' ? 'Teks Transkrip / Catatan Pembantu (Opsional)' : 'Teks Bacaan'}
