@@ -291,8 +291,10 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
                 <li className="flex items-start gap-2">
                   <Target className="w-3.5 h-3.5 text-indigo-500 mt-0.5 shrink-0" />
                   <span>
-                    Pemenggalan baris <strong>dijaga sama</strong> di pratinjau maupun lembar ujian
-                    peserta, jadi soal seperti &ldquo;…in <strong>line 12</strong>&rdquo; tetap akurat.
+                    <strong className="text-slate-700">Aman untuk soal &ldquo;baris ke-N&rdquo;:</strong>{' '}
+                    posisi baris yang kamu lihat di sini <strong>sama persis</strong> dengan yang dilihat
+                    peserta saat ujian. Jadi kalau soalmu menyebut &ldquo;kata pada <strong>baris 12</strong>&rdquo;,
+                    peserta pun melihat baris 12 yang sama — tidak akan bergeser.
                   </span>
                 </li>
               </ul>
