@@ -66,7 +66,7 @@ interface PassageViewProps {
 export const PassageView: React.FC<PassageViewProps> = ({
   content,
   lineNumbers = true,
-  width = 780,
+  width = 880,
 }) => {
   const contentRef = useRef<HTMLDivElement>(null);
   const [marks, setMarks] = useState<{ line: number; top: number }[]>([]);
@@ -133,7 +133,7 @@ export const PassageView: React.FC<PassageViewProps> = ({
         )}
         <div
           ref={contentRef}
-          className="relative shrink-0 text-[15px] leading-8 text-slate-700 font-sans"
+          className="relative shrink-0 text-base leading-8 text-slate-700 font-sans"
           style={{ width }}
         >
           {paragraphs.map((p, i) => (

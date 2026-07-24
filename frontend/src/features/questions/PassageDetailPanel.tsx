@@ -39,7 +39,7 @@ export const PassageDetailPanel: React.FC<PassageDetailPanelProps> = ({
   onPreviewQuestion,
 }) => {
   return (
-    <Card className="bg-white border-2 border-indigo-500/10 p-6 rounded-2xl shadow-md flex flex-col gap-5 relative">
+    <Card className="bg-white border-2 border-indigo-500/10 p-6 pb-3 rounded-2xl shadow-md flex flex-col gap-5 relative">
       {/* Header: judul + badge inline (kiri), aksi (kanan) */}
       <div className="flex flex-wrap justify-between items-center gap-4 border-b border-slate-100 pb-4">
         <div className="flex items-center gap-2.5">
