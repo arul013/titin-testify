@@ -82,6 +82,14 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
   // Audio soal hanya untuk Listening yang berdiri sendiri (di dalam materi → pakai audio materi).
   const isListeningStandalone = section === 'listening' && !passageId;
 
+  // Bentuk editor menyesuaikan tipe soal (TOEFL ITP).
+  const isListening = section === 'listening';
+  const isWE = section === 'written_expression';
+  const showImageOption = section === 'reading' || section === 'structure'; // gambar soal
+  const allowImageAnswers = section === 'listening' || section === 'reading'; // opsi bisa gambar
+  // 'we' = opsi = kata berlabel di kalimat; 'text'/'image' = opsi terpisah.
+  const effectiveFormat = isWE ? 'we' : allowImageAnswers ? answerFormat : 'text';
+
   const clearError = (key: string) =>
     setErrors((prev) => {
       if (!prev[key]) return prev;
@@ -90,18 +98,33 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
       return next;
     });
 
-  /** Validasi manual (pengganti `required` native) — kembalikan map field→pesan. */
+  /** Validasi manual (pengganti `required` native) — per section. */
   const validate = (): Record<string, string> => {
     const e: Record<string, string> = {};
-    if (!questionText.trim()) e.questionText = 'Pertanyaan wajib diisi.';
-    if (answerFormat === 'text') {
-      answerLabels.forEach((label, i) => {
-        if (!answerValues[i].trim()) e[`option${label}`] = `Opsi ${label} wajib diisi.`;
-      });
-    } else if (!optionsImageUrl) {
-      e.optionsImage = 'Unggah gambar pilihan jawaban dulu.';
+
+    // Stem/kalimat
+    if (isWE) {
+      const hasLabel = (l: string) => new RegExp(`\\]\\{${l}\\}`, 'i').test(questionText);
+      if (!(hasLabel('A') && hasLabel('B') && hasLabel('C') && hasLabel('D'))) {
+        e.questionText = 'Tandai 4 bagian berlabel A, B, C, dan D pada kalimat.';
+      }
+    } else if (!isListening && !questionText.trim()) {
+      // Reading & Structure wajib stem; Listening: catatan opsional (pertanyaan di audio).
+      e.questionText = 'Pertanyaan wajib diisi.';
     }
-    if (useImage && !imageUrl) e.image = 'Unggah gambar soal, atau matikan opsi gambar.';
+
+    // Pilihan jawaban (WE tak punya opsi terpisah — opsinya kata berlabel)
+    if (!isWE) {
+      if (effectiveFormat === 'text') {
+        answerLabels.forEach((label, i) => {
+          if (!answerValues[i].trim()) e[`option${label}`] = `Opsi ${label} wajib diisi.`;
+        });
+      } else if (effectiveFormat === 'image' && !optionsImageUrl) {
+        e.optionsImage = 'Unggah gambar pilihan jawaban dulu.';
+      }
+    }
+
+    if (showImageOption && useImage && !imageUrl) e.image = 'Unggah gambar soal, atau matikan opsi gambar.';
     if (isListeningStandalone && !audioUrl) e.audio = 'Unggah audio untuk soal Listening ini.';
     return e;
   };
@@ -197,14 +220,15 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
         section,
         difficulty,
         question_text: questionText,
-        option_a: optionA,
-        option_b: optionB,
-        option_c: optionC,
-        option_d: optionD,
+        // WE tak memakai opsi terpisah (opsi = kata berlabel) → kosongkan.
+        option_a: isWE ? '' : optionA,
+        option_b: isWE ? '' : optionB,
+        option_c: isWE ? '' : optionC,
+        option_d: isWE ? '' : optionD,
         correct_answer: correctAnswer,
         explanation: explanation || null,
-        image_url: imageUrl || null,
-        options_image_url: answerFormat === 'image' ? optionsImageUrl || null : null,
+        image_url: showImageOption ? imageUrl || null : null,
+        options_image_url: effectiveFormat === 'image' ? optionsImageUrl || null : null,
         // '' saat bukan listening-standalone → backend menghapus audio soal.
         audio_url: isListeningStandalone ? audioUrl : '',
         status,
@@ -224,14 +248,14 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
     section,
     difficulty,
     question_text: questionText,
-    option_a: optionA,
-    option_b: optionB,
-    option_c: optionC,
-    option_d: optionD,
+    option_a: isWE ? '' : optionA,
+    option_b: isWE ? '' : optionB,
+    option_c: isWE ? '' : optionC,
+    option_d: isWE ? '' : optionD,
     correct_answer: correctAnswer,
     explanation: explanation || null,
-    image_url: imageUrl || null,
-    options_image_url: answerFormat === 'image' ? optionsImageUrl || null : null,
+    image_url: showImageOption ? imageUrl || null : null,
+    options_image_url: effectiveFormat === 'image' ? optionsImageUrl || null : null,
     audio_url: isListeningStandalone ? audioUrl || null : null,
     status,
     tags: initialData?.tags ?? [],
@@ -324,20 +348,26 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
         </div>
       )}
 
-      {/* Question Text */}
+      {/* Stem / kalimat — bentuk menyesuaikan tipe soal */}
       <div id="qf-questionText" className="scroll-mt-4">
         <label className="block text-xs font-bold text-slate-600 mb-1.5">
           <HelpCircle className="w-3.5 h-3.5 inline mr-1" />
-          {section === 'written_expression' ? 'Kalimat Soal' : 'Pertanyaan'}
+          {isWE
+            ? 'Kalimat Soal — tandai 4 bagian A–D'
+            : isListening
+              ? 'Catatan Pertanyaan (opsional)'
+              : section === 'structure'
+                ? 'Kalimat (dengan bagian rumpang)'
+                : 'Pertanyaan'}
         </label>
-        {section === 'written_expression' ? (
+        {isWE ? (
           <UnderlineEditor
             variant="labeled"
             value={questionText}
             onChange={(v) => { setQuestionText(v); clearError('questionText'); }}
             rows={4}
             showPreview={false}
-            placeholder="Tulis kalimat, lalu blok kata dan klik Tandai A/B/C/D."
+            placeholder="Tulis kalimat, lalu blok 4 kata dan klik Tandai A/B/C/D pada tiap bagian."
           />
         ) : section === 'reading' ? (
           <UnderlineEditor
@@ -348,21 +378,34 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
             showPreview={false}
             placeholder="Tulis pertanyaan. Blok kata lalu klik Tebal/Miring/Garis bawah bila perlu."
           />
+        ) : isListening ? (
+          <Textarea
+            rows={2}
+            value={questionText}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => { setQuestionText(e.target.value); clearError('questionText'); }}
+            placeholder="Mis. transkrip singkat pertanyaan untuk memudahkan pencarian…"
+          />
         ) : (
           <Textarea
             rows={3}
             value={questionText}
             onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => { setQuestionText(e.target.value); clearError('questionText'); }}
-            placeholder="Tulis pertanyaan di sini..."
+            placeholder="Mis. The committee ___ the proposal last week."
             error={errors.questionText}
           />
         )}
-        {errors.questionText && section !== 'listening' && section !== 'structure' && (
+        {isListening && (
+          <p className="mt-1 text-[10px] text-slate-400">
+            Tidak ditampilkan ke peserta — hanya untuk identifikasi di daftar soal (pertanyaan aslinya ada di audio).
+          </p>
+        )}
+        {errors.questionText && (isWE || section === 'reading') && (
           <p className="mt-1.5 text-xs text-red-500">{errors.questionText}</p>
         )}
       </div>
 
-      {/* Gambar soal (opsional, via checkbox) */}
+      {/* Gambar soal (opsional, via checkbox) — hanya Reading & Structure */}
+      {showImageOption && (
       <div id="qf-image" className="scroll-mt-4">
         <Checkbox
           checked={useImage}
@@ -419,23 +462,53 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
           </div>
         )}
       </div>
+      )}
 
-      {/* Pilihan jawaban — format teks atau gambar */}
+      {/* Pilihan jawaban — bentuk menyesuaikan tipe soal */}
+      {isWE ? (
+        <div id="qf-weAnswer" className="scroll-mt-4">
+          <label className="block text-xs font-bold text-slate-600 mb-1.5">Jawaban benar — bagian yang SALAH</label>
+          <p className="text-[11px] text-slate-400 mb-2">
+            Pilih label (A–D) dari kata yang kamu tandai di kalimat. Itulah bagian yang dianggap salah oleh peserta.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {['a', 'b', 'c', 'd'].map((key, i) => {
+              const isCorrect = correctAnswer === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setCorrectAnswer(key)}
+                  className={`h-10 w-10 rounded-xl border-2 font-extrabold transition-colors ${
+                    isCorrect
+                      ? 'border-emerald-500 bg-emerald-500 text-white'
+                      : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                  }`}
+                >
+                  {answerLabels[i]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
       <div>
         <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
           <label className="text-xs font-bold text-slate-600">Pilihan Jawaban</label>
-          <ToggleGroup
-            size="sm"
-            value={answerFormat}
-            onChange={(v) => v && setAnswerFormat(v)}
-            options={[
-              { value: 'text', label: 'Teks' },
-              { value: 'image', label: 'Gambar' },
-            ]}
-          />
+          {allowImageAnswers && (
+            <ToggleGroup
+              size="sm"
+              value={answerFormat}
+              onChange={(v) => v && setAnswerFormat(v)}
+              options={[
+                { value: 'text', label: 'Teks' },
+                { value: 'image', label: 'Gambar' },
+              ]}
+            />
+          )}
         </div>
 
-        {answerFormat === 'text' ? (
+        {effectiveFormat === 'text' ? (
           <>
             <p className="text-[11px] text-slate-400 mb-2">Tandai lingkaran pada jawaban yang benar.</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -558,6 +631,7 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
           </div>
         )}
       </div>
+      )}
 
       {/* Explanation */}
       <div>

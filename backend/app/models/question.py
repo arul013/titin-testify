@@ -73,7 +73,8 @@ class CreateQuestionRequest(BaseModel):
     passage_id: Optional[str] = Field(None, description="Parent passage ID (null for standalone)")
     section: QuestionSection = Field(..., description="Question section type")
     difficulty: QuestionDifficulty = Field(default=QuestionDifficulty.MEDIUM, description="Difficulty level")
-    question_text: str = Field(..., min_length=1, description="The question prompt")
+    # Boleh kosong untuk Listening (pertanyaan ada di audio); validasi wajib per-section di frontend.
+    question_text: str = Field(default="", description="The question prompt")
     # Boleh kosong bila memakai mode "opsi gambar" (options_image_url).
     option_a: str = Field(default="", description="Option A text")
     option_b: str = Field(default="", description="Option B text")

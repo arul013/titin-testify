@@ -57,6 +57,9 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
       ? 'grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch'
       : 'flex flex-col gap-6';
 
+  const isWE = question.section === 'written_expression';
+  const isListening = question.section === 'listening';
+
   // Audio soal berdiri sendiri (Listening standalone) — bila tak ada materi bersama.
   const standaloneAudio = !passage ? question.audio_url || '' : '';
 
@@ -174,13 +177,21 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
             Pertanyaan & Pilihan Jawaban
           </h3>
 
-          <div className="text-slate-800 text-base font-medium leading-relaxed whitespace-pre-wrap">
-            {question.question_text ? (
-              renderExamText(question.question_text)
-            ) : (
-              <span className="text-slate-300 italic">Pertanyaan belum diisi…</span>
-            )}
-          </div>
+          {isListening ? (
+            <p className="text-sm text-slate-500 italic">
+              Dengarkan audio, lalu pilih jawaban yang paling tepat.
+            </p>
+          ) : (
+            <div className="text-slate-800 text-base font-medium leading-relaxed whitespace-pre-wrap">
+              {question.question_text ? (
+                renderExamText(question.question_text)
+              ) : (
+                <span className="text-slate-300 italic">
+                  {isWE ? 'Kalimat belum diisi…' : 'Pertanyaan belum diisi…'}
+                </span>
+              )}
+            </div>
+          )}
 
           {question.image_url && (
             // eslint-disable-next-line @next/next/no-img-element
@@ -191,7 +202,26 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
             />
           )}
 
-          {question.options_image_url ? (
+          {isWE ? (
+            /* Written Expression: opsi = 4 kata berlabel di kalimat; tampilkan penanda label benar */
+            <div className="flex flex-wrap gap-2">
+              {['a', 'b', 'c', 'd'].map((k, i) => {
+                const isCorrect = question.correct_answer === k;
+                return (
+                  <div
+                    key={k}
+                    className={`h-10 w-10 rounded-xl border-2 flex items-center justify-center font-extrabold text-sm ${
+                      isCorrect
+                        ? 'border-emerald-500 bg-emerald-500 text-white'
+                        : 'border-slate-200 bg-white text-slate-500'
+                    }`}
+                  >
+                    {['A', 'B', 'C', 'D'][i]}
+                  </div>
+                );
+              })}
+            </div>
+          ) : question.options_image_url ? (
             /* Mode opsi gambar: satu gambar berisi A/B/C/D + penanda jawaban benar */
             <div className="flex flex-col gap-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}

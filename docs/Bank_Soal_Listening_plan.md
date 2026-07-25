@@ -1,7 +1,8 @@
 # Bank Soal — Soal Listening (Rencana)
 
-Status: **SELESAI (kode) 2026-07-24** — #1–#6 dikerjakan; migration 009 dijalankan pemilik. Blocker cert R2 ditangani pemilik (infra).
-Tanggal: 2026-07-24.
+Status: **SELESAI (kode) 2026-07-24** — #1–#6 dikerjakan; migration 009 dijalankan pemilik.
+Blocker playback audio = **ISP Internet Positif hijack `r2.dev`** (bukan bug) → **DITUNDA ke tahap pra-produksi** (pasang R2 custom domain). Upload/simpan tetap jalan; bikin bank soal lanjut.
+Tanggal: 2026-07-24 (blocker dikonfirmasi 2026-07-25).
 
 ## 1. Konteks & masalah
 
@@ -16,15 +17,24 @@ Akibatnya:
 - Kasus 1 → **sudah didukung penuh** lewat **Materi Listening** (passage `type=listening` + beberapa soal anak).
 - Kasus 2 → **belum ada jalur "Soal Tunggal ber-audio"** (soal standalone tak punya field audio).
 
-### Blocker infra (di luar scope kode)
+### Blocker infra — DITUNDA ke tahap pra-produksi (di luar scope kode)
 
-Saat upload audio muncul `net::ERR_CERT_COMMON_NAME_INVALID` pada URL publik R2.
-**File berhasil ter-upload**; yang gagal adalah memutar URL publiknya (sertifikat TLS host tak cocok).
+Saat memutar audio muncul `net::ERR_CERT_COMMON_NAME_INVALID` pada URL publik R2.
 
-- URL dibangun backend: `audio_url = {CLOUDFLARE_R2_PUBLIC_URL}/listening/{uuid}.mp3` → host **murni dari env**, bukan bug kode.
-- Penyebab umum: env diisi endpoint S3 `*.r2.cloudflarestorage.com` (wildcard tak menutup dua label), custom domain SSL belum jadi, atau Public Development URL belum aktif.
-- **Perbaikan di sisi R2/Railway** (bukan kode): pakai `https://pub-<hash>.r2.dev` yang benar **atau** custom domain ber-SSL valid sebagai `CLOUDFLARE_R2_PUBLIC_URL`.
-- Ditangani sendiri oleh pemilik. Listening tak bisa **diputar** sampai URL publik valid, tapi ini tak menghalangi implementasi fitur.
+**Akar penyebab (dikonfirmasi 2026-07-25 via `openssl s_client`):** domain **`r2.dev` di-hijack oleh ISP Indonesia (Internet Positif)**. Sertifikat yang disajikan host `pub-<hash>.r2.dev` adalah `CN=internetpositif.id` (issuer Let's Encrypt, **sudah kadaluarsa**) — bukan cert `r2.dev`. Jadi bukan bug R2/Railway/kode; env `CLOUDFLARE_R2_PUBLIC_URL` sudah benar (`https://pub-2ca39…r2.dev`).
+
+**Konsekuensi:**
+- **Upload & simpan tetap jalan** (frontend → backend Railway → R2 via S3 endpoint `*.r2.cloudflarestorage.com`, tak lewat r2.dev). Jadi bikin bank soal Listening **bisa lanjut sekarang**.
+- **Memutar** audio dari browser Indonesia **gagal** — dan ini juga akan kena ke **peserta ujian** (mereka di Indonesia). Maka `r2.dev` **tak layak produksi** untuk app ini (lagipula r2.dev rate-limited & memang bukan untuk produksi).
+
+**Rencana eksekusi (paling akhir, saat siap production):**
+1. Beli **1 domain** (paling simpel: **daftar langsung di Cloudflare → Register Domains** → DNS otomatis di Cloudflare). TLD bebas (`.com`/`.id`/`.xyz`…). **Jangan** beli di Vercel (DNS nyangkut di Vercel). `*.vercel.app` tak bisa dipakai (bukan milik sendiri).
+2. R2 → bucket → **Settings → Custom Domains → Connect Domain** → mis. `media.<domain>` → tunggu **Active** (SSL otomatis).
+3. Railway → set `CLOUDFLARE_R2_PUBLIC_URL = https://media.<domain>` (tanpa `/` akhir) → redeploy.
+4. **Unggah ulang** audio/gambar lama (URL lama masih menunjuk `r2.dev`; host baru tak auto-update baris lama).
+5. Verifikasi buka file publik dari WiFi ISP → harus putar tanpa peringatan cert.
+
+**Alternatif tanpa beli domain (opsional, perlu riset):** pindah media ke **Supabase Storage** (`…supabase.co`) — nol biaya domain, tapi butuh ubah kode upload (backend R2→Supabase) & **tes dulu** apakah `supabase.co` lolos Internet Positif.
 
 ## 2. Keputusan (2026-07-24)
 
