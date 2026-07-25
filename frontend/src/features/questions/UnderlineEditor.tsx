@@ -54,22 +54,38 @@ export const UnderlineEditor: React.FC<UnderlineEditorProps> = ({
 
   const richBtn = 'h-7 px-2.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-indigo-700 hover:bg-indigo-50 hover:border-indigo-300 transition-colors inline-flex items-center gap-1.5';
 
+  // WE: kata yang sudah ditandai per label (untuk disable tombol & readout ramah).
+  const labeledMarks = (['A', 'B', 'C', 'D'] as const).map((l) => {
+    const m = value.match(new RegExp(`\\[([^\\]]+)\\]\\{${l}\\}`, 'i'));
+    return { label: l, word: m ? m[1] : null };
+  });
+  const usedLabel = (l: string) => !!labeledMarks.find((x) => x.label === l)?.word;
+
   return (
     <div className="flex flex-col gap-2">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2">
         <span className="text-[11px] font-bold text-slate-500 pl-1">Blok kata lalu klik:</span>
         {variant === 'labeled' ? (
-          ['A', 'B', 'C', 'D'].map((l) => (
-            <button
-              key={l}
-              type="button"
-              onClick={() => wrap('[', `]{${l}}`)}
-              className="h-7 min-w-9 px-2 rounded-lg bg-white border border-slate-200 text-xs font-extrabold text-indigo-700 hover:bg-indigo-50 hover:border-indigo-300 transition-colors"
-            >
-              Tandai {l}
-            </button>
-          ))
+          ['A', 'B', 'C', 'D'].map((l) => {
+            const used = usedLabel(l);
+            return (
+              <button
+                key={l}
+                type="button"
+                disabled={used}
+                title={used ? `Label ${l} sudah dipakai` : `Tandai kata terpilih sebagai ${l}`}
+                onClick={() => wrap('[', `]{${l}}`)}
+                className={`h-7 min-w-9 px-2 rounded-lg border text-xs font-extrabold transition-colors ${
+                  used
+                    ? 'border-slate-200 bg-slate-100 text-slate-300 cursor-not-allowed'
+                    : 'border-slate-200 bg-white text-indigo-700 hover:bg-indigo-50 hover:border-indigo-300'
+                }`}
+              >
+                Tandai {l}
+              </button>
+            );
+          })
         ) : variant === 'rich' ? (
           <>
             <button type="button" title="Tebal" onClick={() => wrap('**', '**')} className={richBtn}>
@@ -104,6 +120,30 @@ export const UnderlineEditor: React.FC<UnderlineEditorProps> = ({
         required={required}
         onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onChange(e.target.value)}
       />
+
+      {/* WE: readout ramah "Ditandai" — supaya tak perlu membaca kode [kata]{X} mentah */}
+      {variant === 'labeled' && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ditandai:</span>
+          {labeledMarks.map(({ label, word }) => (
+            <span
+              key={label}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs ${
+                word ? 'border-indigo-200 bg-indigo-50/50' : 'border-dashed border-slate-200 bg-slate-50'
+              }`}
+            >
+              <span className="font-extrabold text-indigo-600">{label}</span>
+              {word ? (
+                <span className="font-semibold text-slate-700 underline decoration-2 decoration-indigo-600/70">
+                  {word}
+                </span>
+              ) : (
+                <span className="text-slate-300 italic">belum</span>
+              )}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Live preview */}
       {showPreview && (

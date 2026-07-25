@@ -34,7 +34,7 @@ function renderInline(text: string): React.ReactNode {
       return (
         <span key={i} className="inline-flex flex-col items-center mx-1 align-top">
           <span className={UNDERLINE}>{labeled[1]}</span>
-          <span className="text-[10px] font-extrabold text-indigo-600 select-none leading-none mt-1">
+          <span className="text-sm font-extrabold text-indigo-600 select-none leading-none mt-1">
             {labeled[2].toUpperCase()}
           </span>
         </span>

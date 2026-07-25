@@ -17,10 +17,16 @@ interface StepSourceProps {
   onChange: (units: ExamPoolUnit[]) => void;
 }
 
-/** Bersihkan markup Written Expression untuk tampilan ringkas. */
+/** Bersihkan markup (bold/italic/underline/label) untuk tampilan ringkas. */
 function clean(text: string): string {
   if (!text) return '';
-  return text.replace(/__([^_]+)__/g, '$1').replace(/\[([^\]]+)\]\{[A-Da-d]\}/g, '$1');
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/\[([^\]]+)\]\{[A-Da-d]\}/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 export const StepSource: React.FC<StepSourceProps> = ({ enabledSections, poolUnits, onChange }) => {
@@ -125,19 +131,21 @@ export const StepSource: React.FC<StepSourceProps> = ({ enabledSections, poolUni
               <p className="text-xs font-bold text-slate-600 mb-2 flex items-center gap-1.5">
                 <Layers className="w-3.5 h-3.5 text-indigo-600" /> Materi (unit utuh)
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className="flex flex-col gap-2">
                 {passages.map((p) => (
                   <label
                     key={p.id}
                     className="flex items-center gap-3 rounded-xl border border-slate-100 hover:border-slate-200 p-3 cursor-pointer transition-colors"
                   >
                     <Checkbox checked={hasPassage(p.id)} onChange={() => togglePassage(p.id)} />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-slate-700 line-clamp-1 flex items-center gap-1.5">
-                        {!p.content && <Music className="w-3.5 h-3.5 text-indigo-600 shrink-0" />}
-                        {clean(p.content || '') || 'Audio Listening'}
-                      </p>
-                    </div>
+                    {!p.content ? (
+                      <Music className="w-4 h-4 text-indigo-600 shrink-0" />
+                    ) : (
+                      <FileText className="w-4 h-4 text-slate-400 shrink-0" />
+                    )}
+                    <p className="text-sm font-medium text-slate-700 line-clamp-2 flex-1 min-w-0">
+                      {clean(p.content || '') || 'Audio Listening'}
+                    </p>
                     <Badge variant="neutral" className="text-[10px] font-bold shrink-0">
                       {p.questions_count} soal
                     </Badge>
@@ -153,7 +161,7 @@ export const StepSource: React.FC<StepSourceProps> = ({ enabledSections, poolUni
               <p className="text-xs font-bold text-slate-600 mb-2 flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-indigo-600" /> Soal tunggal
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className="flex flex-col gap-2">
                 {standalone.map((q) => (
                   <div
                     key={q.id}
