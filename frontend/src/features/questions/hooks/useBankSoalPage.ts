@@ -120,8 +120,9 @@ export function useBankSoalPage() {
     let active = true;
     const passageId = selectedPassage.id;
 
+    // per_page=100 (maksimum backend) agar semua soal materi termuat, bukan cuma 20 default.
     api
-      .request<{ questions: Question[] }>(`/api/questions?passage_id=${passageId}`)
+      .request<{ questions: Question[] }>(`/api/questions?passage_id=${passageId}&per_page=100`)
       .then((data) => {
         if (active) setPassageQuestions(data.questions || []);
       })
