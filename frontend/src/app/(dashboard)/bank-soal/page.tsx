@@ -90,13 +90,12 @@ export default function BankSoalPage() {
                 passage={bank.selectedPassage}
                 questions={bank.passageQuestions}
                 isLoading={bank.isPassageQuestionsLoading}
-                currentUserId={bank.user?.id}
-                currentUserRole={bank.user?.role}
                 onEditPassage={bank.openEditPassage}
                 onDeletePassage={bank.requestDeletePassage}
-                onAddChild={bank.openCreateQuestion}
-                onEditQuestion={bank.openEditQuestion}
-                onDeleteQuestion={bank.requestDeleteQuestion}
+                onCreateQuestion={bank.createPassageQuestion}
+                onUpdateQuestion={bank.updatePassageQuestion}
+                onDeleteQuestion={bank.deletePassageQuestion}
+                onReorderQuestions={bank.reorderPassageQuestions}
                 onPreviewQuestion={bank.previewQuestionWithPassage}
               />
             </div>
@@ -152,8 +151,8 @@ export default function BankSoalPage() {
             </Card>
           )}
 
-          {/* FAB "Buat Soal" — speed-dial 2 pilihan (soal tunggal vs materi bersama) */}
-          <FAB actions={createActions} />
+          {/* FAB "Buat Soal" — hanya di daftar (di detail materi sudah ada tambah-soal inline) */}
+          {!bank.selectedPassage && <FAB actions={createActions} />}
         </>
       )}
 

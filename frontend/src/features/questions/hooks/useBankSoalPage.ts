@@ -239,6 +239,29 @@ export function useBankSoalPage() {
     }
   };
 
+  // ─── Editor inline soal-dalam-materi (Paket B) ─────────────
+  // Melempar error agar kartu bisa menampilkan status gagal.
+  const createPassageQuestion = async (data: Record<string, unknown>) => {
+    await createQuestion(data);
+    refetchStats();
+    refreshPassageQuestions();
+  };
+  const updatePassageQuestion = async (id: string, data: Record<string, unknown>) => {
+    await updateQuestion(id, data);
+    refetchStats();
+    refreshPassageQuestions();
+  };
+  const deletePassageQuestion = async (id: string) => {
+    await deleteQuestion(id);
+    refetchStats();
+    refreshPassageQuestions();
+  };
+  /** Simpan ulang urutan (sort_order = posisi) lalu segarkan sekali. */
+  const reorderPassageQuestions = async (orderedIds: string[]) => {
+    await Promise.all(orderedIds.map((id, idx) => updateQuestion(id, { sort_order: idx })));
+    refreshPassageQuestions();
+  };
+
   const submitPassage = async (data: Record<string, unknown>) => {
     try {
       if (editingPassage) {
@@ -362,6 +385,10 @@ export function useBankSoalPage() {
     submitQuestion,
     submitPassage,
     previewQuestionWithPassage,
+    createPassageQuestion,
+    updatePassageQuestion,
+    deletePassageQuestion,
+    reorderPassageQuestions,
 
     // delete confirmation
     pendingDelete,
