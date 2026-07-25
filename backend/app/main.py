@@ -6,7 +6,7 @@ from fastapi import FastAPI
 
 from app.config import get_settings
 from app.middleware.cors import setup_cors
-from app.routes import auth, users, questions, upload, exams
+from app.routes import auth, users, questions, upload, exams, scoring_schemes
 
 settings = get_settings()
 
@@ -27,6 +27,7 @@ app.include_router(users.router)
 app.include_router(questions.router)
 app.include_router(upload.router)
 app.include_router(exams.router)
+app.include_router(scoring_schemes.router)
 
 
 @app.get("/api/health")

@@ -13,7 +13,7 @@ import {
   SidebarBackdrop,
   SidebarFooter
 } from '../ui/sidebar';
-import { LayoutDashboard, Users, LogOut, ClipboardList, ClipboardCheck, Library, KeyRound } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, ClipboardList, ClipboardCheck, Library, KeyRound, Gauge } from 'lucide-react';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -51,6 +51,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       name: 'Manajemen Ujian',
       href: '/manajemen-ujian',
       icon: <ClipboardCheck className="w-4 h-4" />,
+      show: isAdmin,
+    },
+    {
+      name: 'Skema Penilaian',
+      href: '/skema-penilaian',
+      icon: <Gauge className="w-4 h-4" />,
       show: isAdmin,
     },
     {
