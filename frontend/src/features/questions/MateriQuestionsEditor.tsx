@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Plus, Layers } from 'lucide-react';
 import { QuestionCard } from './QuestionCard';
@@ -74,43 +75,45 @@ export const MateriQuestionsEditor: React.FC<MateriQuestionsEditorProps> = ({
 
           <div className="flex flex-col gap-3">
             {sorted.map((q, i) => (
-              <QuestionCard
-                key={q.id}
-                cardKey={`q-${q.id}`}
-                number={i + 1}
-                question={q}
-                passageId={passage.id}
-                section={passage.type}
-                isFirst={i === 0}
-                isLast={i === total - 1}
-                onSave={(payload) => onUpdate(q.id, payload)}
-                onDelete={() => onDelete(q.id)}
-                onMoveUp={() => move(i, -1)}
-                onMoveDown={() => move(i, 1)}
-                onPreview={onPreview}
-              />
+              <motion.div key={q.id} layout transition={{ type: 'spring', stiffness: 600, damping: 40 }}>
+                <QuestionCard
+                  cardKey={`q-${q.id}`}
+                  number={i + 1}
+                  question={q}
+                  passageId={passage.id}
+                  section={passage.type}
+                  isFirst={i === 0}
+                  isLast={i === total - 1}
+                  onSave={(payload) => onUpdate(q.id, payload)}
+                  onDelete={() => onDelete(q.id)}
+                  onMoveUp={() => move(i, -1)}
+                  onMoveDown={() => move(i, 1)}
+                  onPreview={onPreview}
+                />
+              </motion.div>
             ))}
 
             {drafts.map((key, di) => (
-              <QuestionCard
-                key={key}
-                cardKey={key}
-                number={total + di + 1}
-                question={null}
-                passageId={passage.id}
-                section={passage.type}
-                isFirst={false}
-                isLast
-                onSave={async (payload) => {
-                  await onCreate(payload);
-                  removeDraft(key);
-                }}
-                onDelete={async () => removeDraft(key)}
-                onRemoveDraft={() => removeDraft(key)}
-                onMoveUp={() => {}}
-                onMoveDown={() => {}}
-                onPreview={onPreview}
-              />
+              <motion.div key={key} layout transition={{ type: 'spring', stiffness: 600, damping: 40 }}>
+                <QuestionCard
+                  cardKey={key}
+                  number={total + di + 1}
+                  question={null}
+                  passageId={passage.id}
+                  section={passage.type}
+                  isFirst={false}
+                  isLast
+                  onSave={async (payload) => {
+                    await onCreate(payload);
+                    removeDraft(key);
+                  }}
+                  onDelete={async () => removeDraft(key)}
+                  onRemoveDraft={() => removeDraft(key)}
+                  onMoveUp={() => {}}
+                  onMoveDown={() => {}}
+                  onPreview={onPreview}
+                />
+              </motion.div>
             ))}
           </div>
 

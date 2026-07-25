@@ -257,8 +257,17 @@ export function useBankSoalPage() {
     refetchStats();
     refreshPassageQuestions();
   };
-  /** Simpan ulang urutan (sort_order = posisi) lalu segarkan sekali. */
+  /** Simpan ulang urutan (sort_order = posisi). Optimistic dulu (langsung geser di UI), baru persist. */
   const reorderPassageQuestions = async (orderedIds: string[]) => {
+    setPassageQuestions((prev) => {
+      const byId = new Map(prev.map((q) => [q.id, q]));
+      return orderedIds
+        .map((id, idx) => {
+          const q = byId.get(id);
+          return q ? { ...q, sort_order: idx } : null;
+        })
+        .filter((q): q is Question => q !== null);
+    });
     await Promise.all(orderedIds.map((id, idx) => updateQuestion(id, { sort_order: idx })));
     refreshPassageQuestions();
   };
