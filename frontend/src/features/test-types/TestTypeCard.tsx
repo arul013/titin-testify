@@ -1,16 +1,9 @@
 'use client';
 
-import { Pencil, Trash2, Lock, ListChecks } from 'lucide-react';
+import { Pencil, Trash2, Lock, GraduationCap } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import type { TestType, TestTypeStatus } from './useTestTypes';
-
-const STATUS_META: Record<TestTypeStatus, { label: string; variant: 'success' | 'warning' | 'neutral' }> = {
-  active: { label: 'Aktif', variant: 'success' },
-  soon: { label: 'Soon', variant: 'warning' },
-  disabled: { label: 'Nonaktif', variant: 'neutral' },
-};
+import type { TestType } from './useTestTypes';
 
 interface TestTypeCardProps {
   testType: TestType;
@@ -18,62 +11,69 @@ interface TestTypeCardProps {
   onDelete: (t: TestType) => void;
 }
 
-/** Kartu ringkas satu jenis tes (nama, status, skill, aksi). */
+/** Kartu jenis tes aktif — bersih, dengan rincian bagian & aksi. */
 export function TestTypeCard({ testType: t, onEdit, onDelete }: TestTypeCardProps) {
-  const meta = STATUS_META[t.status];
-  const full = t.skills.reduce((n, s) => n + (s.full_test_count || 0), 0);
+  const total = t.skills.reduce((n, s) => n + (s.full_test_count || 0), 0);
 
   return (
-    <Card className="p-6 rounded-2xl flex flex-col gap-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-extrabold text-slate-800 text-lg leading-snug">{t.name}</h3>
-            <Badge variant="info" className="text-[10px] font-bold uppercase">
-              {t.code}
-            </Badge>
+    <Card
+      variant="interactive"
+      className="p-6 rounded-3xl flex flex-col gap-5 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
+    >
+      {/* Header */}
+      <div className="flex items-start gap-3.5">
+        <span className="shrink-0 w-12 h-12 rounded-2xl bg-linear-to-br from-brand-start to-brand-end text-white flex items-center justify-center shadow-sm shadow-brand/20">
+          <GraduationCap className="w-6 h-6" />
+        </span>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-extrabold text-slate-800 text-lg leading-snug truncate">{t.name}</h3>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">{t.code}</span>
+            {t.is_builtin && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400">
+                <Lock className="w-3 h-3" /> Bawaan
+              </span>
+            )}
           </div>
-          {t.description && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{t.description}</p>}
         </div>
-        <Badge variant={meta.variant} className="text-[10px] font-bold shrink-0">
-          {meta.label}
-        </Badge>
+        <span className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2.5 py-1 rounded-full">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Aktif
+        </span>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      {t.description && (
+        <p className="text-sm text-slate-500 leading-relaxed line-clamp-2 -mt-2">{t.description}</p>
+      )}
+
+      {/* Rincian bagian */}
+      <div className="rounded-2xl bg-slate-50/70 border border-slate-100 p-4">
+        <div className="flex items-center justify-between mb-2.5">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Bagian Tes</span>
+          <span className="text-xs font-extrabold text-brand">{total} soal</span>
+        </div>
         {t.skills.length === 0 ? (
-          <span className="text-xs text-slate-400 italic">Belum ada skill</span>
+          <p className="text-xs text-slate-400 italic">Belum ada bagian. Klik Ubah untuk menambah.</p>
         ) : (
-          t.skills.map((s) => (
-            <span
-              key={s.code}
-              className="inline-flex items-center gap-1 text-[11px] font-semibold bg-slate-50 border border-slate-200 text-slate-600 px-2 py-0.5 rounded-lg"
-            >
-              {s.name}
-              <span className="text-brand font-bold">{s.full_test_count}</span>
-              {!s.scorable && <span className="text-amber-500">·rubrik</span>}
-            </span>
-          ))
+          <div className="flex flex-col gap-2">
+            {t.skills.map((s) => (
+              <div key={s.code} className="flex items-center justify-between text-sm">
+                <span className="text-slate-600 flex items-center gap-1.5 min-w-0">
+                  <span className="truncate">{s.name}</span>
+                  {!s.scorable && (
+                    <span className="shrink-0 text-[9px] font-bold text-amber-600 uppercase bg-amber-50 px-1.5 py-0.5 rounded">
+                      rubrik
+                    </span>
+                  )}
+                </span>
+                <span className="font-bold text-slate-700 tabular-nums shrink-0">{s.full_test_count}</span>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
-      <div className="flex items-center gap-3 text-xs text-slate-400 border-t border-slate-100 pt-3">
-        <span className="flex items-center gap-1.5">
-          <ListChecks className="w-4 h-4" /> {t.skills.length} skill
-        </span>
-        <span>·</span>
-        <span>
-          Full test: <strong className="text-slate-600">{full}</strong> soal
-        </span>
-        {t.allow_custom && (
-          <>
-            <span>·</span>
-            <span>Custom ✓</span>
-          </>
-        )}
-      </div>
-
-      <div className="flex items-center gap-2 mt-auto">
+      {/* Aksi */}
+      <div className="flex items-center gap-2.5 mt-auto">
         <Button
           variant="secondary"
           onClick={() => onEdit(t)}
@@ -82,14 +82,7 @@ export function TestTypeCard({ testType: t, onEdit, onDelete }: TestTypeCardProp
         >
           Ubah
         </Button>
-        {t.is_builtin ? (
-          <span
-            title="Jenis bawaan tidak bisa dihapus"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 px-3 py-2 rounded-xl bg-slate-50 border border-slate-100"
-          >
-            <Lock className="w-4 h-4" /> Bawaan
-          </span>
-        ) : (
+        {!t.is_builtin && (
           <Button
             variant="danger"
             onClick={() => onDelete(t)}
