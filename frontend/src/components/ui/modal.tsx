@@ -91,8 +91,10 @@ export interface ModalProps {
   footer?: React.ReactNode;
   size?: ModalSize;
   variant?: ModalVariant;
-  /** Klik backdrop menutup modal (default true). */
+  /** Klik backdrop menutup modal (default FALSE — hanya tombol X yang menutup). */
   closeOnBackdrop?: boolean;
+  /** Tekan Escape menutup modal (default FALSE — hanya tombol X yang menutup). */
+  closeOnEsc?: boolean;
   className?: string;
 }
 
@@ -106,7 +108,8 @@ export function Modal({
   footer,
   size = "md",
   variant = "default",
-  closeOnBackdrop = true,
+  closeOnBackdrop = false,
+  closeOnEsc = false,
   className,
 }: ModalProps) {
   const reduce = useReducedMotion();
@@ -116,15 +119,15 @@ export function Modal({
   // yang overflow) — kalau tidak, footer/elemen lain bisa menembus di atasnya.
   const mounted = React.useSyncExternalStore(subscribeNoop, getClientSnapshot, getServerSnapshot);
 
-  // Escape untuk menutup
+  // Escape untuk menutup (hanya bila diizinkan)
   React.useEffect(() => {
-    if (!open) return;
+    if (!open || !closeOnEsc) return;
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, onClose, closeOnEsc]);
 
   // Kunci scroll body saat modal terbuka
   React.useEffect(() => {
@@ -241,6 +244,19 @@ export function Modal({
                     <X className="h-4 w-4" />
                   </button>
                 </div>
+              )}
+
+              {/* X cadangan bila tak ada header — pastikan modal selalu bisa ditutup
+                 (backdrop & Escape dimatikan secara default). */}
+              {!(icon || title || description) && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Tutup"
+                  className="absolute right-4 top-4 z-10 rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-black/5 hover:text-gray-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               )}
 
               {children && (

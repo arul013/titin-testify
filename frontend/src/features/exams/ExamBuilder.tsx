@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, Check, Rocket, Lock, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Rocket, Lock, Sparkles, Info } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ import {
   type ExamSectionId,
   type PoolPreviewPayload,
   type PoolPreviewResponse,
+  type SectionAvailability,
 } from './hooks/useExams';
 import { useScoringSchemes } from '@/features/scoring/hooks/useScoringSchemes';
 import { useTestTypes } from '@/features/test-types/useTestTypes';
@@ -198,6 +199,11 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
       setStep(1);
       return false;
     }
+    if (participantIds.length === 0) {
+      toast.error('Pilih minimal satu peserta.');
+      setStep(3);
+      return false;
+    }
     if (scheduled && !startDate) {
       toast.error('Isi waktu mulai, atau matikan "Tetapkan jadwal ujian".');
       setStep(0);
@@ -216,7 +222,12 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
   };
 
   const handleSaveDraft = async () => {
-    if (!validate()) return;
+    // Draf boleh belum lengkap — cukup ada nama untuk mengidentifikasi.
+    if (!title.trim()) {
+      toast.error('Nama ujian wajib diisi untuk menyimpan draf.');
+      setStep(0);
+      return;
+    }
     setIsSaving(true);
     try {
       await onSaveDraft(buildPayload());
@@ -242,6 +253,48 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
     section: code as ExamSectionId,
     target_count: targetByCode[code],
   }));
+
+  // ─── Kelengkapan per step (gating strict) ───
+  const detailComplete = !!title.trim() && Number(duration) >= 1 && !!scoringSchemeId;
+  const komposisiComplete = activeSkillCodes.length > 0;
+  const pesertaComplete = participantIds.length > 0;
+
+  // Sumber Soal lengkap = stok cukup untuk tiap bagian (dicek via availability).
+  const sectionsKey = JSON.stringify(sectionsInput);
+  const poolKey = JSON.stringify(poolUnits);
+  const [srcResult, setSrcResult] = useState<{ key: string; avail: SectionAvailability[] } | null>(null);
+  useEffect(() => {
+    if (step !== 2) return;
+    const key = `${sectionsKey}|${poolKey}`;
+    let active = true;
+    fetchPreview({ sections: sectionsInput, pool_units: poolUnits })
+      .then((res) => {
+        if (active) setSrcResult({ key, avail: res.sections });
+      })
+      .catch(() => {
+        if (active) setSrcResult({ key, avail: [] });
+      });
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, sectionsKey, poolKey]);
+  const srcKey = `${sectionsKey}|${poolKey}`;
+  const sumberChecking = step === 2 && (!srcResult || srcResult.key !== srcKey);
+  const sumberComplete =
+    !!srcResult && srcResult.key === srcKey && srcResult.avail.length > 0 && srcResult.avail.every((s) => s.enough);
+
+  const stepComplete = [detailComplete, komposisiComplete, sumberComplete, pesertaComplete, true];
+  const canReach = (idx: number) => stepComplete.slice(0, idx).every(Boolean);
+  const currentComplete = stepComplete[step];
+
+  const STEP_HINT = [
+    'Isi Nama Ujian, Total Waktu, dan Skema Penilaian untuk lanjut.',
+    'Tentukan minimal satu bagian dengan jumlah soal.',
+    sumberChecking ? 'Mengecek ketersediaan soal…' : 'Stok soal belum cukup untuk sebagian bagian. Tambahkan soal Tayang di Bank Soal atau kurangi target.',
+    'Pilih minimal satu peserta.',
+    '',
+  ];
   const scheduleLabel =
     !scheduled || !startDate
       ? 'Kapan saja'
@@ -280,7 +333,10 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
           steps={steps}
           title="Langkah"
           className=""
-          onStepClick={(idx) => setStep(idx)}
+          onStepClick={(idx) => {
+            if (idx <= step || canReach(idx)) setStep(idx);
+            else toast.error('Selesaikan langkah sebelumnya dulu.');
+          }}
           viewingIdx={step}
         />
       </div>
@@ -354,6 +410,14 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
         )}
       </div>
 
+      {/* Hint kelengkapan step (bila belum lengkap & belum di Review) */}
+      {!isLastStep && !currentComplete && (
+        <div className="flex items-center gap-2 -mb-2 text-xs text-amber-700 bg-amber-50/70 border border-amber-100 rounded-xl px-3 py-2">
+          <Info className="w-3.5 h-3.5 shrink-0 text-amber-500" />
+          <span>{STEP_HINT[step]}</span>
+        </div>
+      )}
+
       {/* Footer nav */}
       <div className="flex items-center justify-between gap-3 pt-4 border-t border-slate-100">
         <div>
@@ -381,7 +445,9 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
           {!isLastStep ? (
             <Button
               variant="primary"
-              onClick={() => setStep((s) => s + 1)}
+              onClick={() => currentComplete && setStep((s) => s + 1)}
+              disabled={!currentComplete}
+              loading={sumberChecking}
               className="font-bold gap-2"
             >
               Lanjut

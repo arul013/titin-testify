@@ -39,7 +39,6 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       title={title}
       icon={icon}
       size="sm"
-      closeOnBackdrop={!loading}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={loading} className="font-bold">
