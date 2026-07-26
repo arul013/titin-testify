@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { Layers, Plus, X, GripVertical, ListChecks } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { GraduationCap, Plus, Trash2, ListChecks } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -11,19 +12,36 @@ import { toast } from 'sonner';
 import type { TestType, TestTypeSkill, TestTypeStatus, TestTypePayload } from './useTestTypes';
 
 const onlyDigits = (v: string) => v.replace(/[^0-9]/g, '');
-const slugify = (v: string) => v.toLowerCase().replace(/[^a-z0-9_]/g, '');
+const slugify = (v: string) =>
+  v.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+
+let _uid = 0;
+const uid = () => `bagian-${Date.now()}-${_uid++}`;
 
 interface SkillDraft {
-  code: string;
+  key: string;
+  code: string; // kode asli (dipertahankan utk skill lama; kosong utk baru → auto dari nama)
   name: string;
   scorable: boolean;
   full_test_count: string;
 }
 
-const emptySkill = (): SkillDraft => ({ code: '', name: '', scorable: true, full_test_count: '0' });
+const emptySkill = (): SkillDraft => ({
+  key: uid(),
+  code: '',
+  name: '',
+  scorable: true,
+  full_test_count: '0',
+});
 
 function toDraft(s: TestTypeSkill): SkillDraft {
-  return { code: s.code, name: s.name, scorable: s.scorable, full_test_count: String(s.full_test_count ?? 0) };
+  return {
+    key: uid(),
+    code: s.code,
+    name: s.name,
+    scorable: s.scorable,
+    full_test_count: String(s.full_test_count ?? 0),
+  };
 }
 
 interface TestTypeFormModalProps {
@@ -34,7 +52,7 @@ interface TestTypeFormModalProps {
   onSubmit: (payload: TestTypePayload) => void;
 }
 
-/** Form buat/ubah jenis tes + editor skill & preset full test. */
+/** Form buat/ubah jenis tes + bagian tes (non-jargon, ramah user non-teknis). */
 export function TestTypeFormModal({
   editing,
   defaultSortOrder,
@@ -42,7 +60,6 @@ export function TestTypeFormModal({
   onClose,
   onSubmit,
 }: TestTypeFormModalProps) {
-  const [code, setCode] = useState(editing?.code ?? '');
   const [name, setName] = useState(editing?.name ?? '');
   const [description, setDescription] = useState(editing?.description ?? '');
   const [statusVal, setStatusVal] = useState<TestTypeStatus>(editing?.status ?? 'active');
@@ -50,22 +67,32 @@ export function TestTypeFormModal({
   const [skills, setSkills] = useState<SkillDraft[]>(
     editing?.skills.length ? editing.skills.map(toDraft) : [emptySkill()],
   );
+  const listEndRef = useRef<HTMLDivElement>(null);
 
-  const setSkill = (i: number, patch: Partial<SkillDraft>) =>
-    setSkills((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
-  const addSkill = () => setSkills((prev) => [...prev, emptySkill()]);
-  const removeSkill = (i: number) => setSkills((prev) => prev.filter((_, idx) => idx !== i));
+  const setSkill = (key: string, patch: Partial<SkillDraft>) =>
+    setSkills((prev) => prev.map((s) => (s.key === key ? { ...s, ...patch } : s)));
+
+  const addSkill = () => {
+    const row = emptySkill();
+    setSkills((prev) => [...prev, row]);
+    // Fokus + gulir ke bagian baru agar user tahu ada penambahan.
+    setTimeout(() => {
+      document.getElementById(`skill-name-${row.key}`)?.focus();
+      listEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 60);
+  };
+
+  const removeSkill = (key: string) => setSkills((prev) => prev.filter((s) => s.key !== key));
 
   const totalFull = skills.reduce((n, s) => n + (parseInt(s.full_test_count || '0', 10) || 0), 0);
 
   const submit = () => {
-    if (!editing && !code.trim()) return toast.error('Kode jenis tes wajib diisi.');
     if (!name.trim()) return toast.error('Nama jenis tes wajib diisi.');
 
     const cleanSkills: TestTypeSkill[] = skills
-      .filter((s) => s.code.trim() && s.name.trim())
+      .filter((s) => s.name.trim())
       .map((s, idx) => ({
-        code: s.code.trim(),
+        code: (s.code || slugify(s.name)).trim(),
         name: s.name.trim(),
         scorable: s.scorable,
         full_test_count: parseInt(s.full_test_count || '0', 10) || 0,
@@ -73,10 +100,12 @@ export function TestTypeFormModal({
       }));
 
     const codes = cleanSkills.map((s) => s.code);
-    if (new Set(codes).size !== codes.length) return toast.error('Kode skill tidak boleh sama.');
+    if (new Set(codes).size !== codes.length) {
+      return toast.error('Ada nama bagian yang sama — beri nama yang berbeda.');
+    }
 
     onSubmit({
-      ...(editing ? {} : { code: code.trim() }),
+      ...(editing ? {} : { code: slugify(name) }),
       name: name.trim(),
       description: description.trim() || null,
       status: statusVal,
@@ -90,8 +119,8 @@ export function TestTypeFormModal({
     <Modal
       open
       onClose={() => !saving && onClose()}
-      title={editing ? `Ubah Jenis Tes — ${editing.name}` : 'Tambah Jenis Tes'}
-      icon={<Layers className="w-5 h-5 text-brand" />}
+      title={editing ? `Ubah — ${editing.name}` : 'Tambah Jenis Ujian'}
+      icon={<GraduationCap className="w-5 h-5 text-white" />}
       size="2xl"
       footer={
         <>
@@ -99,129 +128,130 @@ export function TestTypeFormModal({
             Batal
           </Button>
           <Button variant="primary" onClick={submit} loading={saving} className="font-bold">
-            {editing ? 'Simpan Perubahan' : 'Buat Jenis Tes'}
+            {editing ? 'Simpan Perubahan' : 'Simpan Jenis Ujian'}
           </Button>
         </>
       }
     >
-      <div className="flex flex-col gap-5">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="flex flex-col gap-6">
+        {/* ── Info dasar ── */}
+        <div className="flex flex-col gap-4">
           <Input
-            label="Kode (slug)"
-            value={code}
-            onChange={(e) => setCode(slugify(e.target.value))}
-            placeholder="mis. itp"
-            disabled={!!editing}
-            containerClassName={editing ? 'opacity-60' : ''}
+            label="Nama jenis tes"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="mis. TOEFL ITP"
           />
-          <Input label="Nama" value={name} onChange={(e) => setName(e.target.value)} placeholder="mis. TOEFL ITP" />
-        </div>
-
-        <Input
-          label="Deskripsi (opsional)"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Keterangan singkat jenis tes"
-        />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-1.5">Status</label>
-            <Select value={statusVal} onChange={(e) => setStatusVal(e.target.value as TestTypeStatus)}>
-              <option value="active">Aktif (bisa dipilih)</option>
-              <option value="soon">Soon (badge, belum bisa dipakai)</option>
-              <option value="disabled">Nonaktif (disembunyikan)</option>
-            </Select>
-          </div>
-          <div className="pb-2">
-            <Checkbox
-              checked={allowCustom}
-              onChange={setAllowCustom}
-              label="Izinkan ujian mode Custom berbasis jenis ini"
-            />
-          </div>
-        </div>
-
-        {/* Skills editor */}
-        <div className="border-t border-slate-100 pt-4">
-          <div className="flex items-center justify-between mb-3">
+          <Input
+            label="Deskripsi singkat (opsional)"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="mis. Tes TOEFL untuk kelas institusi"
+          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             <div>
-              <h4 className="text-sm font-extrabold text-slate-700 flex items-center gap-1.5">
-                <ListChecks className="w-4 h-4 text-brand" /> Skill & Preset Full Test
-              </h4>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Total soal full test: <strong className="text-slate-600">{totalFull}</strong>
+              <label className="block text-sm font-bold text-slate-700 mb-1.5">Ketersediaan</label>
+              <Select value={statusVal} onChange={(e) => setStatusVal(e.target.value as TestTypeStatus)}>
+                <option value="active">Aktif — bisa dipakai membuat ujian</option>
+                <option value="soon">Segera hadir — tampil, belum bisa dipakai</option>
+                <option value="disabled">Disembunyikan</option>
+              </Select>
+            </div>
+            <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-3.5">
+              <Checkbox
+                checked={allowCustom}
+                onChange={setAllowCustom}
+                label="Boleh untuk ujian Custom"
+              />
+              <p className="text-[11px] text-slate-400 mt-1.5 pl-7 leading-relaxed">
+                Admin bisa menyusun ujian dengan komposisi bebas berdasarkan jenis ini.
               </p>
             </div>
-            <Button variant="secondary" onClick={addSkill} leftIcon={<Plus className="w-4 h-4" />} className="font-bold">
-              Tambah Skill
-            </Button>
           </div>
+        </div>
 
-          <div className="grid grid-cols-12 gap-2.5 px-2.5 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wide">
-            <span className="col-span-1" />
-            <span className="col-span-3">Kode</span>
-            <span className="col-span-4">Nama</span>
-            <span className="col-span-2 text-center">Jml Full</span>
-            <span className="col-span-1 text-center">Skor</span>
-            <span className="col-span-1" />
-          </div>
-
-          <div className="flex flex-col gap-2.5">
-            {skills.map((s, i) => (
-              <div
-                key={i}
-                className="grid grid-cols-12 gap-2.5 items-center bg-slate-50/60 border border-slate-100 rounded-xl p-2.5"
-              >
-                <GripVertical className="col-span-1 w-4 h-4 text-slate-300 mx-auto" />
-                <div className="col-span-3">
-                  <Input
-                    value={s.code}
-                    onChange={(e) => setSkill(i, { code: slugify(e.target.value) })}
-                    placeholder="listening"
-                    className="text-xs"
-                  />
-                </div>
-                <div className="col-span-4">
-                  <Input
-                    value={s.name}
-                    onChange={(e) => setSkill(i, { name: e.target.value })}
-                    placeholder="Nama skill"
-                    className="text-xs"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Input
-                    value={s.full_test_count}
-                    onChange={(e) => setSkill(i, { full_test_count: onlyDigits(e.target.value) })}
-                    inputMode="numeric"
-                    placeholder="0"
-                    className="text-xs text-center"
-                  />
-                </div>
-                <div
-                  className="col-span-1 flex justify-center"
-                  title="MCQ auto-skor? (matikan untuk Speaking/Writing)"
-                >
-                  <Checkbox checked={s.scorable} onChange={(v) => setSkill(i, { scorable: v })} />
-                </div>
-                <div className="col-span-1 flex justify-center">
-                  <button
-                    type="button"
-                    onClick={() => removeSkill(i)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                    title="Hapus skill"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-            {skills.length === 0 && (
-              <p className="text-xs text-slate-400 italic text-center py-3">
-                Belum ada skill. Klik &ldquo;Tambah Skill&rdquo;.
+        {/* ── Bagian tes ── */}
+        <div className="border-t border-slate-100 pt-5">
+          <div className="flex items-start justify-between gap-3 mb-1">
+            <div>
+              <h4 className="text-sm font-extrabold text-slate-800 flex items-center gap-1.5">
+                <ListChecks className="w-4 h-4 text-brand" /> Bagian Tes
+              </h4>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Bagian yang diujikan (mis. Listening, Reading) beserta jumlah soalnya.
               </p>
-            )}
+            </div>
+            <span className="shrink-0 text-xs font-bold text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-2.5 py-1.5">
+              Total {totalFull} soal
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-3 mt-3">
+            <AnimatePresence initial={false}>
+              {skills.map((s, i) => (
+                <motion.div
+                  key={s.key}
+                  layout
+                  initial={{ opacity: 0, y: -8, height: 0 }}
+                  animate={{ opacity: 1, y: 0, height: 'auto' }}
+                  exit={{ opacity: 0, y: -8, height: 0 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                  className="rounded-2xl border border-slate-200 bg-white p-4"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">
+                      Bagian {i + 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeSkill(s.key)}
+                      className="inline-flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors"
+                      title="Hapus bagian"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Hapus
+                    </button>
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    <Input
+                      id={`skill-name-${s.key}`}
+                      label="Nama bagian"
+                      value={s.name}
+                      onChange={(e) => setSkill(s.key, { name: e.target.value })}
+                      placeholder="mis. Listening Comprehension"
+                    />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                      <Input
+                        label="Jumlah soal"
+                        value={s.full_test_count}
+                        onChange={(e) => setSkill(s.key, { full_test_count: onlyDigits(e.target.value) })}
+                        inputMode="numeric"
+                        placeholder="0"
+                      />
+                      <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3 h-full flex flex-col justify-center">
+                        <Checkbox
+                          checked={s.scorable}
+                          onChange={(v) => setSkill(s.key, { scorable: v })}
+                          label="Soal pilihan ganda"
+                        />
+                        <p className="text-[11px] text-slate-400 mt-1 pl-7 leading-snug">
+                          Nonaktifkan bila esai/lisan (dinilai manual).
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+            <div ref={listEndRef} />
+
+            <Button
+              variant="secondary"
+              onClick={addSkill}
+              leftIcon={<Plus className="w-4 h-4" />}
+              className="font-bold self-start"
+            >
+              Tambah Bagian
+            </Button>
           </div>
         </div>
       </div>

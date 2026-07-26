@@ -1,6 +1,6 @@
 'use client';
 
-import { Pencil, Trash2, Lock, GraduationCap } from 'lucide-react';
+import { Pencil, Trash2, GraduationCap } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import type { TestType } from './useTestTypes';
@@ -27,14 +27,7 @@ export function TestTypeCard({ testType: t, onEdit, onDelete }: TestTypeCardProp
         </span>
         <div className="flex-1 min-w-0">
           <h3 className="font-extrabold text-slate-800 text-lg leading-snug truncate">{t.name}</h3>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">{t.code}</span>
-            {t.is_builtin && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400">
-                <Lock className="w-3 h-3" /> Bawaan
-              </span>
-            )}
-          </div>
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">{t.code}</span>
         </div>
         <span className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2.5 py-1 rounded-full">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Aktif

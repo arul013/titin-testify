@@ -73,7 +73,7 @@ export function TestTypesManager() {
   };
 
   const createActions: FABAction[] = [
-    { icon: <Plus className="w-5 h-5" />, label: 'Tambah Jenis Ujian', onClick: openCreate },
+    { icon: <Plus className="w-5 h-5" />, label: 'Tambah Jenis', onClick: openCreate },
   ];
 
   return (
