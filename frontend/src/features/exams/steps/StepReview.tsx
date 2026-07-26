@@ -116,7 +116,7 @@ export const StepReview: React.FC<StepReviewProps> = ({
           <SummaryItem
             icon={<ClipboardCheck className="w-4 h-4" />}
             label="Jenis Ujian"
-            value={`${testTypeName} · ${examMode === 'full' ? 'Full Test' : 'Custom'}`}
+            value={`${testTypeName} · ${examMode === 'full' ? 'Tes Lengkap' : 'Latihan'}`}
           />
           <SummaryItem icon={<Clock className="w-4 h-4" />} label="Total Waktu" value={`${durationMinutes} menit`} />
           <SummaryItem

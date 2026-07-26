@@ -63,7 +63,6 @@ export function TestTypeFormModal({
   const [name, setName] = useState(editing?.name ?? '');
   const [description, setDescription] = useState(editing?.description ?? '');
   const [statusVal, setStatusVal] = useState<TestTypeStatus>(editing?.status ?? 'active');
-  const [allowCustom, setAllowCustom] = useState(editing?.allow_custom ?? true);
   const [skills, setSkills] = useState<SkillDraft[]>(
     editing?.skills.length ? editing.skills.map(toDraft) : [emptySkill()],
   );
@@ -109,7 +108,7 @@ export function TestTypeFormModal({
       name: name.trim(),
       description: description.trim() || null,
       status: statusVal,
-      allow_custom: allowCustom,
+      allow_custom: true,
       sort_order: editing ? editing.sort_order : defaultSortOrder,
       skills: cleanSkills,
     });
@@ -148,25 +147,13 @@ export function TestTypeFormModal({
             onChange={(e) => setDescription(e.target.value)}
             placeholder="mis. Tes TOEFL untuk kelas institusi"
           />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1.5">Ketersediaan</label>
-              <Select value={statusVal} onChange={(e) => setStatusVal(e.target.value as TestTypeStatus)}>
-                <option value="active">Aktif — bisa dipakai membuat ujian</option>
-                <option value="soon">Segera hadir — tampil, belum bisa dipakai</option>
-                <option value="disabled">Disembunyikan</option>
-              </Select>
-            </div>
-            <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-3.5">
-              <Checkbox
-                checked={allowCustom}
-                onChange={setAllowCustom}
-                label="Boleh untuk ujian Custom"
-              />
-              <p className="text-[11px] text-slate-400 mt-1.5 pl-7 leading-relaxed">
-                Admin bisa menyusun ujian dengan komposisi bebas berdasarkan jenis ini.
-              </p>
-            </div>
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1.5">Ketersediaan</label>
+            <Select value={statusVal} onChange={(e) => setStatusVal(e.target.value as TestTypeStatus)}>
+              <option value="active">Aktif — bisa dipakai membuat ujian</option>
+              <option value="soon">Segera hadir — tampil, belum bisa dipakai</option>
+              <option value="disabled">Disembunyikan</option>
+            </Select>
           </div>
         </div>
 

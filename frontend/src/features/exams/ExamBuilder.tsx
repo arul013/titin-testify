@@ -27,6 +27,8 @@ interface ExamBuilderProps {
   initial: ExamDetail | null;
   testTypeCode: string;
   examMode: ExamMode;
+  /** Komposisi awal (preset dari jenis tes) untuk ujian Latihan baru. */
+  initialCounts?: Record<string, number>;
   onCancel: () => void;
   onSaveDraft: (payload: Record<string, unknown>) => Promise<void>;
   onPublish: (payload: Record<string, unknown>) => Promise<void>;
@@ -67,6 +69,7 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
   initial,
   testTypeCode,
   examMode,
+  initialCounts,
   onCancel,
   onSaveDraft,
   onPublish,
@@ -102,13 +105,17 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
   const [endDate, setEndDate] = useState(_endParts.date);
   const [endTime, setEndTime] = useState(_endParts.time);
 
-  // Komposisi (mode custom) — keyed by skill code.
+  // Komposisi (mode custom/Latihan) — keyed by skill code.
+  // Ujian lama → dari sections tersimpan; ujian Latihan baru → preset jenis tes.
   const [counts, setCounts] = useState<Record<string, number>>(() => {
-    const init: Record<string, number> = {};
-    initial?.sections?.forEach((s) => {
-      init[s.section] = s.target_count;
-    });
-    return init;
+    if (initial?.sections?.length) {
+      const init: Record<string, number> = {};
+      initial.sections.forEach((s) => {
+        init[s.section] = s.target_count;
+      });
+      return init;
+    }
+    return { ...(initialCounts ?? {}) };
   });
 
   // Sumber soal (pool units)
@@ -260,11 +267,11 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
           <Badge variant={isFull ? 'success' : 'neutral'} className="font-bold gap-1">
             {isFull ? (
               <>
-                <Lock className="w-3 h-3" /> Full Test
+                <Lock className="w-3 h-3" /> Tes Lengkap
               </>
             ) : (
               <>
-                <Sparkles className="w-3 h-3" /> Custom
+                <Sparkles className="w-3 h-3" /> Latihan
               </>
             )}
           </Badge>

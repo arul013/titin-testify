@@ -37,25 +37,28 @@ Bank Soal, Komposisi, dan pemilihan Sumber semuanya **terfilter per jenis tes**.
 Skill diidentifikasi oleh pasangan **(test_type, section)** → kode 'listening' boleh dipakai di
 banyak jenis tes tanpa tabrakan.
 
-## 4. Alur modal "Pilih Jenis Ujian" (2 tingkat)
-Muncul **paling awal** saat *Buat Ujian* (sebelum Detail). Saat edit → jenis tampil badge (bisa diganti).
+## 4. Alur modal "Pilih Jenis Ujian" (2 langkah) — REVISI 2026-07-26
+**Source of truth = menu "Jenis Ujian" (super admin).** Modal muncul saat *Buat Ujian*.
+**Hanya jenis berstatus `active` yang tampil di modal ini** — 'soon'/'disabled' TIDAK ditampilkan
+(mereka hanya muncul di menu Jenis Ujian sebagai "Segera hadir").
 
-- **Tingkat 1 — pilih jenis:** kartu **ITP** · **iBT** *(soon)* · **IELTS** *(soon)* · **TOEIC** *(soon)* · **Custom**.
-  - Kartu 'soon' tak bisa diklik (badge "Soon").
-  - Pilih **ITP** → langsung **full test**: `test_type='itp'`, `exam_mode='full'`.
-  - Pilih **Custom** → **Tingkat 2**.
-- **Tingkat 2 (khusus Custom) — "Custom berbasis tes apa?":** ITP (aktif) · lainnya *(soon)*.
-  - Pilih ITP → `test_type='itp'`, `exam_mode='custom'`.
+- **Langkah 1 — pilih jenis tes** (hanya yang aktif). Bila cuma **1 jenis aktif → langsung ke Langkah 2** (hemat klik).
+- **Langkah 2 — pilih mode:**
+  - **Tes Lengkap** (`exam_mode='full'`) → komposisi **resmi & terkunci** (preset), untuk ujian sungguhan.
+  - **Latihan** (`exam_mode='custom'`) → komposisi **default = preset, tapi bebas diubah**; nilai persentase.
 
-Registry (`allow_custom`, `status`) yang menentukan kartu mana muncul/aktif → extensible.
+Tidak ada lagi kartu "Custom" terpisah maupun tingkat "Custom berbasis tes apa". Model lama dibuang
+karena membingungkan. **Centang `allow_custom` di form Jenis Ujian DIHAPUS** — tiap jenis aktif otomatis
+bisa dua-duanya (kolom DB `allow_custom` disisakan, default true, untuk pembatasan per-jenis di masa depan).
 
 ## 5. Reshape wizard (per jenis tes + mode)
 - **StepKomposisi:**
-  - `full` → skill & jumlah **preset dari `test_type_skills.full_test_count`**, **terkunci** (read-only).
-  - `custom` → hanya tampilkan **skill jenis tes terpilih**; jumlah **bebas**.
+  - `full` (Tes Lengkap) → skill & jumlah **preset dari `test_type_skills.full_test_count`**, **terkunci** (read-only).
+  - `custom` (Latihan) → skill jenis tes terpilih, **komposisi PRA-TERISI dari preset** (bukan kosong) + **bebas diubah**.
+    Preset dibawa ke builder via prop `initialCounts` dari `ManajemenUjianPage` (dihitung dari `t.skills`).
 - **StepSource (Bank Soal builder):** hanya materi/soal dengan `test_type` = jenis tes ujian.
   Filter kuota §4c tetap berlaku (target dari komposisi).
-- **StepReview:** tampilkan **Jenis Tes + Mode** (Full/Custom) + skema penilaian + passing.
+- **StepReview:** tampilkan **Jenis Tes + Mode** ("Tes Lengkap"/"Latihan") + skema penilaian + passing.
 
 ## 6. Validasi eksak (mode `full` / tes standar)
 - Komposisi terkunci = preset → target pasti.
@@ -76,13 +79,14 @@ Registry (`allow_custom`, `status`) yang menentukan kartu mana muncul/aktif → 
    - `questions` & `question_passages` bawa `test_type` (insert/update/response + filter `?test_type=`; soal **mewarisi** test_type dari materi induk).
    - `exams` bawa `test_type` + `exam_mode`; `publish_exam` **validasi eksak** untuk mode `full` (jumlah terakit per bagian harus = target, else 400 + snapshot dibatalkan); pool assembly + availability **discope per `test_type`**.
 3. **A3 — Frontend menu admin "Kelola Jenis Ujian"** (CRUD jenis + skill + preset + status).
-4. **A4 — Frontend exam builder** ✅ SELESAI 2026-07-26 (diagnostics bersih, belum di-commit):
-   - `PilihJenisUjianModal` (2-tingkat: pilih jenis→full, atau Custom→pilih tes basis) dipakai di `ManajemenUjianPage` saat *Buat Ujian*.
-   - `ExamBuilder` terima `testTypeCode`+`examMode`; resolve skill via `useTestTypes`; badge jenis+mode di header; `buildPayload` kirim `test_type`+`exam_mode`; sections dari skill.
-   - `StepComposition` skills-driven: **full** = preset terkunci (read-only), **custom** = toggle+jumlah bebas (skill jenis tes terpilih saja).
+4. **A4 — Frontend exam builder** ✅ SELESAI 2026-07-26; **DIREVISI ke model Resmi/Latihan** (lihat §4/§5):
+   - `PilihJenisUjianModal` **2 langkah**: (1) pilih jenis tes **aktif saja** (soon disembunyikan; 1 aktif → auto ke langkah 2), (2) pilih **Tes Lengkap** (`full`) / **Latihan** (`custom`). Kartu "Custom" terpisah DIBUANG.
+   - `ManajemenUjianPage` kirim `initialCounts` (preset dari `t.skills`) → ujian **Latihan** pra-terisi standar, bukan kosong.
+   - `ExamBuilder` terima `testTypeCode`+`examMode`+`initialCounts`; resolve skill via `useTestTypes`; badge "Tes Lengkap"/"Latihan"; `buildPayload` kirim `test_type`+`exam_mode`; sections dari skill.
+   - `StepComposition` skills-driven: **full** = preset terkunci (read-only), **custom/Latihan** = pra-terisi preset + bebas diubah/matikan bagian.
    - `StepSource` prop `testType` (filter Bank Soal via `?test_type=`) + `exact` (badge "perlu tepat N"); `useQuestions`/`usePassages` tambah param `testType`.
-   - `StepReview` tampilkan Jenis Ujian + mode. `useExams.Exam` tambah `test_type`+`exam_mode`.
-   - Validasi eksak keras tetap di backend `publish_exam`; UI memandu (quota cap + badge).
+   - `StepReview` tampilkan Jenis Ujian + mode ("Tes Lengkap"/"Latihan"). `useExams.Exam` tambah `test_type`+`exam_mode`.
+   - Form **Jenis Ujian**: centang `allow_custom` **DIHAPUS** dari UI (setiap jenis aktif otomatis bisa dua mode). Validasi eksak keras tetap di backend `publish_exam`.
 5. **A5 — Bank Soal:** untuk Fase A **cukup default `test_type='itp'`** (semua soal ITP; backend set default). **Selektor/filter jenis tes di Bank Soal ditunda** sampai ada jenis tes aktif ke-2 (Fase B).
 
 ## 9. Fase B (menyusul)

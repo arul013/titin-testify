@@ -52,8 +52,9 @@ export const StepComposition: React.FC<StepCompositionProps> = ({
           </>
         ) : (
           <>
-            Pilih bagian yang diujikan dan target jumlah soal per bagian. Boleh hanya satu bagian
-            (mis. &ldquo;10 soal Structure saja&rdquo;).
+            Komposisi sudah terisi mengikuti standar jenis tes — <strong>silakan ubah bila perlu</strong>.
+            Boleh hanya satu bagian (mis. &ldquo;10 soal Structure saja&rdquo;), atau matikan bagian
+            yang tak dipakai.
           </>
         )}
       </p>

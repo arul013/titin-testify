@@ -30,7 +30,11 @@ export function ManajemenUjianPage() {
   const [mode, setMode] = useState<'list' | 'builder'>('list');
   const [editingDetail, setEditingDetail] = useState<ExamDetail | null>(null);
   const [chooserOpen, setChooserOpen] = useState(false);
-  const [newChoice, setNewChoice] = useState<{ testType: string; examMode: ExamMode } | null>(null);
+  const [newChoice, setNewChoice] = useState<{
+    testType: string;
+    examMode: ExamMode;
+    presetCounts: Record<string, number>;
+  } | null>(null);
 
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -69,7 +73,8 @@ export function ManajemenUjianPage() {
   };
 
   const handleChooseType = (t: TestType, examMode: ExamMode) => {
-    setNewChoice({ testType: t.code, examMode });
+    const presetCounts = Object.fromEntries(t.skills.map((s) => [s.code, s.full_test_count]));
+    setNewChoice({ testType: t.code, examMode, presetCounts });
     setEditingDetail(null);
     setChooserOpen(false);
     setMode('builder');
@@ -169,6 +174,7 @@ export function ManajemenUjianPage() {
           initial={editingDetail}
           testTypeCode={editingDetail?.test_type ?? newChoice?.testType ?? 'itp'}
           examMode={editingDetail?.exam_mode ?? newChoice?.examMode ?? 'custom'}
+          initialCounts={newChoice?.presetCounts}
           onCancel={() => {
             setMode('list');
             setEditingDetail(null);

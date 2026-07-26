@@ -1,9 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Layers, ChevronLeft, ChevronRight, Sparkles, Lock, ClipboardCheck } from 'lucide-react';
+import { Layers, ChevronLeft, ChevronRight, Lock, Pencil, GraduationCap, ClipboardCheck } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTestTypes, type TestType } from '@/features/test-types/useTestTypes';
 import type { ExamMode } from '@/features/exams/hooks/useExams';
@@ -14,141 +13,130 @@ interface PilihJenisUjianModalProps {
   onChoose: (testType: TestType, mode: ExamMode) => void;
 }
 
-/** Modal 2-tingkat: pilih jenis tes (full) atau Custom → pilih tes basis. */
+/** Modal Buat Ujian: pilih jenis tes AKTIF → pilih mode (Tes Lengkap / Latihan). */
 export function PilihJenisUjianModal({ open, onClose, onChoose }: PilihJenisUjianModalProps) {
   const { testTypes, isLoading } = useTestTypes();
-  const [level, setLevel] = useState<'type' | 'custom'>('type');
+  const [picked, setPicked] = useState<TestType | null>(null);
 
-  const sorted = [...testTypes].sort((a, b) => a.sort_order - b.sort_order);
-  const customBases = sorted.filter((t) => t.status === 'active' && t.allow_custom);
+  // Hanya jenis AKTIF yang boleh dipakai membuat ujian.
+  const active = [...testTypes]
+    .filter((t) => t.status === 'active')
+    .sort((a, b) => a.sort_order - b.sort_order);
+
+  // Kalau hanya 1 jenis aktif → langsung ke pilih mode (hemat klik).
+  const chosen = picked ?? (active.length === 1 ? active[0] : null);
+  const showMode = chosen !== null;
+  const canGoBack = picked !== null && active.length > 1;
 
   const close = () => {
-    setLevel('type');
+    setPicked(null);
     onClose();
-  };
-
-  const TypeCard = ({
-    t,
-    disabled,
-    onClick,
-    hint,
-  }: {
-    t: TestType;
-    disabled?: boolean;
-    onClick?: () => void;
-    hint?: string;
-  }) => {
-    const full = t.skills.reduce((n, s) => n + (s.full_test_count || 0), 0);
-    return (
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={onClick}
-        className={`group text-left rounded-2xl border-2 p-5 transition-all ${
-          disabled
-            ? 'border-slate-100 bg-slate-50/50 opacity-70 cursor-not-allowed'
-            : 'border-slate-200 bg-white hover:border-brand hover:shadow-md hover:shadow-brand/10'
-        }`}
-      >
-        <div className="flex items-center justify-between gap-2 mb-1.5">
-          <span className="font-extrabold text-slate-800 text-base">{t.name}</span>
-          {t.status === 'soon' ? (
-            <Badge variant="warning" className="text-[10px] font-bold">
-              Soon
-            </Badge>
-          ) : disabled ? (
-            <Lock className="w-4 h-4 text-slate-300" />
-          ) : (
-            <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand transition-colors" />
-          )}
-        </div>
-        {t.description && <p className="text-xs text-slate-500 line-clamp-2">{t.description}</p>}
-        {hint ? (
-          <p className="text-[11px] text-slate-400 mt-2">{hint}</p>
-        ) : (
-          full > 0 && (
-            <p className="text-[11px] text-slate-400 mt-2">
-              Full test: <strong className="text-slate-600">{full}</strong> soal
-            </p>
-          )
-        )}
-      </button>
-    );
   };
 
   return (
     <Modal
       open={open}
       onClose={close}
-      title={level === 'type' ? 'Pilih Jenis Ujian' : 'Custom Berbasis Tes Apa?'}
-      icon={<ClipboardCheck className="w-5 h-5 text-brand" />}
+      title={showMode ? `Buat Ujian — ${chosen?.name}` : 'Buat Ujian'}
+      icon={<ClipboardCheck className="w-5 h-5 text-white" />}
       size="2xl"
     >
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {[0, 1, 2, 3].map((i) => (
+          {[0, 1].map((i) => (
             <Skeleton key={i} className="h-28 rounded-2xl" />
           ))}
         </div>
-      ) : level === 'type' ? (
-        <div className="flex flex-col gap-4">
-          <p className="text-sm text-slate-500">
-            Pilih tes standar untuk <strong>full test</strong> (komposisi terkunci), atau{' '}
-            <strong>Custom</strong> untuk menyusun sendiri.
+      ) : active.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-10 text-center text-slate-400">
+          <Layers className="w-9 h-9" />
+          <p className="text-sm max-w-sm">
+            Belum ada jenis tes yang aktif. Aktifkan atau tambahkan jenis tes di menu{' '}
+            <strong className="text-slate-500">Jenis Ujian</strong> dulu.
           </p>
+        </div>
+      ) : !showMode ? (
+        /* ── Langkah 1: pilih jenis tes ── */
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-slate-500">Pilih jenis tes yang ingin diujikan.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {sorted.map((t) => (
-              <TypeCard
-                key={t.id}
-                t={t}
-                disabled={t.status !== 'active'}
-                onClick={t.status === 'active' ? () => onChoose(t, 'full') : undefined}
-              />
-            ))}
-            {/* Kartu Custom */}
-            <button
-              type="button"
-              onClick={() => setLevel('custom')}
-              className="group text-left rounded-2xl border-2 border-dashed border-brand/40 bg-brand/5 p-5 transition-all hover:border-brand hover:bg-brand/10"
-            >
-              <div className="flex items-center justify-between gap-2 mb-1.5">
-                <span className="font-extrabold text-brand text-base flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4" /> Custom
-                </span>
-                <ChevronRight className="w-4 h-4 text-brand/50 group-hover:text-brand transition-colors" />
-              </div>
-              <p className="text-xs text-slate-500">
-                Susun komposisi bebas berbasis salah satu jenis tes (skor persentase).
-              </p>
-            </button>
+            {active.map((t) => {
+              const total = t.skills.reduce((n, s) => n + (s.full_test_count || 0), 0);
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setPicked(t)}
+                  className="group text-left rounded-2xl border-2 border-slate-200 bg-white p-5 transition-all hover:border-brand hover:shadow-md hover:shadow-brand/10"
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="shrink-0 w-10 h-10 rounded-xl bg-linear-to-br from-brand-start to-brand-end text-white flex items-center justify-center">
+                      <GraduationCap className="w-5 h-5" />
+                    </span>
+                    <span className="font-extrabold text-slate-800 text-base flex-1 truncate">{t.name}</span>
+                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand transition-colors" />
+                  </div>
+                  {t.description && <p className="text-xs text-slate-500 line-clamp-2">{t.description}</p>}
+                  {total > 0 && (
+                    <p className="text-[11px] text-slate-400 mt-2">
+                      Tes lengkap: <strong className="text-slate-600">{total}</strong> soal
+                    </p>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       ) : (
+        /* ── Langkah 2: pilih mode ── */
         <div className="flex flex-col gap-4">
-          <button
-            type="button"
-            onClick={() => setLevel('type')}
-            className="inline-flex items-center gap-1.5 self-start text-sm font-medium text-slate-400 hover:text-brand transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" /> Kembali pilih jenis
-          </button>
-          {customBases.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-8 text-center text-slate-400">
-              <Layers className="w-8 h-8" />
-              <p className="text-sm">Belum ada jenis tes yang mengizinkan mode Custom.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {customBases.map((t) => (
-                <TypeCard
-                  key={t.id}
-                  t={t}
-                  hint={`${t.skills.length} skill · komposisi bebas`}
-                  onClick={() => onChoose(t, 'custom')}
-                />
-              ))}
-            </div>
+          {canGoBack && (
+            <button
+              type="button"
+              onClick={() => setPicked(null)}
+              className="inline-flex items-center gap-1.5 self-start text-sm font-medium text-slate-400 hover:text-brand transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" /> Ganti jenis tes
+            </button>
           )}
+          <p className="text-sm text-slate-500">Mau dibuat sebagai apa?</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Tes Lengkap */}
+            <button
+              type="button"
+              onClick={() => chosen && onChoose(chosen, 'full')}
+              className="group text-left rounded-2xl border-2 border-slate-200 bg-white p-5 transition-all hover:border-emerald-400 hover:shadow-md hover:shadow-emerald-100"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <Lock className="w-4.5 h-4.5" />
+                </span>
+                <span className="font-extrabold text-slate-800">Tes Lengkap</span>
+              </div>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Komposisi <strong>resmi &amp; terkunci</strong> sesuai standar. Cocok untuk ujian
+                sungguhan.
+              </p>
+            </button>
+
+            {/* Latihan */}
+            <button
+              type="button"
+              onClick={() => chosen && onChoose(chosen, 'custom')}
+              className="group text-left rounded-2xl border-2 border-slate-200 bg-white p-5 transition-all hover:border-brand hover:shadow-md hover:shadow-brand/10"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-9 h-9 rounded-xl bg-brand/10 text-brand flex items-center justify-center">
+                  <Pencil className="w-4 h-4" />
+                </span>
+                <span className="font-extrabold text-slate-800">Latihan</span>
+              </div>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Mulai dari komposisi standar, tapi <strong>bebas diubah</strong>. Nilai berupa
+                persentase.
+              </p>
+            </button>
+          </div>
         </div>
       )}
     </Modal>
