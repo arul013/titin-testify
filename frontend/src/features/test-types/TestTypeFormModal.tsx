@@ -206,7 +206,7 @@ export function TestTypeFormModal({
                       onChange={(e) => setSkill(s.key, { name: e.target.value })}
                       placeholder="mis. Listening Comprehension"
                     />
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
                       <Input
                         label="Jumlah soal"
                         value={s.full_test_count}
@@ -214,15 +214,12 @@ export function TestTypeFormModal({
                         inputMode="numeric"
                         placeholder="0"
                       />
-                      <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3 h-full flex flex-col justify-center">
+                      <div className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 flex items-center">
                         <Checkbox
                           checked={s.scorable}
                           onChange={(v) => setSkill(s.key, { scorable: v })}
                           label="Soal pilihan ganda"
                         />
-                        <p className="text-[11px] text-slate-400 mt-1 pl-7 leading-snug">
-                          Nonaktifkan bila esai/lisan (dinilai manual).
-                        </p>
                       </div>
                     </div>
                   </div>
