@@ -13,7 +13,7 @@ import {
   SidebarBackdrop,
   SidebarFooter
 } from '../ui/sidebar';
-import { LayoutDashboard, Users, LogOut, ClipboardList, ClipboardCheck, Library, KeyRound, Gauge } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, ClipboardList, ClipboardCheck, Library, KeyRound, Gauge, Layers } from 'lucide-react';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -45,6 +45,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       name: 'Bank Soal',
       href: '/bank-soal',
       icon: <Library className="w-4 h-4" />,
+      show: isAdmin,
+    },
+    {
+      name: 'Jenis Ujian',
+      href: '/jenis-ujian',
+      icon: <Layers className="w-4 h-4" />,
       show: isAdmin,
     },
     {
