@@ -46,8 +46,8 @@ class AuthService:
         # 2. Get email from auth admin
         try:
             user_res = admin.auth.admin.get_user_by_id(user_id)
-            user = user_res.user if hasattr(user_res, "user") else user_res
-            email = user.email
+            _u = getattr(user_res, "user", None) or user_res
+            email = getattr(_u, "email", None)
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -58,7 +58,7 @@ class AuthService:
         supabase = get_supabase_client()
         try:
             auth_response = supabase.auth.sign_in_with_password(
-                {"email": email, "password": request.password}
+                {"email": email, "password": request.password}  # type: ignore[arg-type]
             )
         except AuthApiError as e:
             raise HTTPException(
@@ -196,8 +196,8 @@ class AuthService:
         if current_password is not None:
             try:
                 user_res = supabase.auth.admin.get_user_by_id(user_id)
-                user = user_res.user if hasattr(user_res, "user") else user_res
-                email = user.email
+                _u = getattr(user_res, "user", None) or user_res
+                email = getattr(_u, "email", None)
             except Exception:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -205,7 +205,7 @@ class AuthService:
                 )
             try:
                 get_supabase_client().auth.sign_in_with_password(
-                    {"email": email, "password": current_password}
+                    {"email": email, "password": current_password}  # type: ignore[arg-type]
                 )
             except AuthApiError:
                 raise HTTPException(

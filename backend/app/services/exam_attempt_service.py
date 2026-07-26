@@ -1,0 +1,315 @@
+"""
+Learning Nexus CBT — Exam Attempt Service (Phase 4: peserta mengerjakan ujian)
+"""
+
+from datetime import datetime, timezone, timedelta
+from fastapi import HTTPException, status
+from app.database import get_supabase_admin
+from app.models.exam_attempt import (
+    MyExamItem,
+    MyExamListResponse,
+    AttemptQuestion,
+    StartAttemptResponse,
+    SaveAnswerRequest,
+    SectionResult,
+    AttemptResultResponse,
+)
+from app.models.scoring_scheme import ComputeScoreRequest, SectionScoreInput
+from app.services.scoring_scheme_service import ScoringSchemeService
+
+
+def _parse_dt(v) -> datetime | None:
+    if not v:
+        return None
+    if isinstance(v, datetime):
+        return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
+    try:
+        d = datetime.fromisoformat(str(v).replace("Z", "+00:00"))
+        return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+    except Exception:
+        return None
+
+
+class ExamAttemptService:
+    """Alur peserta: daftar ujian, mulai/lanjut, autosave, submit + nilai, hasil."""
+
+    # ─── Daftar ujian peserta ─────────────────────────────────
+    @staticmethod
+    async def list_my_exams(user_id: str) -> MyExamListResponse:
+        supabase = get_supabase_admin()
+        ep = supabase.table("exam_participants").select("exam_id").eq("user_id", user_id).execute()
+        exam_ids = [x["exam_id"] for x in (ep.data or [])]
+        if not exam_ids:
+            return MyExamListResponse(exams=[])
+
+        exams = (
+            supabase.table("exams").select("*").in_("id", exam_ids).eq("status", "published")
+            .order("created_at", desc=True).execute().data or []
+        )
+        if not exams:
+            return MyExamListResponse(exams=[])
+        live_ids = [e["id"] for e in exams]
+
+        # Percobaan terbaru per ujian
+        attempts = (
+            supabase.table("exam_attempts").select("*").eq("user_id", user_id).in_("exam_id", live_ids)
+            .order("created_at", desc=True).execute().data or []
+        )
+        latest: dict = {}
+        for a in attempts:
+            latest.setdefault(a["exam_id"], a)
+
+        # Jumlah soal per ujian
+        eqs = supabase.table("exam_questions").select("exam_id").in_("exam_id", live_ids).execute().data or []
+        qcount: dict = {}
+        for r in eqs:
+            qcount[r["exam_id"]] = qcount.get(r["exam_id"], 0) + 1
+
+        # Skala skema (untuk tampilan skor)
+        scheme_ids = [e["scoring_scheme_id"] for e in exams if e.get("scoring_scheme_id")]
+        unit_by_scheme: dict = {}
+        if scheme_ids:
+            sr = supabase.table("scoring_schemes").select("id, config").in_("id", scheme_ids).execute().data or []
+            unit_by_scheme = {s["id"]: (s.get("config") or {}).get("passing_unit", "percent") for s in sr}
+
+        now = datetime.now(timezone.utc)
+        items = []
+        for e in exams:
+            starts = _parse_dt(e.get("starts_at"))
+            ends = _parse_dt(e.get("ends_at"))
+            if starts and now < starts:
+                sched = "upcoming"
+            elif ends and now > ends:
+                sched = "ended"
+            else:
+                sched = "available"
+
+            a = latest.get(e["id"])
+            a_status = a["status"] if a else "none"
+            allow_retake = bool(e.get("allow_retake"))
+            can_start = sched == "available" and not (a_status == "submitted" and not allow_retake)
+
+            items.append(MyExamItem(
+                exam_id=e["id"],
+                title=e["title"],
+                description=e.get("description"),
+                duration_minutes=e["duration_minutes"],
+                starts_at=starts,
+                ends_at=ends,
+                allow_retake=allow_retake,
+                total_questions=qcount.get(e["id"], 0),
+                schedule_state=sched,
+                attempt_status=a_status,
+                attempt_id=a["id"] if a else None,
+                score=a.get("score") if a else None,
+                passed=a.get("passed") if a else None,
+                scale_unit=unit_by_scheme.get(e.get("scoring_scheme_id"), "percent"),
+                can_start=can_start,
+            ))
+        return MyExamListResponse(exams=items)
+
+    # ─── Mulai / lanjut percobaan ─────────────────────────────
+    @staticmethod
+    async def start_attempt(exam_id: str, user_id: str) -> StartAttemptResponse:
+        supabase = get_supabase_admin()
+
+        ep = supabase.table("exam_participants").select("id").eq("exam_id", exam_id).eq("user_id", user_id).execute()
+        if not ep.data:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Anda tidak terdaftar sebagai peserta ujian ini.")
+
+        er = supabase.table("exams").select("*").eq("id", exam_id).execute().data
+        exam = er[0] if er else None
+        if not exam or exam.get("status") != "published":
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ujian tidak tersedia.")
+
+        now = datetime.now(timezone.utc)
+        starts = _parse_dt(exam.get("starts_at"))
+        ends = _parse_dt(exam.get("ends_at"))
+        if starts and now < starts:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ujian belum dimulai.")
+        if ends and now > ends:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ujian sudah berakhir.")
+
+        existing = (
+            supabase.table("exam_attempts").select("*").eq("exam_id", exam_id).eq("user_id", user_id)
+            .order("created_at", desc=True).execute().data or []
+        )
+        attempt = next((a for a in existing if a["status"] == "in_progress"), None)
+        if not attempt:
+            submitted = next((a for a in existing if a["status"] == "submitted"), None)
+            if submitted and not exam.get("allow_retake"):
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, "Anda sudah menyelesaikan ujian ini.")
+            ins = supabase.table("exam_attempts").insert({
+                "exam_id": exam_id, "user_id": user_id, "status": "in_progress",
+            }).execute()
+            attempt = ins.data[0]
+
+        # Soal (payload SAJA — tanpa correct_answer) + jawaban tersimpan
+        eqs = (
+            supabase.table("exam_questions").select("id, position, section, payload")
+            .eq("exam_id", exam_id).order("position").execute().data or []
+        )
+        ans = (
+            supabase.table("exam_attempt_answers").select("exam_question_id, selected_answer")
+            .eq("attempt_id", attempt["id"]).execute().data or []
+        )
+        ans_map = {a["exam_question_id"]: a["selected_answer"] for a in ans}
+        questions = [
+            AttemptQuestion(
+                exam_question_id=q["id"], position=q["position"], section=q["section"],
+                payload=q["payload"], selected_answer=ans_map.get(q["id"]),
+            )
+            for q in eqs
+        ]
+
+        started = _parse_dt(attempt["started_at"]) or now
+        deadline = started + timedelta(minutes=exam["duration_minutes"])
+        remaining = max(0, int((deadline - now).total_seconds()))
+
+        return StartAttemptResponse(
+            attempt_id=attempt["id"],
+            exam_id=exam_id,
+            title=exam["title"],
+            duration_minutes=exam["duration_minutes"],
+            started_at=started,
+            deadline=deadline,
+            remaining_seconds=remaining,
+            allow_retake=bool(exam.get("allow_retake")),
+            questions=questions,
+        )
+
+    @staticmethod
+    def _load_owned_attempt(supabase, attempt_id: str, user_id: str) -> dict:
+        ar = supabase.table("exam_attempts").select("*").eq("id", attempt_id).execute().data
+        attempt = ar[0] if ar else None
+        if not attempt:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Percobaan tidak ditemukan.")
+        if attempt["user_id"] != user_id:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Bukan percobaan Anda.")
+        return attempt
+
+    # ─── Autosave jawaban ─────────────────────────────────────
+    @staticmethod
+    async def save_answer(attempt_id: str, user_id: str, request: SaveAnswerRequest) -> None:
+        supabase = get_supabase_admin()
+        attempt = ExamAttemptService._load_owned_attempt(supabase, attempt_id, user_id)
+        if attempt["status"] != "in_progress":
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ujian sudah dikumpulkan.")
+
+        sel = request.selected_answer
+        if sel is not None and sel not in ("a", "b", "c", "d"):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Pilihan jawaban tidak valid.")
+
+        eq = (
+            supabase.table("exam_questions").select("id")
+            .eq("id", request.exam_question_id).eq("exam_id", attempt["exam_id"]).execute().data
+        )
+        if not eq:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Soal tidak valid untuk ujian ini.")
+
+        existing = (
+            supabase.table("exam_attempt_answers").select("id")
+            .eq("attempt_id", attempt_id).eq("exam_question_id", request.exam_question_id).execute().data
+        )
+        if existing:
+            supabase.table("exam_attempt_answers").update({"selected_answer": sel}).eq("id", existing[0]["id"]).execute()
+        else:
+            supabase.table("exam_attempt_answers").insert({
+                "attempt_id": attempt_id, "exam_question_id": request.exam_question_id, "selected_answer": sel,
+            }).execute()
+
+    # ─── Submit + nilai ───────────────────────────────────────
+    @staticmethod
+    async def submit_attempt(attempt_id: str, user_id: str) -> AttemptResultResponse:
+        supabase = get_supabase_admin()
+        attempt = ExamAttemptService._load_owned_attempt(supabase, attempt_id, user_id)
+        if attempt["status"] == "submitted":
+            return await ExamAttemptService.get_result(attempt_id, user_id)
+
+        exam = supabase.table("exams").select("*").eq("id", attempt["exam_id"]).execute().data[0]
+
+        eqs = (
+            supabase.table("exam_questions").select("id, section, correct_answer")
+            .eq("exam_id", attempt["exam_id"]).execute().data or []
+        )
+        arows = (
+            supabase.table("exam_attempt_answers").select("id, exam_question_id, selected_answer")
+            .eq("attempt_id", attempt_id).execute().data or []
+        )
+        sel_by_eq = {a["exam_question_id"]: a["selected_answer"] for a in arows}
+        correct_by_eq = {q["id"]: q["correct_answer"] for q in eqs}
+
+        per: dict = {}
+        for q in eqs:
+            sel = sel_by_eq.get(q["id"])
+            is_c = sel is not None and sel == q["correct_answer"]
+            d = per.setdefault(q["section"], {"total": 0, "correct": 0})
+            d["total"] += 1
+            if is_c:
+                d["correct"] += 1
+
+        # Tandai is_correct pada baris jawaban yang ada
+        for a in arows:
+            ca = correct_by_eq.get(a["exam_question_id"])
+            is_c = a["selected_answer"] is not None and a["selected_answer"] == ca
+            supabase.table("exam_attempt_answers").update({"is_correct": is_c}).eq("id", a["id"]).execute()
+
+        total_q = sum(v["total"] for v in per.values())
+        total_c = sum(v["correct"] for v in per.values())
+
+        scheme_id = exam.get("scoring_scheme_id")
+        passing = exam.get("passing_value")
+        if scheme_id:
+            comp = await ScoringSchemeService.compute_score(ComputeScoreRequest(
+                scheme_id=scheme_id,
+                sections=[SectionScoreInput(section=k, total=v["total"], correct=v["correct"]) for k, v in per.items()],
+                passing_value=passing,
+            ))
+            score, passed, scale_unit = comp.score, comp.passed, comp.scale_unit
+            per_section = [SectionResult(section=ps.section, total=ps.total, correct=ps.correct, percent=ps.percent) for ps in comp.per_section]
+        else:
+            score = round(total_c / total_q * 100, 1) if total_q else 0.0
+            passed = (score >= passing) if passing is not None else None
+            scale_unit = "percent"
+            per_section = [
+                SectionResult(section=k, total=v["total"], correct=v["correct"],
+                              percent=round(v["correct"] / v["total"] * 100, 1) if v["total"] else 0.0)
+                for k, v in per.items()
+            ]
+
+        now = datetime.now(timezone.utc)
+        supabase.table("exam_attempts").update({
+            "status": "submitted",
+            "submitted_at": now.isoformat(),
+            "score": score,
+            "passed": passed,
+            "total_questions": total_q,
+            "total_correct": total_c,
+            "score_detail": {"scale_unit": scale_unit, "per_section": [ps.model_dump() for ps in per_section]},
+        }).eq("id", attempt_id).execute()
+
+        return AttemptResultResponse(
+            attempt_id=attempt_id, exam_id=exam["id"], title=exam["title"], status="submitted",
+            score=score, passed=passed, scale_unit=scale_unit,
+            total_questions=total_q, total_correct=total_c, passing_value=passing,
+            per_section=per_section, submitted_at=now,
+        )
+
+    # ─── Hasil ────────────────────────────────────────────────
+    @staticmethod
+    async def get_result(attempt_id: str, user_id: str) -> AttemptResultResponse:
+        supabase = get_supabase_admin()
+        attempt = ExamAttemptService._load_owned_attempt(supabase, attempt_id, user_id)
+        exam = supabase.table("exams").select("title, passing_value").eq("id", attempt["exam_id"]).execute().data[0]
+        detail = attempt.get("score_detail") or {}
+        per_section = [SectionResult(**ps) for ps in detail.get("per_section", [])]
+        return AttemptResultResponse(
+            attempt_id=attempt_id, exam_id=attempt["exam_id"], title=exam["title"], status=attempt["status"],
+            score=attempt.get("score"), passed=attempt.get("passed"),
+            scale_unit=detail.get("scale_unit", "percent"),
+            total_questions=attempt.get("total_questions") or 0,
+            total_correct=attempt.get("total_correct") or 0,
+            passing_value=exam.get("passing_value"),
+            per_section=per_section,
+            submitted_at=_parse_dt(attempt.get("submitted_at")),
+        )

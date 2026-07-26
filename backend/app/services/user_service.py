@@ -6,7 +6,8 @@ from typing import Optional
 import string
 import random
 from fastapi import HTTPException, status
-from app.database import get_supabase_client, get_supabase_admin
+from postgrest.types import CountMethod
+from app.database import get_supabase_admin
 from app.models.user import (
     CreateUserRequest,
     UpdateUserRequest,
@@ -31,7 +32,7 @@ class UserService:
         supabase = get_supabase_admin()
         offset = (page - 1) * per_page
 
-        query = supabase.table("profiles").select("*", count="exact")
+        query = supabase.table("profiles").select("*", count=CountMethod.exact)
 
         if role_filter:
             query = query.eq("role", role_filter)

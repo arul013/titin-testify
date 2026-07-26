@@ -359,6 +359,111 @@ class ExamService:
             sections=ExamService._availability(supabase, user_id, user_role, request.sections, request.pool_units)
         )
 
+    # ─── Rakit & bekukan snapshot soal (P4.1) ─────────────────
+    # Urutan bagian baku TOEFL: L → S → WE → R. Materi = unit utuh (semua soal anaknya).
+    _SECTION_ORDER = ["listening", "structure", "written_expression", "reading"]
+
+    @staticmethod
+    def _question_payload(q: dict, passage: dict | None) -> dict:
+        """Snapshot konten render peserta — TANPA kunci jawaban & pembahasan."""
+        payload = {
+            "id": q["id"],
+            "section": q["section"],
+            "difficulty": q.get("difficulty"),
+            "question_text": q.get("question_text") or "",
+            "option_a": q.get("option_a") or "",
+            "option_b": q.get("option_b") or "",
+            "option_c": q.get("option_c") or "",
+            "option_d": q.get("option_d") or "",
+            "image_url": q.get("image_url"),
+            "options_image_url": q.get("options_image_url"),
+            "audio_url": q.get("audio_url"),
+            "passage": None,
+        }
+        if passage:
+            payload["passage"] = {
+                "type": passage.get("type"),
+                "content": passage.get("content"),
+                "audio_url": passage.get("audio_url"),
+                "image_url": passage.get("image_url"),
+                "image_position": passage.get("image_position") or "below",
+            }
+        return payload
+
+    @staticmethod
+    def _units_for_section(supabase, sec: str, g: dict | None, user_id: str, user_role: str) -> list:
+        """Kembalikan daftar unit terurut; tiap unit = (passage|None, [question rows Tayang])."""
+        def owned(q):
+            return q if user_role == "super_admin" else q.eq("created_by", user_id)
+
+        if g and (g["passages"] or g["questions"]):
+            passage_ids = g["passages"]
+            question_ids = g["questions"]
+        else:
+            pr = owned(
+                supabase.table("question_passages").select("id").eq("type", sec).eq("status", "published").order("created_at")
+            ).execute()
+            passage_ids = [x["id"] for x in (pr.data or [])]
+            qr = owned(
+                supabase.table("questions").select("id").eq("section", sec).eq("status", "published").is_("passage_id", "null").order("created_at")
+            ).execute()
+            question_ids = [x["id"] for x in (qr.data or [])]
+
+        units = []
+        for pid in passage_ids:
+            prow = supabase.table("question_passages").select("*").eq("id", pid).execute().data
+            if not prow:
+                continue
+            qrows = (
+                supabase.table("questions").select("*")
+                .eq("passage_id", pid).eq("status", "published").order("sort_order")
+                .execute().data or []
+            )
+            if qrows:
+                units.append((prow[0], qrows))
+        for qid in question_ids:
+            qrow = supabase.table("questions").select("*").eq("id", qid).eq("status", "published").execute().data
+            if qrow:
+                units.append((None, [qrow[0]]))
+        return units
+
+    @staticmethod
+    def _assemble_and_freeze(supabase, exam_id: str, sections, pool_units, user_id: str, user_role: str) -> None:
+        """Susun soal deterministik → simpan snapshot ke exam_questions. Dipanggil saat publish."""
+        grouped = ExamService._resolve_pool_by_section(supabase, pool_units)
+        targets = {}
+        for s in sections:
+            sec = s.section.value if hasattr(s.section, "value") else s.section
+            targets[sec] = s.target_count
+
+        rows = []
+        position = 0
+        for sec in ExamService._SECTION_ORDER:
+            if sec not in targets:
+                continue
+            target = targets[sec]
+            units = ExamService._units_for_section(supabase, sec, grouped.get(sec), user_id, user_role)
+            count = 0
+            for passage, qrows in units:
+                if count >= target:
+                    break
+                for q in qrows:
+                    position += 1
+                    rows.append({
+                        "exam_id": exam_id,
+                        "section": sec,
+                        "position": position,
+                        "source_question_id": q["id"],
+                        "correct_answer": q["correct_answer"],
+                        "payload": ExamService._question_payload(q, passage),
+                    })
+                    count += 1
+
+        # Bangun ulang snapshot (aman: hanya bila belum ada percobaan — dijaga di publish_exam).
+        supabase.table("exam_questions").delete().eq("exam_id", exam_id).execute()
+        if rows:
+            supabase.table("exam_questions").insert(rows).execute()
+
     @staticmethod
     async def publish_exam(exam_id: str, user_id: str, user_role: str) -> ExamDetailResponse:
         """Validasi lengkap lalu set status 'published'."""
@@ -401,6 +506,11 @@ class ExamService:
             if starts < now - timedelta(minutes=5):
                 raise HTTPException(status.HTTP_400_BAD_REQUEST,
                                     "Waktu mulai sudah lewat lebih dari 5 menit. Perbarui jadwal atau matikan penjadwalan.")
+
+        # Bekukan snapshot soal — hanya bila belum ada percobaan (jaga integritas ujian yang sudah dikerjakan).
+        attempts = supabase.table("exam_attempts").select("id", count=CountMethod.exact).eq("exam_id", exam_id).execute()
+        if (attempts.count or 0) == 0:
+            ExamService._assemble_and_freeze(supabase, exam_id, active, detail.pool_units, user_id, user_role)
 
         supabase.table("exams").update({"status": "published"}).eq("id", exam_id).execute()
         return await ExamService.get_exam(exam_id, user_id, user_role)
