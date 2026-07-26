@@ -49,6 +49,7 @@ class ImagePosition(str, Enum):
 
 class CreatePassageRequest(BaseModel):
     """Request body for creating a new question passage."""
+    test_type: str = Field(default="itp", description="Jenis tes pemilik materi (test_types.code)")
     type: QuestionSection = Field(..., description="Passage type")
     content: Optional[str] = Field(None, description="Passage text content")
     audio_url: Optional[str] = Field(None, description="Audio URL for Listening passages")
@@ -59,6 +60,7 @@ class CreatePassageRequest(BaseModel):
 
 class UpdatePassageRequest(BaseModel):
     """Request body for updating a passage."""
+    test_type: Optional[str] = None
     content: Optional[str] = None
     audio_url: Optional[str] = None
     image_url: Optional[str] = None
@@ -71,6 +73,7 @@ class UpdatePassageRequest(BaseModel):
 class CreateQuestionRequest(BaseModel):
     """Request body for creating a new question."""
     passage_id: Optional[str] = Field(None, description="Parent passage ID (null for standalone)")
+    test_type: str = Field(default="itp", description="Jenis tes pemilik soal (test_types.code)")
     section: QuestionSection = Field(..., description="Question section type")
     difficulty: QuestionDifficulty = Field(default=QuestionDifficulty.MEDIUM, description="Difficulty level")
     # Boleh kosong untuk Listening (pertanyaan ada di audio); validasi wajib per-section di frontend.
@@ -93,6 +96,7 @@ class CreateQuestionRequest(BaseModel):
 class UpdateQuestionRequest(BaseModel):
     """Request body for updating a question."""
     passage_id: Optional[str] = None
+    test_type: Optional[str] = None
     section: Optional[QuestionSection] = None
     difficulty: Optional[QuestionDifficulty] = None
     question_text: Optional[str] = None
@@ -116,6 +120,7 @@ class PassageResponse(BaseModel):
     """Passage response model."""
     id: str
     created_by: str
+    test_type: str = "itp"
     type: QuestionSection
     content: Optional[str] = None
     audio_url: Optional[str] = None
@@ -133,6 +138,7 @@ class QuestionResponse(BaseModel):
     id: str
     created_by: str
     passage_id: Optional[str] = None
+    test_type: str = "itp"
     section: QuestionSection
     difficulty: QuestionDifficulty
     question_text: str

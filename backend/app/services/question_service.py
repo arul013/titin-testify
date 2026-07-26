@@ -33,6 +33,7 @@ class QuestionService:
 
         data = {
             "created_by": user_id,
+            "test_type": request.test_type,
             "type": request.type.value,
             "content": request.content,
             "audio_url": request.audio_url,
@@ -53,6 +54,7 @@ class QuestionService:
         return PassageResponse(
             id=p["id"],
             created_by=p["created_by"],
+            test_type=p.get("test_type", "itp"),
             type=p["type"],
             content=p.get("content"),
             audio_url=p.get("audio_url"),
@@ -73,6 +75,7 @@ class QuestionService:
         type_filter: str | None = None,
         status_filter: str | None = None,
         search: str = "",
+        test_type_filter: str | None = None,
     ) -> PassageListResponse:
         """List passages with pagination and filters."""
         supabase = get_supabase_admin()
@@ -83,6 +86,8 @@ class QuestionService:
         if user_role != "super_admin":
             query = query.eq("created_by", user_id)
 
+        if test_type_filter:
+            query = query.eq("test_type", test_type_filter)
         if type_filter:
             query = query.eq("type", type_filter)
         if status_filter:
@@ -108,6 +113,7 @@ class QuestionService:
             passages.append(PassageResponse(
                 id=p["id"],
                 created_by=p["created_by"],
+                test_type=p.get("test_type", "itp"),
                 type=p["type"],
                 content=p.get("content"),
                 audio_url=p.get("audio_url"),
@@ -166,6 +172,7 @@ class QuestionService:
         passage = PassageResponse(
             id=p["id"],
             created_by=p["created_by"],
+            test_type=p.get("test_type", "itp"),
             type=p["type"],
             content=p.get("content"),
             audio_url=p.get("audio_url"),
@@ -184,6 +191,7 @@ class QuestionService:
                 id=q["id"],
                 created_by=q["created_by"],
                 passage_id=q.get("passage_id"),
+                test_type=q.get("test_type", "itp"),
                 section=q["section"],
                 difficulty=q["difficulty"],
                 question_text=q["question_text"],
@@ -218,6 +226,8 @@ class QuestionService:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Anda tidak memiliki akses ke passage ini.")
 
         update_data = {}
+        if request.test_type is not None:
+            update_data["test_type"] = request.test_type
         if request.content is not None:
             update_data["content"] = request.content
         if request.audio_url is not None:
@@ -243,6 +253,7 @@ class QuestionService:
         return PassageResponse(
             id=p["id"],
             created_by=p["created_by"],
+            test_type=p.get("test_type", "itp"),
             type=p["type"],
             content=p.get("content"),
             audio_url=p.get("audio_url"),
@@ -274,15 +285,19 @@ class QuestionService:
         """Create a new question."""
         supabase = get_supabase_admin()
 
-        # If passage_id is provided, verify it exists and belongs to the user
+        # If passage_id is provided, verify it exists and belongs to the user.
+        # Soal mewarisi test_type dari materi induknya (bila ada), else dari request.
+        test_type = request.test_type
         if request.passage_id:
-            passage = supabase.table("question_passages").select("created_by, type").eq("id", request.passage_id).single().execute()
+            passage = supabase.table("question_passages").select("created_by, type, test_type").eq("id", request.passage_id).single().execute()
             if not passage.data:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Passage induk tidak ditemukan.")
+            test_type = passage.data.get("test_type") or test_type
 
         data = {
             "created_by": user_id,
             "passage_id": request.passage_id,
+            "test_type": test_type,
             "section": request.section.value,
             "difficulty": request.difficulty.value,
             "question_text": request.question_text,
@@ -313,6 +328,7 @@ class QuestionService:
             id=q["id"],
             created_by=q["created_by"],
             passage_id=q.get("passage_id"),
+            test_type=q.get("test_type", "itp"),
             section=q["section"],
             difficulty=q["difficulty"],
             question_text=q["question_text"],
@@ -343,6 +359,7 @@ class QuestionService:
         status_filter: str | None = None,
         passage_id: str | None = None,
         search: str = "",
+        test_type_filter: str | None = None,
     ) -> QuestionListResponse:
         """List questions with pagination and filters."""
         supabase = get_supabase_admin()
@@ -353,6 +370,8 @@ class QuestionService:
         if user_role != "super_admin":
             query = query.eq("created_by", user_id)
 
+        if test_type_filter:
+            query = query.eq("test_type", test_type_filter)
         if section_filter:
             query = query.eq("section", section_filter)
         if difficulty_filter:
@@ -379,6 +398,7 @@ class QuestionService:
                 id=q["id"],
                 created_by=q["created_by"],
                 passage_id=q.get("passage_id"),
+                test_type=q.get("test_type", "itp"),
                 section=q["section"],
                 difficulty=q["difficulty"],
                 question_text=q["question_text"],
@@ -429,6 +449,7 @@ class QuestionService:
             id=q["id"],
             created_by=q["created_by"],
             passage_id=q.get("passage_id"),
+            test_type=q.get("test_type", "itp"),
             section=q["section"],
             difficulty=q["difficulty"],
             question_text=q["question_text"],
@@ -463,6 +484,7 @@ class QuestionService:
         update_data = {}
         field_map = {
             "passage_id": request.passage_id,
+            "test_type": request.test_type,
             "section": request.section.value if request.section else None,
             "difficulty": request.difficulty.value if request.difficulty else None,
             "question_text": request.question_text,
@@ -497,6 +519,7 @@ class QuestionService:
             id=q["id"],
             created_by=q["created_by"],
             passage_id=q.get("passage_id"),
+            test_type=q.get("test_type", "itp"),
             section=q["section"],
             difficulty=q["difficulty"],
             question_text=q["question_text"],

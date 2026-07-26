@@ -104,6 +104,8 @@ class ExamService:
             "title": request.title,
             "description": request.description,
             "duration_minutes": request.duration_minutes,
+            "test_type": request.test_type,
+            "exam_mode": request.exam_mode,
             "scoring_scheme_id": request.scoring_scheme_id,
             "passing_value": request.passing_value,
             "allow_retake": request.allow_retake,
@@ -222,6 +224,8 @@ class ExamService:
             "title": request.title,
             "description": request.description,
             "duration_minutes": request.duration_minutes,
+            "test_type": request.test_type,
+            "exam_mode": request.exam_mode,
             "scoring_scheme_id": request.scoring_scheme_id,
             "passing_value": request.passing_value,
             "allow_retake": request.allow_retake,
@@ -302,12 +306,13 @@ class ExamService:
         return grouped
 
     @staticmethod
-    def _availability(supabase, user_id: str, user_role: str, sections, pool_units) -> list[SectionAvailability]:
-        """Hitung stok soal Tayang per section (menghormati pool & kepemilikan)."""
+    def _availability(supabase, user_id: str, user_role: str, sections, pool_units, test_type: str | None = None) -> list[SectionAvailability]:
+        """Hitung stok soal Tayang per section (menghormati pool, kepemilikan, jenis tes)."""
         grouped = ExamService._resolve_pool_by_section(supabase, pool_units)
 
         def owned(q):
-            return q if user_role == "super_admin" else q.eq("created_by", user_id)
+            q = q if user_role == "super_admin" else q.eq("created_by", user_id)
+            return q.eq("test_type", test_type) if test_type else q
 
         result = []
         for s in sections:
@@ -391,10 +396,11 @@ class ExamService:
         return payload
 
     @staticmethod
-    def _units_for_section(supabase, sec: str, g: dict | None, user_id: str, user_role: str) -> list:
+    def _units_for_section(supabase, sec: str, g: dict | None, user_id: str, user_role: str, test_type: str | None = None) -> list:
         """Kembalikan daftar unit terurut; tiap unit = (passage|None, [question rows Tayang])."""
         def owned(q):
-            return q if user_role == "super_admin" else q.eq("created_by", user_id)
+            q = q if user_role == "super_admin" else q.eq("created_by", user_id)
+            return q.eq("test_type", test_type) if test_type else q
 
         if g and (g["passages"] or g["questions"]):
             passage_ids = g["passages"]
@@ -428,7 +434,7 @@ class ExamService:
         return units
 
     @staticmethod
-    def _assemble_and_freeze(supabase, exam_id: str, sections, pool_units, user_id: str, user_role: str) -> None:
+    def _assemble_and_freeze(supabase, exam_id: str, sections, pool_units, user_id: str, user_role: str, test_type: str | None = None) -> None:
         """Susun soal deterministik → simpan snapshot ke exam_questions. Dipanggil saat publish."""
         grouped = ExamService._resolve_pool_by_section(supabase, pool_units)
         targets = {}
@@ -442,7 +448,7 @@ class ExamService:
             if sec not in targets:
                 continue
             target = targets[sec]
-            units = ExamService._units_for_section(supabase, sec, grouped.get(sec), user_id, user_role)
+            units = ExamService._units_for_section(supabase, sec, grouped.get(sec), user_id, user_role, test_type)
             count = 0
             for passage, qrows in units:
                 if count >= target:
@@ -479,8 +485,8 @@ class ExamService:
             raise HTTPException(status.HTTP_400_BAD_REQUEST,
                                 "Tambahkan minimal satu peserta sebelum menayangkan.")
 
-        # Stok soal Tayang
-        avail = ExamService._availability(supabase, user_id, user_role, active, detail.pool_units)
+        # Stok soal Tayang (dibatasi jenis tes ujian)
+        avail = ExamService._availability(supabase, user_id, user_role, active, detail.pool_units, detail.test_type)
         short = [a for a in avail if not a.enough]
         if short:
             msgs = [
@@ -509,8 +515,29 @@ class ExamService:
 
         # Bekukan snapshot soal — hanya bila belum ada percobaan (jaga integritas ujian yang sudah dikerjakan).
         attempts = supabase.table("exam_attempts").select("id", count=CountMethod.exact).eq("exam_id", exam_id).execute()
-        if (attempts.count or 0) == 0:
-            ExamService._assemble_and_freeze(supabase, exam_id, active, detail.pool_units, user_id, user_role)
+        fresh_snapshot = (attempts.count or 0) == 0
+        if fresh_snapshot:
+            ExamService._assemble_and_freeze(supabase, exam_id, active, detail.pool_units, user_id, user_role, detail.test_type)
+
+        # Validasi EKSAK (tes standar / mode 'full'): jumlah soal terakit per bagian HARUS tepat = target.
+        if detail.exam_mode == "full":
+            eq_rows = supabase.table("exam_questions").select("section").eq("exam_id", exam_id).execute().data or []
+            per_sec: dict = {}
+            for r in eq_rows:
+                per_sec[r["section"]] = per_sec.get(r["section"], 0) + 1
+            mismatches = [
+                f"{SECTION_LABELS.get(s.section.value, s.section.value)} (butuh tepat {s.target_count}, terakit {per_sec.get(s.section.value, 0)})"
+                for s in active
+                if per_sec.get(s.section.value, 0) != s.target_count
+            ]
+            if mismatches:
+                if fresh_snapshot:  # batalkan snapshot tak valid yang baru dibuat
+                    supabase.table("exam_questions").delete().eq("exam_id", exam_id).execute()
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    "Tes standar butuh jumlah soal TEPAT per bagian: " + "; ".join(mismatches)
+                    + ". Sesuaikan pilihan Sumber Soal agar pas.",
+                )
 
         supabase.table("exams").update({"status": "published"}).eq("id", exam_id).execute()
         return await ExamService.get_exam(exam_id, user_id, user_role)
@@ -554,6 +581,8 @@ class ExamService:
             title=e["title"],
             description=e.get("description"),
             duration_minutes=e["duration_minutes"],
+            test_type=e.get("test_type", "itp"),
+            exam_mode=e.get("exam_mode", "custom"),
             scoring_scheme_id=e.get("scoring_scheme_id"),
             passing_value=e.get("passing_value"),
             allow_retake=e.get("allow_retake", False),

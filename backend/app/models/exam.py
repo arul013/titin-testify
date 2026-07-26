@@ -2,11 +2,13 @@
 Learning Nexus CBT — Pydantic Models for Exam Builder (Manajemen Ujian)
 """
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, field_validator
 from typing import Optional
 from datetime import datetime
 
 from app.models.question import QuestionSection, ContentStatus
+
+_VALID_EXAM_MODE = {"full", "custom"}
 
 
 # ─── Nested input models ─────────────────────────────────────────
@@ -38,6 +40,8 @@ class CreateExamRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = None
     duration_minutes: int = Field(..., ge=1, description="Total waktu (menit)")
+    test_type: str = Field(default="itp", description="Jenis tes (test_types.code)")
+    exam_mode: str = Field(default="custom", description="'full' (preset terkunci + eksak) | 'custom' (bebas + toleran)")
     scoring_scheme_id: Optional[str] = Field(None, description="Skema penilaian yang dipakai")
     passing_value: Optional[float] = Field(None, ge=0, description="Nilai kelulusan dalam skala skema (opsional)")
     allow_retake: bool = False
@@ -47,6 +51,13 @@ class CreateExamRequest(BaseModel):
     sections: list[ExamSectionInput] = Field(default_factory=list)
     participant_ids: list[str] = Field(default_factory=list)
     pool_units: list[ExamPoolUnitInput] = Field(default_factory=list)
+
+    @field_validator("exam_mode")
+    @classmethod
+    def _mode(cls, v: str) -> str:
+        if v not in _VALID_EXAM_MODE:
+            raise ValueError("exam_mode harus 'full' atau 'custom'.")
+        return v
 
     @model_validator(mode="after")
     def _schedule_valid(self) -> "CreateExamRequest":
@@ -64,6 +75,8 @@ class UpdateExamRequest(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=200)
     description: Optional[str] = None
     duration_minutes: Optional[int] = Field(None, ge=1)
+    test_type: Optional[str] = None
+    exam_mode: Optional[str] = None
     scoring_scheme_id: Optional[str] = None
     passing_value: Optional[float] = Field(None, ge=0)
     allow_retake: Optional[bool] = None
@@ -101,6 +114,8 @@ class ExamResponse(BaseModel):
     title: str
     description: Optional[str] = None
     duration_minutes: int
+    test_type: str = "itp"
+    exam_mode: str = "custom"
     scoring_scheme_id: Optional[str] = None
     passing_value: Optional[float] = None
     allow_retake: bool = False

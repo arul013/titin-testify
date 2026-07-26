@@ -33,6 +33,7 @@ async def list_passages(
     type: Optional[str] = Query(None, description="Filter by passage type"),
     status: Optional[str] = Query(None, description="Filter by status"),
     search: str = Query("", description="Search in passage content"),
+    test_type: Optional[str] = Query(None, description="Filter by test type (itp/ibt/…)"),
     current_user: UserProfile = Depends(require_admin),
 ):
     """List passages with pagination and filters (admin only)."""
@@ -44,6 +45,7 @@ async def list_passages(
         type_filter=type,
         status_filter=status,
         search=search,
+        test_type_filter=test_type,
     )
 
 
@@ -110,6 +112,7 @@ async def list_questions(
     status: Optional[str] = Query(None, description="Filter by status"),
     passage_id: Optional[str] = Query(None, description="Filter by passage"),
     search: str = Query("", description="Search in question text"),
+    test_type: Optional[str] = Query(None, description="Filter by test type (itp/ibt/…)"),
     current_user: UserProfile = Depends(require_admin),
 ):
     """List questions with pagination and filters (admin only)."""
@@ -122,6 +125,7 @@ async def list_questions(
         difficulty_filter=difficulty,
         status_filter=status,
         passage_id=passage_id,
+        test_type_filter=test_type,
         search=search,
     )
 
