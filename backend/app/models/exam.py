@@ -38,9 +38,8 @@ class CreateExamRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = None
     duration_minutes: int = Field(..., ge=1, description="Total waktu (menit)")
-    passing_grade: Optional[int] = Field(None, ge=0, le=100, description="Nilai kelulusan (opsional)")
-    shuffle_questions: bool = False
-    shuffle_options: bool = False
+    scoring_scheme_id: Optional[str] = Field(None, description="Skema penilaian yang dipakai")
+    passing_value: Optional[float] = Field(None, ge=0, description="Nilai kelulusan dalam skala skema (opsional)")
     allow_retake: bool = False
     status: ContentStatus = Field(default=ContentStatus.DRAFT)
     starts_at: Optional[datetime] = None
@@ -65,9 +64,8 @@ class UpdateExamRequest(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=200)
     description: Optional[str] = None
     duration_minutes: Optional[int] = Field(None, ge=1)
-    passing_grade: Optional[int] = Field(None, ge=0, le=100)
-    shuffle_questions: Optional[bool] = None
-    shuffle_options: Optional[bool] = None
+    scoring_scheme_id: Optional[str] = None
+    passing_value: Optional[float] = Field(None, ge=0)
     allow_retake: Optional[bool] = None
     status: Optional[ContentStatus] = None
     starts_at: Optional[datetime] = None
@@ -103,9 +101,8 @@ class ExamResponse(BaseModel):
     title: str
     description: Optional[str] = None
     duration_minutes: int
-    passing_grade: Optional[int] = None
-    shuffle_questions: bool = False
-    shuffle_options: bool = False
+    scoring_scheme_id: Optional[str] = None
+    passing_value: Optional[float] = None
     allow_retake: bool = False
     status: ContentStatus
     starts_at: Optional[datetime] = None

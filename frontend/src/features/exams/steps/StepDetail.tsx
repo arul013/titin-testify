@@ -2,10 +2,12 @@
 
 import React from 'react';
 import { Input, Textarea } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DatePicker } from '@/components/ui/date-picker';
 import { ClockTimePicker } from '@/components/ui/clock-time-picker';
-import { Shuffle, CalendarClock, AlertTriangle } from 'lucide-react';
+import { CalendarClock, AlertTriangle, Repeat } from 'lucide-react';
+import type { ScoringScheme } from '@/features/scoring/hooks/useScoringSchemes';
 
 interface StepDetailProps {
   title: string;
@@ -14,12 +16,11 @@ interface StepDetailProps {
   setDescription: (v: string) => void;
   duration: string;
   setDuration: (v: string) => void;
-  passingGrade: string;
-  setPassingGrade: (v: string) => void;
-  shuffleQuestions: boolean;
-  setShuffleQuestions: (v: boolean) => void;
-  shuffleOptions: boolean;
-  setShuffleOptions: (v: boolean) => void;
+  schemes: ScoringScheme[];
+  scoringSchemeId: string;
+  setScoringSchemeId: (v: string) => void;
+  passingValue: string;
+  setPassingValue: (v: string) => void;
   allowRetake: boolean;
   setAllowRetake: (v: boolean) => void;
   scheduled: boolean;
@@ -34,7 +35,8 @@ interface StepDetailProps {
   setEndTime: (v: string) => void;
 }
 
-/** Hanya izinkan digit. */
+/** Hanya izinkan digit (+ titik untuk desimal, mis. band IELTS 6.5). */
+const digitsDot = (v: string) => v.replace(/[^0-9.]/g, '');
 const digits = (v: string) => v.replace(/[^0-9]/g, '');
 
 /** Waktu mulai (WIB) dianggap "sudah lewat" bila > 5 menit di masa lalu. */
@@ -54,12 +56,11 @@ export const StepDetail: React.FC<StepDetailProps> = ({
   setDescription,
   duration,
   setDuration,
-  passingGrade,
-  setPassingGrade,
-  shuffleQuestions,
-  setShuffleQuestions,
-  shuffleOptions,
-  setShuffleOptions,
+  schemes,
+  scoringSchemeId,
+  setScoringSchemeId,
+  passingValue,
+  setPassingValue,
   allowRetake,
   setAllowRetake,
   scheduled,
@@ -75,9 +76,14 @@ export const StepDetail: React.FC<StepDetailProps> = ({
 }) => {
   const pastWarning = scheduled && isStartInPast(startDate, startTime);
 
+  const scheme = schemes.find((s) => s.id === scoringSchemeId);
+  const unit = (scheme?.config?.passing_unit as string) || 'percent';
+  const passingLabel = unit === 'percent' ? 'Nilai Kelulusan (%) — opsional' : 'Nilai Kelulusan (opsional)';
+  const passingPlaceholder = unit === 'percent' ? 'mis. 70' : 'mis. 500';
+
   return (
     <div className="flex flex-col gap-6">
-      {/* Field inti — dua kolom sejajar */}
+      {/* Nama + waktu */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <Input
           label="Nama Ujian"
@@ -86,24 +92,40 @@ export const StepDetail: React.FC<StepDetailProps> = ({
           onChange={(e) => setTitle(e.target.value)}
           placeholder="mis. Simulasi TOEFL — Structure & Written Expression"
         />
-        <div className="grid grid-cols-2 gap-4">
-          <Input
-            label="Total Waktu (menit)"
-            required
-            inputMode="numeric"
-            value={duration}
-            onChange={(e) => setDuration(digits(e.target.value))}
-            placeholder="60"
-          />
-          <Input
-            label="Nilai Kelulusan (opsional)"
-            inputMode="numeric"
-            value={passingGrade}
-            onChange={(e) => setPassingGrade(digits(e.target.value))}
-            placeholder="mis. 70"
-            hint="Kosongkan bila tak memakai."
-          />
+        <Input
+          label="Total Waktu (menit)"
+          required
+          inputMode="numeric"
+          value={duration}
+          onChange={(e) => setDuration(digits(e.target.value))}
+          placeholder="60"
+        />
+      </div>
+
+      {/* Skema penilaian + nilai kelulusan */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div>
+          <span className={fieldLabel}>
+            Skema Penilaian <span className="text-red-500">*</span>
+          </span>
+          <Select value={scoringSchemeId} onChange={(e) => setScoringSchemeId(e.target.value)}>
+            <option value="">Pilih skema…</option>
+            {schemes.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </Select>
+          <p className="mt-1 text-xs text-gray-400">
+            Menentukan cara skor dihitung. Kelola di menu <strong>Skema Penilaian</strong>.
+          </p>
         </div>
+        <Input
+          label={passingLabel}
+          inputMode="decimal"
+          value={passingValue}
+          onChange={(e) => setPassingValue(digitsDot(e.target.value))}
+          placeholder={passingPlaceholder}
+          hint="Kosongkan bila tak memakai ambang lulus."
+        />
       </div>
 
       <Textarea
@@ -114,7 +136,7 @@ export const StepDetail: React.FC<StepDetailProps> = ({
         placeholder="Catatan singkat tentang ujian ini…"
       />
 
-      {/* Jadwal (opsional, WIB) — kartu penuh-lebar */}
+      {/* Jadwal (opsional, WIB) */}
       <div className="border border-slate-200/70 rounded-2xl p-5 bg-white shadow-sm shadow-slate-100/60 flex flex-col gap-4">
         <Checkbox
           checked={scheduled}
@@ -164,31 +186,17 @@ export const StepDetail: React.FC<StepDetailProps> = ({
         )}
       </div>
 
-      {/* Opsi pengerjaan — kartu penuh-lebar, tiga opsi sejajar */}
+      {/* Opsi pengerjaan (tanpa pengacakan — ujian deterministik) */}
       <div className="border border-slate-200/70 rounded-2xl p-5 bg-white shadow-sm shadow-slate-100/60 flex flex-col gap-4">
         <p className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
-          <Shuffle className="w-4 h-4 text-indigo-600" /> Opsi Pengerjaan
+          <Repeat className="w-4 h-4 text-indigo-600" /> Opsi Pengerjaan
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <Checkbox
-            checked={shuffleQuestions}
-            onChange={setShuffleQuestions}
-            label="Acak urutan soal"
-            description="Diacak antar-unit; soal satu materi tetap berurutan."
-          />
-          <Checkbox
-            checked={shuffleOptions}
-            onChange={setShuffleOptions}
-            label="Acak pilihan jawaban"
-            description="Urutan opsi A/B/C/D diacak tiap peserta."
-          />
-          <Checkbox
-            checked={allowRetake}
-            onChange={setAllowRetake}
-            label="Izinkan mengerjakan ulang"
-            description="Bila mati, peserta hanya bisa mengerjakan sekali."
-          />
-        </div>
+        <Checkbox
+          checked={allowRetake}
+          onChange={setAllowRetake}
+          label="Izinkan mengerjakan ulang"
+          description="Bila mati, peserta hanya bisa mengerjakan sekali."
+        />
       </div>
     </div>
   );

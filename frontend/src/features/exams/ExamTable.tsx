@@ -91,7 +91,7 @@ export const ExamTable: React.FC<ExamTableProps> = ({
                 <div className="font-semibold text-slate-800 text-sm truncate">{exam.title}</div>
                 <div className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
                   <Clock className="w-3 h-3" /> {exam.duration_minutes} menit
-                  {exam.passing_grade != null && <span>• Lulus ≥ {exam.passing_grade}</span>}
+                  {exam.passing_value != null && <span>• Lulus ≥ {exam.passing_value}</span>}
                 </div>
               </td>
               <td className="py-4 px-6 whitespace-nowrap">

@@ -9,7 +9,7 @@ import {
   CalendarClock,
   Award,
   Repeat,
-  Shuffle,
+  Gauge,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -24,10 +24,10 @@ import {
 interface StepReviewProps {
   title: string;
   durationMinutes: number;
-  passingGrade: number | null;
+  schemeName: string;
+  passingValue: number | null;
+  passingUnit: string;
   scheduleLabel: string;
-  shuffleQuestions: boolean;
-  shuffleOptions: boolean;
   allowRetake: boolean;
   participantsCount: number;
   sections: { section: ExamSectionId; target_count: number }[];
@@ -58,10 +58,10 @@ function SummaryItem({
 export const StepReview: React.FC<StepReviewProps> = ({
   title,
   durationMinutes,
-  passingGrade,
+  schemeName,
+  passingValue,
+  passingUnit,
   scheduleLabel,
-  shuffleQuestions,
-  shuffleOptions,
   allowRetake,
   participantsCount,
   sections,
@@ -94,9 +94,8 @@ export const StepReview: React.FC<StepReviewProps> = ({
   const ready =
     sections.length > 0 && participantsCount > 0 && !!availability && shortSections.length === 0;
 
-  const shuffleText = [shuffleQuestions && 'urutan soal', shuffleOptions && 'pilihan jawaban']
-    .filter(Boolean)
-    .join(' & ');
+  const passingText =
+    passingValue == null ? '—' : passingUnit === 'percent' ? `${passingValue}%` : String(passingValue);
 
   return (
     <div className="flex flex-col gap-6">
@@ -111,9 +110,14 @@ export const StepReview: React.FC<StepReviewProps> = ({
           />
           <SummaryItem icon={<Clock className="w-4 h-4" />} label="Total Waktu" value={`${durationMinutes} menit`} />
           <SummaryItem
+            icon={<Gauge className="w-4 h-4" />}
+            label="Skema Penilaian"
+            value={schemeName || <span className="text-slate-300 italic">Belum dipilih</span>}
+          />
+          <SummaryItem
             icon={<CheckCircle2 className="w-4 h-4" />}
             label="Nilai Kelulusan"
-            value={passingGrade != null ? String(passingGrade) : '—'}
+            value={passingText}
           />
           <SummaryItem icon={<CalendarClock className="w-4 h-4" />} label="Jadwal" value={scheduleLabel} />
           <SummaryItem
@@ -125,11 +129,6 @@ export const StepReview: React.FC<StepReviewProps> = ({
             icon={<Repeat className="w-4 h-4" />}
             label="Pengerjaan"
             value={allowRetake ? 'Boleh diulang' : 'Sekali saja'}
-          />
-          <SummaryItem
-            icon={<Shuffle className="w-4 h-4" />}
-            label="Pengacakan"
-            value={shuffleText ? `Acak ${shuffleText}` : 'Tidak diacak'}
           />
         </div>
       </div>

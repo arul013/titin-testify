@@ -19,6 +19,7 @@ import {
   type PoolPreviewPayload,
   type PoolPreviewResponse,
 } from './hooks/useExams';
+import { useScoringSchemes } from '@/features/scoring/hooks/useScoringSchemes';
 
 interface ExamBuilderProps {
   initial: ExamDetail | null;
@@ -75,11 +76,11 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
   const [title, setTitle] = useState(initial?.title || '');
   const [description, setDescription] = useState(initial?.description || '');
   const [duration, setDuration] = useState(initial ? String(initial.duration_minutes) : '60');
-  const [passingGrade, setPassingGrade] = useState(
-    initial?.passing_grade != null ? String(initial.passing_grade) : '',
+  const { schemes } = useScoringSchemes();
+  const [scoringSchemeId, setScoringSchemeId] = useState(initial?.scoring_scheme_id ?? '');
+  const [passingValue, setPassingValue] = useState(
+    initial?.passing_value != null ? String(initial.passing_value) : '',
   );
-  const [shuffleQuestions, setShuffleQuestions] = useState(initial?.shuffle_questions ?? false);
-  const [shuffleOptions, setShuffleOptions] = useState(initial?.shuffle_options ?? false);
   const [allowRetake, setAllowRetake] = useState(initial?.allow_retake ?? false);
   const [scheduled, setScheduled] = useState(!!initial?.starts_at);
   const _startParts = isoToParts(initial?.starts_at ?? null);
@@ -130,9 +131,8 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
     title: title.trim(),
     description: description.trim() || null,
     duration_minutes: Number(duration),
-    passing_grade: passingGrade === '' ? null : Number(passingGrade),
-    shuffle_questions: shuffleQuestions,
-    shuffle_options: shuffleOptions,
+    scoring_scheme_id: scoringSchemeId || null,
+    passing_value: passingValue === '' ? null : Number(passingValue),
     allow_retake: allowRetake,
     status: 'draft',
     starts_at: scheduled ? partsToIso(startDate, startTime) : null,
@@ -153,6 +153,11 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
     }
     if (!duration || Number(duration) < 1) {
       toast.error('Total waktu harus minimal 1 menit.');
+      setStep(0);
+      return false;
+    }
+    if (!scoringSchemeId) {
+      toast.error('Pilih skema penilaian.');
       setStep(0);
       return false;
     }
@@ -232,12 +237,11 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
             setDescription={setDescription}
             duration={duration}
             setDuration={setDuration}
-            passingGrade={passingGrade}
-            setPassingGrade={setPassingGrade}
-            shuffleQuestions={shuffleQuestions}
-            setShuffleQuestions={setShuffleQuestions}
-            shuffleOptions={shuffleOptions}
-            setShuffleOptions={setShuffleOptions}
+            schemes={schemes}
+            scoringSchemeId={scoringSchemeId}
+            setScoringSchemeId={setScoringSchemeId}
+            passingValue={passingValue}
+            setPassingValue={setPassingValue}
             allowRetake={allowRetake}
             setAllowRetake={setAllowRetake}
             scheduled={scheduled}
@@ -273,10 +277,10 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
           <StepReview
             title={title}
             durationMinutes={Number(duration) || 0}
-            passingGrade={passingGrade === '' ? null : Number(passingGrade)}
+            schemeName={schemes.find((s) => s.id === scoringSchemeId)?.name ?? ''}
+            passingValue={passingValue === '' ? null : Number(passingValue)}
+            passingUnit={(schemes.find((s) => s.id === scoringSchemeId)?.config?.passing_unit as string) || 'percent'}
             scheduleLabel={scheduleLabel}
-            shuffleQuestions={shuffleQuestions}
-            shuffleOptions={shuffleOptions}
             allowRetake={allowRetake}
             participantsCount={participantIds.length}
             sections={sectionsInput}

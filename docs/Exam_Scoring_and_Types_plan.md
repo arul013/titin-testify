@@ -124,10 +124,12 @@ Bukan lewat pengacakan (ujian deterministik). Fitur proktoring, digarap setelah 
    - Backend: `models/scoring_scheme.py`, `services/scoring_scheme_service.py` (CRUD + `compute` Custom %), `routes/scoring_schemes.py` (register di main).
    - Frontend: menu **Skema Penilaian** (`/skema-penilaian` + sidebar) — list (bawaan+custom), buat/ubah/hapus custom %, **alat Hitung Skor** (input jumlah&benar per bagian → skor %). Hook `useScoringSchemes`.
    - **Belum:** kolom `exams.scoring_scheme_id/passing_value` (masuk Fase B); skema resmi TOEFL/IELTS (tunggu tabel).
-2. **Fase B — Integrasi builder ujian:**
-   - **Modal Pilih Jenis Ujian** → set skema.
-   - "Nilai Kelulusan" jadi **scheme-aware** (persen / 310–677 / band).
-   - Validasi komposisi vs skema (mis. TOEFL ITP penuh butuh 50/40/50).
+2. **Fase B — Integrasi builder ujian — SELESAI kode 2026-07-26:**
+   - Migration **`011_exams_scoring.sql`**: `exams` + `scoring_scheme_id` (FK→scoring_schemes, ON DELETE SET NULL) + `passing_value` NUMERIC; **hapus** `passing_grade`, `shuffle_questions`, `shuffle_options` (migrasi nilai lama → passing_value).
+   - Backend: `models/exam.py` + `services/exam_service.py` (create/update/response) pakai `scoring_scheme_id`/`passing_value`.
+   - Frontend: `useExams` tipe; **StepDetail** = Select **Skema Penilaian** (wajib) + "Nilai Kelulusan" **scheme-aware** (label/unit ikut `config.passing_unit`) + **hapus 2 checkbox acak** (sisa retake); **StepReview** = item Skema + passing berskala, **hapus Pengacakan**; `ExamTable` pakai `passing_value`. Validasi: skema wajib dipilih.
+   - **Deviasi terencana:** scheme picker ditaruh **di StepDetail** (bukan modal terpisah "Pilih Jenis Ujian") karena baru ada keluarga Custom %. **Ditunda** sampai ada skema STANDAR: modal jenis paling-awal + **preset/lock komposisi per jenis** + **validasi eksak** (§4b/§4c).
+   - Verifikasi: backend compile, frontend build+tsc+eslint bersih.
 3. **Fase C — Bersihkan Opsi Pengerjaan:** hapus 2 checkbox acak (urutan soal & pilihan jawaban) + field terkait; sisakan "Izinkan mengerjakan ulang". Anti-cheat = pool randomization (sudah ada).
 4. **Fase D — Mesin skor live** (Phase 4): saat peserta selesai → hitung skor via skema → lulus/tidak. Penyusunan soal ikut urutan authored + urutan bagian baku (tanpa acak).
 
