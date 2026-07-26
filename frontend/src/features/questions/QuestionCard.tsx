@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { QuestionFields } from './QuestionFields';
 import { useQuestionForm } from './useQuestionForm';
@@ -114,6 +115,14 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             {unsaved && <span className="text-indigo-600"> · belum disimpan</span>}
           </p>
         </button>
+
+        {/* Status Tayang/Draf */}
+        <Badge
+          variant={form.status === 'published' ? 'success' : 'neutral'}
+          className="text-[10px] font-bold uppercase shrink-0"
+        >
+          {form.status === 'published' ? 'Tayang' : 'Draf'}
+        </Badge>
 
         {/* Reorder (soal tersimpan saja) */}
         {!isDraft && (
