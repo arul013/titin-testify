@@ -76,10 +76,14 @@ Registry (`allow_custom`, `status`) yang menentukan kartu mana muncul/aktif → 
    - `questions` & `question_passages` bawa `test_type` (insert/update/response + filter `?test_type=`; soal **mewarisi** test_type dari materi induk).
    - `exams` bawa `test_type` + `exam_mode`; `publish_exam` **validasi eksak** untuk mode `full` (jumlah terakit per bagian harus = target, else 400 + snapshot dibatalkan); pool assembly + availability **discope per `test_type`**.
 3. **A3 — Frontend menu admin "Kelola Jenis Ujian"** (CRUD jenis + skill + preset + status).
-4. **A4 — Frontend exam builder:** modal 2-tingkat + reshape Komposisi (filter skill + lock preset) +
-   StepSource filter `test_type` + validasi eksak (mode full).
-5. **A5 — Bank Soal:** soal membawa `test_type` (create set otomatis dari konteks; sekarang semua ITP);
-   builder memfilter soal per jenis. *(UI reorg Bank Soal penuh = Fase B.)*
+4. **A4 — Frontend exam builder** ✅ SELESAI 2026-07-26 (diagnostics bersih, belum di-commit):
+   - `PilihJenisUjianModal` (2-tingkat: pilih jenis→full, atau Custom→pilih tes basis) dipakai di `ManajemenUjianPage` saat *Buat Ujian*.
+   - `ExamBuilder` terima `testTypeCode`+`examMode`; resolve skill via `useTestTypes`; badge jenis+mode di header; `buildPayload` kirim `test_type`+`exam_mode`; sections dari skill.
+   - `StepComposition` skills-driven: **full** = preset terkunci (read-only), **custom** = toggle+jumlah bebas (skill jenis tes terpilih saja).
+   - `StepSource` prop `testType` (filter Bank Soal via `?test_type=`) + `exact` (badge "perlu tepat N"); `useQuestions`/`usePassages` tambah param `testType`.
+   - `StepReview` tampilkan Jenis Ujian + mode. `useExams.Exam` tambah `test_type`+`exam_mode`.
+   - Validasi eksak keras tetap di backend `publish_exam`; UI memandu (quota cap + badge).
+5. **A5 — Bank Soal:** untuk Fase A **cukup default `test_type='itp'`** (semua soal ITP; backend set default). **Selektor/filter jenis tes di Bank Soal ditunda** sampai ada jenis tes aktif ke-2 (Fase B).
 
 ## 9. Fase B (menyusul)
 - Penataan ulang UI Bank Soal per jenis tes (tab/filter, pengelompokan).

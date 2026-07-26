@@ -10,6 +10,7 @@ import {
   Award,
   Repeat,
   Gauge,
+  ClipboardCheck,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -23,6 +24,8 @@ import {
 
 interface StepReviewProps {
   title: string;
+  testTypeName: string;
+  examMode: 'full' | 'custom';
   durationMinutes: number;
   schemeName: string;
   passingValue: number | null;
@@ -57,6 +60,8 @@ function SummaryItem({
 
 export const StepReview: React.FC<StepReviewProps> = ({
   title,
+  testTypeName,
+  examMode,
   durationMinutes,
   schemeName,
   passingValue,
@@ -107,6 +112,11 @@ export const StepReview: React.FC<StepReviewProps> = ({
             icon={<Award className="w-4 h-4" />}
             label="Nama"
             value={title || <span className="text-slate-300 italic">Belum diisi</span>}
+          />
+          <SummaryItem
+            icon={<ClipboardCheck className="w-4 h-4" />}
+            label="Jenis Ujian"
+            value={`${testTypeName} · ${examMode === 'full' ? 'Full Test' : 'Custom'}`}
           />
           <SummaryItem icon={<Clock className="w-4 h-4" />} label="Total Waktu" value={`${durationMinutes} menit`} />
           <SummaryItem

@@ -15,6 +15,10 @@ interface StepSourceProps {
   enabledSections: ExamSectionId[];
   /** Target jumlah soal per bagian (dari step Komposisi) — batas kuota pemilihan. */
   targets: Partial<Record<ExamSectionId, number>>;
+  /** Jenis tes ujian — memfilter Bank Soal agar hanya soal jenis ini yang muncul. */
+  testType?: string;
+  /** Mode full test → pemilihan harus TEPAT = target (bukan sekadar ≤). */
+  exact?: boolean;
   poolUnits: ExamPoolUnit[];
   onChange: (units: ExamPoolUnit[]) => void;
 }
@@ -34,6 +38,8 @@ function clean(text: string): string {
 export const StepSource: React.FC<StepSourceProps> = ({
   enabledSections,
   targets,
+  testType,
+  exact = false,
   poolUnits,
   onChange,
 }) => {
@@ -47,11 +53,13 @@ export const StepSource: React.FC<StepSourceProps> = ({
     type: section,
     status: 'published',
     perPage: 100,
+    testType,
   });
   const { questions, isLoading: qLoading } = useQuestions({
     section,
     status: 'published',
     perPage: 100,
+    testType,
   });
   const standalone = questions.filter((q) => !q.passage_id);
 
@@ -114,15 +122,30 @@ export const StepSource: React.FC<StepSourceProps> = ({
         </span>
         {selectedQuestions === 0 ? (
           <Badge variant="neutral" className="text-[10px] font-bold gap-1">
-            <Shuffle className="w-3 h-3" /> Acak dari semua · target {target} soal
+            <Shuffle className="w-3 h-3" />
+            {exact ? `Acak → tepat ${target} soal` : `Acak dari semua · target ${target} soal`}
           </Badge>
         ) : (
           <Badge
-            variant={quotaFull ? 'success' : 'info'}
+            variant={
+              exact
+                ? selectedQuestions === target
+                  ? 'success'
+                  : 'warning'
+                : quotaFull
+                  ? 'success'
+                  : 'info'
+            }
             className="text-[10px] font-bold"
           >
             Terpilih {selectedQuestions} / {target} soal
-            {remaining > 0 ? ` · sisa ${remaining}` : ' · kuota penuh'}
+            {exact
+              ? selectedQuestions === target
+                ? ' · pas'
+                : ` · perlu tepat ${target}`
+              : remaining > 0
+                ? ` · sisa ${remaining}`
+                : ' · kuota penuh'}
           </Badge>
         )}
       </div>

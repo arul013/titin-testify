@@ -2,9 +2,10 @@
 
 import React, { useState } from 'react';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, Check, Rocket } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Rocket, Lock, Sparkles } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { WorkflowStepper, type WorkflowStep } from '@/components/ui/WorkflowStepper';
 import { StepDetail } from './steps/StepDetail';
 import { StepComposition } from './steps/StepComposition';
@@ -12,17 +13,20 @@ import { StepSource } from './steps/StepSource';
 import { StepParticipants } from './steps/StepParticipants';
 import { StepReview } from './steps/StepReview';
 import {
-  ALL_SECTIONS,
   type ExamDetail,
+  type ExamMode,
   type ExamPoolUnit,
   type ExamSectionId,
   type PoolPreviewPayload,
   type PoolPreviewResponse,
 } from './hooks/useExams';
 import { useScoringSchemes } from '@/features/scoring/hooks/useScoringSchemes';
+import { useTestTypes } from '@/features/test-types/useTestTypes';
 
 interface ExamBuilderProps {
   initial: ExamDetail | null;
+  testTypeCode: string;
+  examMode: ExamMode;
   onCancel: () => void;
   onSaveDraft: (payload: Record<string, unknown>) => Promise<void>;
   onPublish: (payload: Record<string, unknown>) => Promise<void>;
@@ -61,12 +65,20 @@ function partsToIso(date: string, time: string): string | null {
 
 export const ExamBuilder: React.FC<ExamBuilderProps> = ({
   initial,
+  testTypeCode,
+  examMode,
   onCancel,
   onSaveDraft,
   onPublish,
   fetchPreview,
 }) => {
   const isEditing = !!initial;
+  const isFull = examMode === 'full';
+
+  // Jenis tes + skill-nya (menentukan bagian yang muncul & preset full test).
+  const { testTypes } = useTestTypes();
+  const testType = testTypes.find((t) => t.code === testTypeCode) ?? null;
+  const skills = testType?.skills ?? [];
 
   const [step, setStep] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
@@ -90,9 +102,9 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
   const [endDate, setEndDate] = useState(_endParts.date);
   const [endTime, setEndTime] = useState(_endParts.time);
 
-  // Komposisi
-  const [counts, setCounts] = useState<Partial<Record<ExamSectionId, number>>>(() => {
-    const init: Partial<Record<ExamSectionId, number>> = {};
+  // Komposisi (mode custom) — keyed by skill code.
+  const [counts, setCounts] = useState<Record<string, number>>(() => {
+    const init: Record<string, number> = {};
     initial?.sections?.forEach((s) => {
       init[s.section] = s.target_count;
     });
@@ -107,9 +119,7 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
     initial?.participants?.map((p) => p.user_id) ?? [],
   );
 
-  const enabledSections = ALL_SECTIONS.filter((s) => counts[s] !== undefined);
-
-  const toggleSection = (section: ExamSectionId, enabled: boolean) => {
+  const toggleSection = (section: string, enabled: boolean) => {
     setCounts((prev) => {
       const next = { ...prev };
       if (enabled) next[section] = prev[section] ?? 5;
@@ -118,9 +128,22 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
     });
   };
 
-  const setSectionCount = (section: ExamSectionId, count: number) => {
+  const setSectionCount = (section: string, count: number) => {
     setCounts((prev) => ({ ...prev, [section]: count }));
   };
+
+  // ─── Bagian efektif (menentukan komposisi, sumber, validasi) ───
+  // Full test: preset dari skill (terkunci). Custom: dari pilihan admin.
+  const targetByCode: Record<string, number> = isFull
+    ? Object.fromEntries(skills.map((s) => [s.code, s.full_test_count]))
+    : counts;
+  const activeSkillCodes: string[] = isFull
+    ? skills.map((s) => s.code)
+    : skills.filter((s) => counts[s.code] !== undefined).map((s) => s.code);
+  const targetsById = activeSkillCodes.reduce<Partial<Record<ExamSectionId, number>>>((acc, code) => {
+    acc[code as ExamSectionId] = targetByCode[code] ?? 0;
+    return acc;
+  }, {});
 
   const steps: WorkflowStep[] = STEP_LABELS.map((label, i) => ({
     label,
@@ -131,15 +154,17 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
     title: title.trim(),
     description: description.trim() || null,
     duration_minutes: Number(duration),
+    test_type: testTypeCode,
+    exam_mode: examMode,
     scoring_scheme_id: scoringSchemeId || null,
     passing_value: passingValue === '' ? null : Number(passingValue),
     allow_retake: allowRetake,
     status: 'draft',
     starts_at: scheduled ? partsToIso(startDate, startTime) : null,
     ends_at: scheduled ? partsToIso(endDate, endTime) : null,
-    sections: enabledSections.map((s) => ({
-      section: s,
-      target_count: counts[s],
+    sections: activeSkillCodes.map((code) => ({
+      section: code,
+      target_count: targetByCode[code],
     })),
     pool_units: poolUnits,
     participant_ids: participantIds,
@@ -159,6 +184,11 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
     if (!scoringSchemeId) {
       toast.error('Pilih skema penilaian.');
       setStep(0);
+      return false;
+    }
+    if (activeSkillCodes.length === 0) {
+      toast.error('Tentukan komposisi: pilih minimal satu bagian & jumlah soal.');
+      setStep(1);
       return false;
     }
     if (scheduled && !startDate) {
@@ -200,7 +230,11 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
 
   const isLastStep = step === STEP_LABELS.length - 1;
 
-  const sectionsInput = enabledSections.map((s) => ({ section: s, target_count: counts[s] as number }));
+  const enabledSections = activeSkillCodes as ExamSectionId[];
+  const sectionsInput = activeSkillCodes.map((code) => ({
+    section: code as ExamSectionId,
+    target_count: targetByCode[code],
+  }));
   const scheduleLabel =
     !scheduled || !startDate
       ? 'Kapan saja'
@@ -216,9 +250,25 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
         >
           <ChevronLeft className="w-4 h-4" /> Kembali ke daftar ujian
         </button>
-        <h2 className="text-lg font-extrabold text-slate-800">
-          {isEditing ? 'Edit Paket Ujian' : 'Buat Paket Ujian'}
-        </h2>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <h2 className="text-lg font-extrabold text-slate-800">
+            {isEditing ? 'Edit Paket Ujian' : 'Buat Paket Ujian'}
+          </h2>
+          <Badge variant="info" className="font-bold gap-1">
+            {testType?.name ?? testTypeCode.toUpperCase()}
+          </Badge>
+          <Badge variant={isFull ? 'success' : 'neutral'} className="font-bold gap-1">
+            {isFull ? (
+              <>
+                <Lock className="w-3 h-3" /> Full Test
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-3 h-3" /> Custom
+              </>
+            )}
+          </Badge>
+        </div>
         <WorkflowStepper
           steps={steps}
           title="Langkah"
@@ -258,6 +308,8 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
         )}
         {step === 1 && (
           <StepComposition
+            skills={skills}
+            mode={examMode}
             counts={counts}
             onToggle={toggleSection}
             onCountChange={setSectionCount}
@@ -266,7 +318,9 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
         {step === 2 && (
           <StepSource
             enabledSections={enabledSections}
-            targets={counts}
+            targets={targetsById}
+            testType={testTypeCode}
+            exact={isFull}
             poolUnits={poolUnits}
             onChange={setPoolUnits}
           />
@@ -277,6 +331,8 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
         {step === 4 && (
           <StepReview
             title={title}
+            testTypeName={testType?.name ?? testTypeCode.toUpperCase()}
+            examMode={examMode}
             durationMinutes={Number(duration) || 0}
             schemeName={schemes.find((s) => s.id === scoringSchemeId)?.name ?? ''}
             passingValue={passingValue === '' ? null : Number(passingValue)}

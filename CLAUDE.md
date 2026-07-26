@@ -19,6 +19,13 @@
 - Untuk angka: pakai **input teks manual** (mis. komponen `Input` dengan `inputMode="numeric"` + filter digit). Untuk pilihan: pakai komponen **`Select`** DS (sudah custom, non-native). Untuk tanggal/jam: pakai **`DatePicker`** dan **`ClockTimePicker`** DS.
 - Bila menemukan input native yang tersisa di kode, **hapus/ganti** dengan komponen DS yang sesuai.
 
+## 🚫 HARD RULE: `page.tsx` WAJIB tipis — JANGAN tulis kode fitur di dalamnya
+
+- **JANGAN PERNAH** menulis logika/state/UI fitur langsung di `app/**/page.tsx`. File `page.tsx` **hanya boleh** merangkai route: `'use client'` (bila perlu) + import satu komponen dari `features/` + `export default function Page() { return <XPage />; }`. Idealnya ≤ ~10 baris.
+- **Semua** kode fitur (state, handler, hook, JSX, modal, helper) diletakkan di `frontend/src/features/<domain>/` — komponen orkestrasi (`<Domain>Page`/`Manager`) + subkomponen (Card/FormModal/dll) + hook.
+- Saat memindah kode dari `page.tsx` ke `features/`, **ganti import relatif (`../../`) menjadi alias `@/`** agar tidak rusak.
+- Pengecualian wajar: `layout.tsx`, route redirect/splash sederhana, dan halaman yang memang sudah tipis. Kalau ragu, tetap ekstrak ke `features/`.
+
 ## 🚫 HARD RULE: Selalu cek komponen DS dulu; JANGAN bikin komponen baru tanpa izin
 
 - **SEBELUM** membuat atau memakai komponen UI apa pun, **WAJIB cek dulu** `frontend/src/components/ui/`. Kalau sudah ada komponennya, **pakai yang itu** (jangan buat versi bespoke/native).

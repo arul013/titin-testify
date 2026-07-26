@@ -12,9 +12,11 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { FAB, type FABAction } from '@/components/ui/FAB';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { useExams, type ExamDetail } from '@/features/exams/hooks/useExams';
+import { useExams, type ExamDetail, type ExamMode } from '@/features/exams/hooks/useExams';
 import { ExamTable } from '@/features/exams/ExamTable';
 import { ExamBuilder } from '@/features/exams/ExamBuilder';
+import { PilihJenisUjianModal } from '@/features/exams/PilihJenisUjianModal';
+import type { TestType } from '@/features/test-types/useTestTypes';
 
 const PER_PAGE = 10;
 
@@ -27,6 +29,8 @@ export function ManajemenUjianPage() {
 
   const [mode, setMode] = useState<'list' | 'builder'>('list');
   const [editingDetail, setEditingDetail] = useState<ExamDetail | null>(null);
+  const [chooserOpen, setChooserOpen] = useState(false);
+  const [newChoice, setNewChoice] = useState<{ testType: string; examMode: ExamMode } | null>(null);
 
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -60,6 +64,14 @@ export function ManajemenUjianPage() {
 
   const openCreate = () => {
     setEditingDetail(null);
+    setNewChoice(null);
+    setChooserOpen(true);
+  };
+
+  const handleChooseType = (t: TestType, examMode: ExamMode) => {
+    setNewChoice({ testType: t.code, examMode });
+    setEditingDetail(null);
+    setChooserOpen(false);
     setMode('builder');
   };
 
@@ -67,6 +79,7 @@ export function ManajemenUjianPage() {
     try {
       const detail = await getExam(id);
       setEditingDetail(detail);
+      setNewChoice(null);
       setMode('builder');
     } catch (err) {
       toast.error(getErrorMessage(err, 'Gagal memuat detail paket ujian.'));
@@ -152,8 +165,10 @@ export function ManajemenUjianPage() {
     >
       {mode === 'builder' ? (
         <ExamBuilder
-          key={editingDetail?.id ?? 'new'}
+          key={editingDetail?.id ?? `new-${newChoice?.testType}-${newChoice?.examMode}`}
           initial={editingDetail}
+          testTypeCode={editingDetail?.test_type ?? newChoice?.testType ?? 'itp'}
+          examMode={editingDetail?.exam_mode ?? newChoice?.examMode ?? 'custom'}
           onCancel={() => {
             setMode('list');
             setEditingDetail(null);
@@ -195,6 +210,12 @@ export function ManajemenUjianPage() {
           <FAB actions={createActions} />
         </>
       )}
+
+      <PilihJenisUjianModal
+        open={chooserOpen}
+        onClose={() => setChooserOpen(false)}
+        onChoose={handleChooseType}
+      />
 
       <ConfirmDialog
         open={!!pendingDeleteId}

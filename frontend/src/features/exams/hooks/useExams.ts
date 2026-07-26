@@ -40,12 +40,16 @@ export interface ExamPoolUnit {
   question_id: string | null;
 }
 
+export type ExamMode = 'full' | 'custom';
+
 export interface Exam {
   id: string;
   created_by: string;
   title: string;
   description: string | null;
   duration_minutes: number;
+  test_type: string;
+  exam_mode: ExamMode;
   scoring_scheme_id: string | null;
   passing_value: number | null;
   allow_retake: boolean;

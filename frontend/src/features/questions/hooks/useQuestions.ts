@@ -77,6 +77,7 @@ export function useQuestions(filters?: {
   search?: string;
   page?: number;
   perPage?: number;
+  testType?: string;
 }) {
   const { user } = useAuth();
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -91,6 +92,7 @@ export function useQuestions(filters?: {
   const search = filters?.search;
   const page = filters?.page;
   const perPage = filters?.perPage;
+  const testType = filters?.testType;
 
   useEffect(() => {
     if (!user) return;
@@ -101,6 +103,7 @@ export function useQuestions(filters?: {
     if (difficulty) params.set('difficulty', difficulty);
     if (status) params.set('status', status);
     if (search) params.set('search', search);
+    if (testType) params.set('test_type', testType);
     params.set('page', String(page || 1));
     params.set('per_page', String(perPage || 20));
 
@@ -119,7 +122,7 @@ export function useQuestions(filters?: {
     return () => {
       active = false;
     };
-  }, [user, section, difficulty, status, search, page, perPage, refetchIndex]);
+  }, [user, section, difficulty, status, search, page, perPage, testType, refetchIndex]);
 
   const refetch = useCallback(() => setRefetchIndex((i) => i + 1), []);
 
@@ -151,6 +154,7 @@ export function usePassages(filters?: {
   search?: string;
   page?: number;
   perPage?: number;
+  testType?: string;
 }) {
   const { user } = useAuth();
   const [passages, setPassages] = useState<Passage[]>([]);
@@ -163,6 +167,7 @@ export function usePassages(filters?: {
   const search = filters?.search;
   const page = filters?.page;
   const perPage = filters?.perPage;
+  const testType = filters?.testType;
 
   useEffect(() => {
     if (!user) return;
@@ -172,6 +177,7 @@ export function usePassages(filters?: {
     if (type) params.set('type', type);
     if (status) params.set('status', status);
     if (search) params.set('search', search);
+    if (testType) params.set('test_type', testType);
     params.set('page', String(page || 1));
     params.set('per_page', String(perPage || 20));
 
@@ -190,7 +196,7 @@ export function usePassages(filters?: {
     return () => {
       active = false;
     };
-  }, [user, type, status, search, page, perPage, refetchIndex]);
+  }, [user, type, status, search, page, perPage, testType, refetchIndex]);
 
   const refetch = useCallback(() => setRefetchIndex((i) => i + 1), []);
 
