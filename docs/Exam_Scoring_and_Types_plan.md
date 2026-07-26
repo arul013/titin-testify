@@ -58,6 +58,8 @@ Jenis ujian (§4) **me-reshape** step Komposisi & seterusnya. Komposisi & Penila
 
 ## 4c. Sumber Soal — deterministik + filter kuota (keputusan 2026-07-26)
 
+> **Status: filter kuota ✅ DIBANGUN 2026-07-26** di `StepSource.tsx` (prop `targets` dari `ExamBuilder`). Hitung pilihan dalam **jumlah soal** (materi=`questions_count`, tunggal=1) vs target bagian; unit yang melebihi sisa kuota di-**disable** (dipilih clarity, bukan disembunyikan seperti draf di bawah) + badge "Terpilih X/N soal · sisa R". **Validasi eksak tes standar** (butir di bawah) tetap DITUNDA sampai ada skema STANDAR.
+
 - **Semua peserta mendapat soal yang SAMA** (deterministik). Admin/super admin menentukan penuh isi & urutan (seperti ETS/Cambridge). **Tidak ada** acak per peserta.
 - **Dua cara mengisi tiap bagian ke target N:**
   - **Pilih manual:** admin memilih materi/soal tepat sampai N.

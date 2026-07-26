@@ -13,6 +13,8 @@ import { SECTION_LABELS, type ExamPoolUnit, type ExamSectionId } from '../hooks/
 
 interface StepSourceProps {
   enabledSections: ExamSectionId[];
+  /** Target jumlah soal per bagian (dari step Komposisi) — batas kuota pemilihan. */
+  targets: Partial<Record<ExamSectionId, number>>;
   poolUnits: ExamPoolUnit[];
   onChange: (units: ExamPoolUnit[]) => void;
 }
@@ -29,7 +31,12 @@ function clean(text: string): string {
     .trim();
 }
 
-export const StepSource: React.FC<StepSourceProps> = ({ enabledSections, poolUnits, onChange }) => {
+export const StepSource: React.FC<StepSourceProps> = ({
+  enabledSections,
+  targets,
+  poolUnits,
+  onChange,
+}) => {
   const [activeSection, setActiveSection] = useState<ExamSectionId | null>(
     enabledSections[0] ?? null,
   );
@@ -51,19 +58,26 @@ export const StepSource: React.FC<StepSourceProps> = ({ enabledSections, poolUni
   const hasPassage = (id: string) => poolUnits.some((u) => u.passage_id === id);
   const hasQuestion = (id: string) => poolUnits.some((u) => u.question_id === id);
 
-  const togglePassage = (id: string) => {
-    onChange(
-      hasPassage(id)
-        ? poolUnits.filter((u) => u.passage_id !== id)
-        : [...poolUnits, { passage_id: id, question_id: null }],
-    );
+  // ── Kuota per bagian (dihitung dalam JUMLAH SOAL, bukan unit) ──
+  const target = (activeSection ? targets[activeSection] : undefined) ?? 0;
+  const selectedQuestions =
+    passages.filter((p) => hasPassage(p.id)).reduce((n, p) => n + (p.questions_count || 0), 0) +
+    standalone.filter((q) => hasQuestion(q.id)).length;
+  const remaining = Math.max(0, target - selectedQuestions);
+
+  const togglePassage = (id: string, count: number) => {
+    if (hasPassage(id)) {
+      onChange(poolUnits.filter((u) => u.passage_id !== id));
+    } else if (count <= remaining) {
+      onChange([...poolUnits, { passage_id: id, question_id: null }]);
+    }
   };
   const toggleQuestion = (id: string) => {
-    onChange(
-      hasQuestion(id)
-        ? poolUnits.filter((u) => u.question_id !== id)
-        : [...poolUnits, { passage_id: null, question_id: id }],
-    );
+    if (hasQuestion(id)) {
+      onChange(poolUnits.filter((u) => u.question_id !== id));
+    } else if (remaining >= 1) {
+      onChange([...poolUnits, { passage_id: null, question_id: id }]);
+    }
   };
 
   if (enabledSections.length === 0) {
@@ -76,17 +90,15 @@ export const StepSource: React.FC<StepSourceProps> = ({ enabledSections, poolUni
     );
   }
 
-  const selectedInSection =
-    passages.filter((p) => hasPassage(p.id)).length +
-    standalone.filter((q) => hasQuestion(q.id)).length;
-
   const isLoading = pLoading || qLoading;
+  const quotaFull = target > 0 && remaining === 0;
 
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-slate-500">
         Secara default, soal diambil <strong>acak dari seluruh Bank Soal (Tayang)</strong> untuk tiap
-        bagian. Kamu bisa mempersempit ke materi/soal tertentu di bawah (opsional).
+        bagian. Kamu bisa mempersempit ke materi/soal tertentu di bawah (opsional) — maksimal{' '}
+        <strong>sebanyak jumlah soal yang ditetapkan di Komposisi</strong> per bagian.
       </p>
 
       <Tabs
@@ -96,17 +108,21 @@ export const StepSource: React.FC<StepSourceProps> = ({ enabledSections, poolUni
         onChange={(id) => setActiveSection(id as ExamSectionId)}
       />
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
           {activeSection ? SECTION_LABELS[activeSection] : ''}
         </span>
-        {selectedInSection === 0 ? (
+        {selectedQuestions === 0 ? (
           <Badge variant="neutral" className="text-[10px] font-bold gap-1">
-            <Shuffle className="w-3 h-3" /> Acak dari semua
+            <Shuffle className="w-3 h-3" /> Acak dari semua · target {target} soal
           </Badge>
         ) : (
-          <Badge variant="info" className="text-[10px] font-bold">
-            Dibatasi ke {selectedInSection} unit
+          <Badge
+            variant={quotaFull ? 'success' : 'info'}
+            className="text-[10px] font-bold"
+          >
+            Terpilih {selectedQuestions} / {target} soal
+            {remaining > 0 ? ` · sisa ${remaining}` : ' · kuota penuh'}
           </Badge>
         )}
       </div>
@@ -132,25 +148,41 @@ export const StepSource: React.FC<StepSourceProps> = ({ enabledSections, poolUni
                 <Layers className="w-3.5 h-3.5 text-indigo-600" /> Materi (unit utuh)
               </p>
               <div className="flex flex-col gap-2">
-                {passages.map((p) => (
-                  <label
-                    key={p.id}
-                    className="flex items-center gap-3 rounded-xl border border-slate-100 hover:border-slate-200 p-3 cursor-pointer transition-colors"
-                  >
-                    <Checkbox checked={hasPassage(p.id)} onChange={() => togglePassage(p.id)} />
-                    {!p.content ? (
-                      <Music className="w-4 h-4 text-indigo-600 shrink-0" />
-                    ) : (
-                      <FileText className="w-4 h-4 text-slate-400 shrink-0" />
-                    )}
-                    <p className="text-sm font-medium text-slate-700 line-clamp-2 flex-1 min-w-0">
-                      {clean(p.content || '') || 'Audio Listening'}
-                    </p>
-                    <Badge variant="neutral" className="text-[10px] font-bold shrink-0">
-                      {p.questions_count} soal
-                    </Badge>
-                  </label>
-                ))}
+                {passages.map((p) => {
+                  const checked = hasPassage(p.id);
+                  const count = p.questions_count || 0;
+                  const disabled = !checked && count > remaining;
+                  return (
+                    <label
+                      key={p.id}
+                      title={
+                        disabled
+                          ? `Materi ${count} soal melebihi sisa kuota (${remaining} soal)`
+                          : undefined
+                      }
+                      className={`flex items-center gap-3 rounded-xl border border-slate-100 p-3 transition-colors ${
+                        disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-slate-200 cursor-pointer'
+                      }`}
+                    >
+                      <Checkbox
+                        checked={checked}
+                        disabled={disabled}
+                        onChange={() => togglePassage(p.id, count)}
+                      />
+                      {!p.content ? (
+                        <Music className="w-4 h-4 text-indigo-600 shrink-0" />
+                      ) : (
+                        <FileText className="w-4 h-4 text-slate-400 shrink-0" />
+                      )}
+                      <p className="text-sm font-medium text-slate-700 line-clamp-2 flex-1 min-w-0">
+                        {clean(p.content || '') || 'Audio Listening'}
+                      </p>
+                      <Badge variant="neutral" className="text-[10px] font-bold shrink-0">
+                        {count} soal
+                      </Badge>
+                    </label>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -162,12 +194,22 @@ export const StepSource: React.FC<StepSourceProps> = ({ enabledSections, poolUni
                 <FileText className="w-3.5 h-3.5 text-indigo-600" /> Soal tunggal
               </p>
               <div className="flex flex-col gap-2">
-                {standalone.map((q) => (
+                {standalone.map((q) => {
+                  const checked = hasQuestion(q.id);
+                  const disabled = !checked && remaining < 1;
+                  return (
                   <div
                     key={q.id}
-                    className="flex items-center gap-3 rounded-xl border border-slate-100 hover:border-slate-200 p-3 transition-colors"
+                    title={disabled ? `Kuota bagian ini sudah penuh (${target} soal)` : undefined}
+                    className={`flex items-center gap-3 rounded-xl border border-slate-100 p-3 transition-colors ${
+                      disabled ? 'opacity-50' : 'hover:border-slate-200'
+                    }`}
                   >
-                    <Checkbox checked={hasQuestion(q.id)} onChange={() => toggleQuestion(q.id)} />
+                    <Checkbox
+                      checked={checked}
+                      disabled={disabled}
+                      onChange={() => toggleQuestion(q.id)}
+                    />
                     <p className="text-sm font-medium text-slate-700 line-clamp-1 flex-1 min-w-0">
                       {clean(q.question_text)}
                     </p>
@@ -180,7 +222,8 @@ export const StepSource: React.FC<StepSourceProps> = ({ enabledSections, poolUni
                       <Eye className="w-4 h-4" />
                     </button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

@@ -266,6 +266,7 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
         {step === 2 && (
           <StepSource
             enabledSections={enabledSections}
+            targets={counts}
             poolUnits={poolUnits}
             onChange={setPoolUnits}
           />

@@ -60,8 +60,9 @@ export const PassageDetailPanel: React.FC<PassageDetailPanelProps> = ({
         </div>
       </div>
 
-      {/* Materi (stimulus) — pinned agar tetap terlihat saat menyusun soal */}
-      <div className="sticky top-4 z-10 flex flex-col gap-4 bg-white/95 backdrop-blur-sm pb-1">
+      {/* Materi (stimulus) — pinned agar tetap terlihat saat menyusun soal.
+          z-20 supaya selalu di atas input opsi (Input DS punya lapisan internal z-10). */}
+      <div className="sticky top-4 z-20 flex flex-col gap-4 bg-white/95 backdrop-blur-sm pb-1">
         {passage.audio_url && (
           <div className="bg-slate-50 p-2.5 border border-slate-200/50 rounded-xl">
             <audio src={passage.audio_url} controls className="w-full h-8" />
