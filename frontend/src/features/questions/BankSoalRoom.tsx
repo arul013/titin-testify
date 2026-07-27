@@ -55,7 +55,7 @@ export function BankSoalRoom({ testType, onBack }: BankSoalRoomProps) {
     <PageContainer
       className={isBuilderOpen ? 'space-y-4' : 'space-y-6'}
       header={
-        <div className="bg-white border border-slate-100 rounded-3xl shadow-md shadow-slate-100 overflow-hidden">
+        <div className="-mt-3 bg-white border border-slate-100 rounded-3xl shadow-md shadow-slate-100 overflow-hidden">
           <div className="p-6">
             <PageHeader
               icon={<Library />}
