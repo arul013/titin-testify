@@ -47,7 +47,7 @@ export function BankSoalPage() {
   return (
     <PageContainer
       className={
-        isBuilderOpen ? "space-y-4" : showFab ? "space-y-6 pb-0" : "space-y-6"
+        isBuilderOpen ? "space-y-4" : showFab ? "space-y-4 pb-2" : "space-y-4"
       }
       header={
         <PageHeader
