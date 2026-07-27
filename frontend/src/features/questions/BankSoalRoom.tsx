@@ -48,10 +48,12 @@ export function BankSoalRoom({ testType, onBack }: BankSoalRoomProps) {
   const isBuilderOpen = bank.isQuestionOpen || bank.isPassageOpen;
   const showFab = !isBuilderOpen && !bank.selectedPassage;
   const sectionOptions = sections.map((s) => ({ value: s.code, label: s.name }));
+  // Ruang bawah sama dengan tampilan detail materi (yang sudah pas): tanpa
+  // padding ekstra. FAB mengambang di kanan, tak menutupi konten di layar lebar.
 
   return (
     <PageContainer
-      className={isBuilderOpen ? 'space-y-4' : showFab ? 'space-y-6 pb-4' : 'space-y-6'}
+      className={isBuilderOpen ? 'space-y-4' : 'space-y-6'}
       header={
         <div className="space-y-3">
           <button
