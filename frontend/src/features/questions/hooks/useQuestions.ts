@@ -40,6 +40,8 @@ export interface Passage {
   image_position: string;
   status: string;
   questions_count: number;
+  /** Jumlah soal anak berstatus Tayang — dipakai Sumber Soal ujian. */
+  published_questions_count?: number;
   creator_name?: string;
   created_at: string;
   updated_at: string;

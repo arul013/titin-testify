@@ -103,8 +103,12 @@ class QuestionService:
 
         passages = []
         for p in result.data or []:
-            # Count child questions for each passage
+            # Count child questions: total (untuk edit) & Tayang (untuk Sumber Soal ujian).
             q_count = supabase.table("questions").select("id", count=CountMethod.exact).eq("passage_id", p["id"]).execute()
+            pub_count = (
+                supabase.table("questions").select("id", count=CountMethod.exact)
+                .eq("passage_id", p["id"]).eq("status", "published").execute()
+            )
 
             creator_name = None
             if p.get("profiles"):
@@ -120,6 +124,7 @@ class QuestionService:
                 image_url=p.get("image_url"),
                 image_position=ImagePosition(p.get("image_position") or "below"),
                 status=p["status"],
+                published_questions_count=pub_count.count or 0,
                 questions_count=q_count.count or 0,
                 creator_name=creator_name,
                 created_at=p.get("created_at"),

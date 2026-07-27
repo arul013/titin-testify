@@ -128,6 +128,8 @@ class PassageResponse(BaseModel):
     image_position: ImagePosition = ImagePosition.BELOW
     status: ContentStatus
     questions_count: int = 0
+    # Jumlah soal anak berstatus Tayang (published) — dipakai Sumber Soal ujian.
+    published_questions_count: int = 0
     creator_name: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

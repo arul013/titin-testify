@@ -7,7 +7,7 @@ import { Tabs } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useQuestions, usePassages, type Question } from '@/features/questions/hooks/useQuestions';
+import { useQuestions, usePassages, type Question, type Passage } from '@/features/questions/hooks/useQuestions';
 import { QuestionPreview } from '@/features/questions/QuestionPreview';
 import { SECTION_LABELS, type ExamPoolUnit, type ExamSectionId } from '../hooks/useExams';
 
@@ -63,13 +63,18 @@ export const StepSource: React.FC<StepSourceProps> = ({
   });
   const standalone = questions.filter((q) => !q.passage_id);
 
+  // Jumlah soal materi yang dipakai ujian = HANYA yang Tayang (soal Draf diabaikan
+  // saat rakit ujian). Materi tanpa soal Tayang disembunyikan.
+  const pubCount = (p: Passage) => p.published_questions_count ?? 0;
+  const availablePassages = passages.filter((p) => pubCount(p) > 0);
+
   const hasPassage = (id: string) => poolUnits.some((u) => u.passage_id === id);
   const hasQuestion = (id: string) => poolUnits.some((u) => u.question_id === id);
 
-  // ── Kuota per bagian (dihitung dalam JUMLAH SOAL, bukan unit) ──
+  // ── Kuota per bagian (dihitung dalam JUMLAH SOAL Tayang, bukan unit) ──
   const target = (activeSection ? targets[activeSection] : undefined) ?? 0;
   const selectedQuestions =
-    passages.filter((p) => hasPassage(p.id)).reduce((n, p) => n + (p.questions_count || 0), 0) +
+    availablePassages.filter((p) => hasPassage(p.id)).reduce((n, p) => n + pubCount(p), 0) +
     standalone.filter((q) => hasQuestion(q.id)).length;
   const remaining = Math.max(0, target - selectedQuestions);
 
@@ -156,7 +161,7 @@ export const StepSource: React.FC<StepSourceProps> = ({
             <Skeleton key={i} className="h-12 rounded-xl" />
           ))}
         </div>
-      ) : passages.length === 0 && standalone.length === 0 ? (
+      ) : availablePassages.length === 0 && standalone.length === 0 ? (
         <EmptyState
           icon={<FileText />}
           title="Belum ada soal Tayang di bagian ini"
@@ -165,15 +170,15 @@ export const StepSource: React.FC<StepSourceProps> = ({
       ) : (
         <div className="flex flex-col gap-5">
           {/* Materi (passage utuh) */}
-          {passages.length > 0 && (
+          {availablePassages.length > 0 && (
             <div>
               <p className="text-xs font-bold text-slate-600 mb-2 flex items-center gap-1.5">
                 <Layers className="w-3.5 h-3.5 text-indigo-600" /> Materi (unit utuh)
               </p>
               <div className="flex flex-col gap-2">
-                {passages.map((p) => {
+                {availablePassages.map((p) => {
                   const checked = hasPassage(p.id);
-                  const count = p.questions_count || 0;
+                  const count = pubCount(p);
                   const disabled = !checked && count > remaining;
                   return (
                     <label
