@@ -1,39 +1,39 @@
-'use client';
+"use client";
 
-import { Library, Trash2, FileText, Layers, ChevronLeft } from 'lucide-react';
-import { Card } from '@/components/ui/card';
-import { Pagination } from '@/components/ui/pagination';
-import { PageContainer } from '@/components/ui/page-container';
-import { PageHeader } from '@/components/ui/page-header';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { FAB, type FABAction } from '@/components/ui/FAB';
-import { useBankSoalPage } from '@/features/questions/hooks/useBankSoalPage';
-import { BankSoalStats } from '@/features/questions/BankSoalStats';
-import { BankSoalFilters } from '@/features/questions/BankSoalFilters';
-import { BankSoalTableSkeleton } from '@/features/questions/BankSoalTableSkeleton';
-import { PassageTable } from '@/features/questions/PassageTable';
-import { PassageDetailPanel } from '@/features/questions/PassageDetailPanel';
-import { QuestionTable } from '@/features/questions/QuestionTable';
-import { QuestionBuilder } from '@/features/questions/QuestionBuilder';
-import { PassageBuilder } from '@/features/questions/PassageBuilder';
-import { PassageTypeChooser } from '@/features/questions/PassageTypeChooser';
-import { QuestionPreview } from '@/features/questions/QuestionPreview';
+import { Library, Trash2, FileText, Layers, ChevronLeft } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Pagination } from "@/components/ui/pagination";
+import { PageContainer } from "@/components/ui/page-container";
+import { PageHeader } from "@/components/ui/page-header";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { FAB, type FABAction } from "@/components/ui/FAB";
+import { useBankSoalPage } from "@/features/questions/hooks/useBankSoalPage";
+import { BankSoalStats } from "@/features/questions/BankSoalStats";
+import { BankSoalFilters } from "@/features/questions/BankSoalFilters";
+import { BankSoalTableSkeleton } from "@/features/questions/BankSoalTableSkeleton";
+import { PassageTable } from "@/features/questions/PassageTable";
+import { PassageDetailPanel } from "@/features/questions/PassageDetailPanel";
+import { QuestionTable } from "@/features/questions/QuestionTable";
+import { QuestionBuilder } from "@/features/questions/QuestionBuilder";
+import { PassageBuilder } from "@/features/questions/PassageBuilder";
+import { PassageTypeChooser } from "@/features/questions/PassageTypeChooser";
+import { QuestionPreview } from "@/features/questions/QuestionPreview";
 
 export function BankSoalPage() {
   const bank = useBankSoalPage();
 
-  const isDeletingPassage = bank.pendingDelete?.kind === 'passage';
+  const isDeletingPassage = bank.pendingDelete?.kind === "passage";
 
   // Aksi "Buat Soal" — disajikan sebagai speed-dial FAB (tanya jenis soal tanpa jargon).
   const createActions: FABAction[] = [
     {
       icon: <FileText className="w-5 h-5" />,
-      label: 'Soal Tunggal',
+      label: "Soal Tunggal",
       onClick: bank.openCreateQuestion,
     },
     {
       icon: <Layers className="w-5 h-5" />,
-      label: 'Soal + Materi Bersama',
+      label: "Soal + Materi Bersama",
       onClick: bank.openPassageTypeChooser,
     },
   ];
@@ -46,7 +46,9 @@ export function BankSoalPage() {
 
   return (
     <PageContainer
-      className={isBuilderOpen ? 'space-y-4' : showFab ? 'space-y-6 pb-8' : 'space-y-6'}
+      className={
+        isBuilderOpen ? "space-y-4" : showFab ? "space-y-6 pb-0" : "space-y-6"
+      }
       header={
         <PageHeader
           icon={<Library />}
@@ -58,10 +60,12 @@ export function BankSoalPage() {
       {bank.isQuestionOpen ? (
         /* ─── Builder Soal (halaman penuh, 2-panel + preview) ─── */
         <QuestionBuilder
-          key={`q-${bank.editingQuestion?.id ?? 'new'}`}
+          key={`q-${bank.editingQuestion?.id ?? "new"}`}
           initialData={bank.editingQuestion}
           passageId={bank.builderPassage?.id}
-          defaultSection={bank.builderPassage ? bank.builderPassage.type : undefined}
+          defaultSection={
+            bank.builderPassage ? bank.builderPassage.type : undefined
+          }
           passage={bank.builderPassage}
           passageLoading={bank.isBuilderPassageLoading}
           onCancel={bank.closeQuestion}
@@ -70,7 +74,7 @@ export function BankSoalPage() {
       ) : bank.isPassageOpen ? (
         /* ─── Builder Materi (halaman penuh, 2-panel + preview) ─── */
         <PassageBuilder
-          key={`p-${bank.editingPassage?.id ?? 'new'}`}
+          key={`p-${bank.editingPassage?.id ?? "new"}`}
           initialData={bank.editingPassage}
           defaultType={bank.passageDraftType}
           onCancel={bank.closePassage}
@@ -119,7 +123,7 @@ export function BankSoalPage() {
                 onStatusChange={bank.onStatusChange}
               />
 
-              {bank.activeTab === 'passages' ? (
+              {bank.activeTab === "passages" ? (
                 <PassageTable
                   passages={bank.passages}
                   isLoading={bank.isPassagesLoading}
@@ -177,7 +181,7 @@ export function BankSoalPage() {
       <ConfirmDialog
         open={!!bank.pendingDelete}
         onClose={bank.cancelDelete}
-        title={isDeletingPassage ? 'Hapus Materi Ini?' : 'Hapus Soal Ini?'}
+        title={isDeletingPassage ? "Hapus Materi Ini?" : "Hapus Soal Ini?"}
         icon={<Trash2 className="w-4 h-4" />}
         confirmLabel="Ya, Hapus"
         confirmVariant="danger"
@@ -187,8 +191,8 @@ export function BankSoalPage() {
       >
         <p className="text-sm text-slate-600 leading-relaxed">
           {isDeletingPassage
-            ? 'Menghapus materi ini akan ikut menghapus semua soal di dalamnya. Tindakan ini tidak bisa dibatalkan.'
-            : 'Soal ini akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.'}
+            ? "Menghapus materi ini akan ikut menghapus semua soal di dalamnya. Tindakan ini tidak bisa dibatalkan."
+            : "Soal ini akan dihapus permanen. Tindakan ini tidak bisa dibatalkan."}
         </p>
       </ConfirmDialog>
     </PageContainer>
