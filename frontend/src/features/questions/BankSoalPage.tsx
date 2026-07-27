@@ -39,10 +39,13 @@ export function BankSoalPage() {
   ];
 
   const isBuilderOpen = bank.isQuestionOpen || bank.isPassageOpen;
+  // FAB hanya muncul di daftar (bukan builder, bukan detail materi). Ruang bawah
+  // (pb-24) hanya perlu saat FAB ada — kalau tidak, jadi white space kosong.
+  const showFab = !isBuilderOpen && !bank.selectedPassage;
 
   return (
     <PageContainer
-      className={isBuilderOpen ? 'space-y-4' : 'space-y-6 pb-24'}
+      className={isBuilderOpen ? 'space-y-4' : showFab ? 'space-y-6 pb-24' : 'space-y-6'}
       header={
         <PageHeader
           icon={<Library />}
@@ -152,7 +155,7 @@ export function BankSoalPage() {
           )}
 
           {/* FAB "Buat Soal" — hanya di daftar (di detail materi sudah ada tambah-soal inline) */}
-          {!bank.selectedPassage && <FAB actions={createActions} />}
+          {showFab && <FAB actions={createActions} />}
         </>
       )}
 
