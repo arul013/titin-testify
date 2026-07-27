@@ -3,21 +3,23 @@
 /**
  * Learning Nexus Design System — PageHeader
  *
- * Header baku halaman admin portal: chip ikon gradient brand + judul + subjudul,
- * opsional breadcrumb di atas dan slot aksi di kanan. Menyeragamkan tampilan &
- * jarak header di semua halaman (masalah "tiap menu beda posisi header").
- * Presentational & token-driven.
+ * Header baku halaman admin portal, DEFAULT sebagai panel "timbul" (kartu putih
+ * + border + shadow), sejajar brand sidebar (offset `-mt-5`). Isi: chip ikon
+ * gradient brand + judul + subjudul, opsional breadcrumb & slot aksi di kanan,
+ * serta opsional back link di bawah (garis pemisah + tombol).
+ *
+ * Menyeragamkan tampilan & jarak header di SEMUA halaman.
  *
  * Contoh:
- *   <PageHeader
- *     icon={<ClipboardCheck />}
- *     title="Penilaian Tim"
- *     subtitle="Evaluasi bulanan anggota tim yang menjadi tanggung jawab Anda"
- *     actions={<Button>Export</Button>}
- *   />
+ *   <PageHeader icon={<Users />} title="Data Karyawan" subtitle="…" />
+ *   <PageHeader icon={<Library />} title="Bank Soal — TOEFL ITP" subtitle="…"
+ *     backLabel="Semua Jenis Tes" onBack={goBack} />
+ *   <PageHeader title="…" actions={<Button>Buat</Button>} />
+ *   <PageHeader title="…" card={false} />   // header polos tanpa panel
  */
 
 import * as React from "react";
+import { ChevronLeft } from "lucide-react";
 import { cn } from "@/src/lib/cn";
 
 export interface PageHeaderProps {
@@ -29,6 +31,11 @@ export interface PageHeaderProps {
   actions?: React.ReactNode;
   /** Breadcrumb opsional di atas judul (mis. <Breadcrumb />). */
   breadcrumb?: React.ReactNode;
+  /** Back link di bawah header (garis + tombol). Muncul bila `onBack` diisi. */
+  backLabel?: React.ReactNode;
+  onBack?: () => void;
+  /** Bungkus dalam panel kartu timbul (default true). Set false = header polos. */
+  card?: boolean;
   className?: string;
 }
 
@@ -38,10 +45,13 @@ export function PageHeader({
   subtitle,
   actions,
   breadcrumb,
+  backLabel = "Kembali",
+  onBack,
+  card = true,
   className,
 }: PageHeaderProps) {
-  return (
-    <div className={cn("space-y-3", className)}>
+  const inner = (
+    <div className="space-y-3">
       {breadcrumb}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -55,10 +65,36 @@ export function PageHeader({
             {subtitle && <p className="mt-0.5 text-sm text-gray-500">{subtitle}</p>}
           </div>
         </div>
-        {actions && (
-          <div className="flex flex-wrap items-center gap-2">{actions}</div>
-        )}
+        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
+    </div>
+  );
+
+  // Header polos (tanpa panel) — jarang dipakai.
+  if (!card) {
+    return <div className={cn("space-y-3", className)}>{inner}</div>;
+  }
+
+  // Panel timbul (default).
+  return (
+    <div
+      className={cn(
+        "-mt-5 overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-md shadow-slate-100",
+        className,
+      )}
+    >
+      <div className="p-6">{inner}</div>
+      {onBack && (
+        <div className="border-t border-slate-100 px-6 py-3">
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-400 transition-colors hover:text-indigo-600"
+          >
+            <ChevronLeft className="h-4 w-4" /> {backLabel}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

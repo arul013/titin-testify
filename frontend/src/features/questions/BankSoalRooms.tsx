@@ -28,15 +28,11 @@ export function BankSoalRooms({ onSelect }: BankSoalRoomsProps) {
     <PageContainer
       className="space-y-6"
       header={
-        <div className="-mt-5 bg-white border border-slate-100 rounded-3xl shadow-md shadow-slate-100 overflow-hidden">
-          <div className="p-6">
-            <PageHeader
-              icon={<Library />}
-              title="Bank Soal"
-              subtitle="Pilih jenis tes untuk membuka bank soalnya. Tiap jenis tes punya ruang soal sendiri — tidak tercampur."
-            />
-          </div>
-        </div>
+        <PageHeader
+          icon={<Library />}
+          title="Bank Soal"
+          subtitle="Pilih jenis tes untuk membuka bank soalnya. Tiap jenis tes punya ruang soal sendiri — tidak tercampur."
+        />
       }
     >
       {isLoading ? (

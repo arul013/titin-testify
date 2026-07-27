@@ -58,24 +58,13 @@ export function BankSoalRoom({ testType, onBack }: BankSoalRoomProps) {
     <PageContainer
       className={isBuilderOpen ? "space-y-4" : "space-y-6"}
       header={
-        <div className="-mt-5 bg-white border border-slate-100 rounded-3xl shadow-md shadow-slate-100 overflow-hidden">
-          <div className="p-6">
-            <PageHeader
-              icon={<Library />}
-              title={`Bank Soal — ${testType.name}`}
-              subtitle="Kelola soal untuk jenis tes ini — soal tunggal maupun soal yang berbagi teks bacaan atau audio yang sama."
-            />
-          </div>
-          <div className="border-t border-slate-100 px-6 py-3">
-            <button
-              type="button"
-              onClick={onBack}
-              className="inline-flex items-center gap-1.5 self-start text-sm font-medium text-slate-400 hover:text-indigo-600 transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4" /> Semua Jenis Tes
-            </button>
-          </div>
-        </div>
+        <PageHeader
+          icon={<Library />}
+          title={`Bank Soal — ${testType.name}`}
+          subtitle="Kelola soal untuk jenis tes ini — soal tunggal maupun soal yang berbagi teks bacaan atau audio yang sama."
+          backLabel="Semua Jenis Tes"
+          onBack={onBack}
+        />
       }
     >
       {bank.isQuestionOpen ? (
