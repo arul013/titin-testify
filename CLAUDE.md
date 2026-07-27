@@ -26,7 +26,8 @@
 - Saat memindah kode dari `page.tsx` ke `features/`, **ganti import relatif (`../../`) menjadi alias `@/`** agar tidak rusak.
 - Pengecualian wajar: `layout.tsx`, route redirect/splash sederhana, dan halaman yang memang sudah tipis. Kalau ragu, tetap ekstrak ke `features/`.
 
-## 🚫 HARD RULE: Selalu cek komponen DS dulu; JANGAN bikin komponen baru tanpa izin
+## 🚫 HARD RULE: WAJIB pakai komponen DS `frontend/src/components/ui/`; JANGAN bikin komponen baru tanpa izin
 
-- **SEBELUM** membuat atau memakai komponen UI apa pun, **WAJIB cek dulu** `frontend/src/components/ui/`. Kalau sudah ada komponennya, **pakai yang itu** (jangan buat versi bespoke/native).
-- Kalau komponen yang dibutuhkan **belum ada**, **JANGAN** langsung membuat/memakai komponen native atau komponen baru. **Tanyakan dulu ke user** apakah boleh membuat komponen baru (dan seperti apa), baru lanjut.
+- **SETIAP membangun UI, WAJIB memakai komponen dari `frontend/src/components/ui/`.** SEBELUM menulis UI apa pun, **cek dulu** folder itu. Kalau komponennya sudah ada (Button, Input, Select, Modal, Card, Badge, Tabs, ListToolbar, PageHeader, dsb.), **pakai yang itu** — jangan bikin versi bespoke, jangan pakai kontrol native.
+- Kalau komponen yang dibutuhkan **belum ada** di `components/ui/`, **JANGAN langsung membuat komponen baru**. **WAJIB minta persetujuan user dulu** (jelaskan komponen apa & kenapa perlu), baru buat setelah disetujui. Ini berlaku tanpa pengecualian.
+- Kalau butuh variasi kecil, utamakan **menambah prop/varian ke komponen DS yang sudah ada** (mis. `PageHeader` dengan `card`/`onBack`) daripada membuat komponen terpisah.

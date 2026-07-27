@@ -26,10 +26,9 @@ interface StepReviewProps {
   title: string;
   testTypeName: string;
   examMode: 'full' | 'custom';
+  testTypeCode: string;
   durationMinutes: number;
-  schemeName: string;
   passingValue: number | null;
-  passingUnit: string;
   scheduleLabel: string;
   allowRetake: boolean;
   participantsCount: number;
@@ -62,10 +61,9 @@ export const StepReview: React.FC<StepReviewProps> = ({
   title,
   testTypeName,
   examMode,
+  testTypeCode,
   durationMinutes,
-  schemeName,
   passingValue,
-  passingUnit,
   scheduleLabel,
   allowRetake,
   participantsCount,
@@ -99,8 +97,9 @@ export const StepReview: React.FC<StepReviewProps> = ({
   const ready =
     sections.length > 0 && participantsCount > 0 && !!availability && shortSections.length === 0;
 
-  const passingText =
-    passingValue == null ? '—' : passingUnit === 'percent' ? `${passingValue}%` : String(passingValue);
+  const isOfficialItp = examMode === 'full' && testTypeCode === 'itp';
+  const scoringMethod = isOfficialItp ? 'Skor Resmi TOEFL ITP' : 'Nilai 0–100';
+  const passingText = passingValue == null ? '—' : String(passingValue);
 
   return (
     <div className="flex flex-col gap-6">
@@ -121,8 +120,8 @@ export const StepReview: React.FC<StepReviewProps> = ({
           <SummaryItem icon={<Clock className="w-4 h-4" />} label="Total Waktu" value={`${durationMinutes} menit`} />
           <SummaryItem
             icon={<Gauge className="w-4 h-4" />}
-            label="Skema Penilaian"
-            value={schemeName || <span className="text-slate-300 italic">Belum dipilih</span>}
+            label="Metode Penilaian"
+            value={scoringMethod}
           />
           <SummaryItem
             icon={<CheckCircle2 className="w-4 h-4" />}

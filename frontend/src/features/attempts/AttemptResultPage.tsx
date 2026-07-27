@@ -37,7 +37,10 @@ export function AttemptResultPage() {
     };
   }, [attemptId]);
 
+  const isItp = result?.scale_unit === 'toefl_itp';
+  // Unit di sebelah angka skor: Nilai/skor tanpa satuan; hanya '%' untuk skema lama.
   const unit = result?.scale_unit === 'percent' ? '%' : '';
+  const scoreLabel = isItp ? 'Skor TOEFL' : 'Nilai';
   const passed = result?.passed;
 
   return (
@@ -93,9 +96,12 @@ export function AttemptResultPage() {
                 )}
               </div>
               <div className="text-center md:text-right">
+                <p className="text-white/70 text-[11px] font-bold uppercase tracking-wider mb-0.5">
+                  {scoreLabel}
+                </p>
                 <div className="flex items-baseline gap-1 justify-center md:justify-end">
                   <span className="text-5xl md:text-6xl font-extrabold tabular-nums">
-                    {result.score ?? '—'}
+                    {result.score != null ? Math.round(result.score) : '—'}
                   </span>
                   <span className="text-2xl font-bold text-white/80">{unit}</span>
                 </div>
@@ -121,6 +127,7 @@ export function AttemptResultPage() {
             {result.per_section.length === 0 ? (
               <p className="text-sm text-slate-400 italic">Tidak ada rincian bagian.</p>
             ) : (
+              <>
               <div className="flex flex-col gap-3">
                 {result.per_section.map((s) => (
                   <div
@@ -129,24 +136,31 @@ export function AttemptResultPage() {
                   >
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-slate-700 text-sm">
-                        {SECTION_LABELS[s.section as ExamSectionId] ?? s.section}
+                        {s.label ?? SECTION_LABELS[s.section as ExamSectionId] ?? s.section}
                       </p>
-                      <div className="mt-2 h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-linear-to-r from-brand-start to-brand-end rounded-full"
-                          style={{ width: `${Math.min(100, Math.max(0, s.percent))}%` }}
-                        />
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="font-extrabold text-slate-800 tabular-nums">{s.percent}%</p>
-                      <p className="text-xs text-slate-400 tabular-nums">
+                      <p className="text-xs text-slate-400 tabular-nums mt-0.5">
                         {s.correct}/{s.total} benar
                       </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      {s.converted != null ? (
+                        <>
+                          <p className="font-extrabold text-brand tabular-nums text-lg">{s.converted}</p>
+                          <p className="text-[10px] text-slate-400 uppercase tracking-wide">konversi</p>
+                        </>
+                      ) : (
+                        <p className="font-extrabold text-slate-800 tabular-nums text-lg">{Math.round(s.percent)}</p>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
+              {isItp && (
+                <p className="text-[11px] text-slate-400 mt-3 leading-relaxed">
+                  Skor akhir = (jumlah nilai konversi × 10) ÷ 3, dibulatkan sesuai tabel resmi TOEFL ITP.
+                </p>
+              )}
+              </>
             )}
           </Card>
         </>

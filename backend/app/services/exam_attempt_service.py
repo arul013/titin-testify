@@ -14,8 +14,7 @@ from app.models.exam_attempt import (
     SectionResult,
     AttemptResultResponse,
 )
-from app.models.scoring_scheme import ComputeScoreRequest, SectionScoreInput
-from app.services.scoring_scheme_service import ScoringSchemeService
+from app.services.scoring_engine import compute_exam_score, is_official_itp
 
 
 def _parse_dt(v) -> datetime | None:
@@ -65,13 +64,6 @@ class ExamAttemptService:
         for r in eqs:
             qcount[r["exam_id"]] = qcount.get(r["exam_id"], 0) + 1
 
-        # Skala skema (untuk tampilan skor)
-        scheme_ids = [e["scoring_scheme_id"] for e in exams if e.get("scoring_scheme_id")]
-        unit_by_scheme: dict = {}
-        if scheme_ids:
-            sr = supabase.table("scoring_schemes").select("id, config").in_("id", scheme_ids).execute().data or []
-            unit_by_scheme = {s["id"]: (s.get("config") or {}).get("passing_unit", "percent") for s in sr}
-
         now = datetime.now(timezone.utc)
         items = []
         for e in exams:
@@ -103,7 +95,11 @@ class ExamAttemptService:
                 attempt_id=a["id"] if a else None,
                 score=a.get("score") if a else None,
                 passed=a.get("passed") if a else None,
-                scale_unit=unit_by_scheme.get(e.get("scoring_scheme_id"), "percent"),
+                scale_unit=(
+                    "toefl_itp"
+                    if is_official_itp(e.get("test_type", "itp"), e.get("exam_mode", "custom"))
+                    else "nilai"
+                ),
                 can_start=can_start,
             ))
         return MyExamListResponse(exams=items)
@@ -254,28 +250,20 @@ class ExamAttemptService:
             is_c = a["selected_answer"] is not None and a["selected_answer"] == ca
             supabase.table("exam_attempt_answers").update({"is_correct": is_c}).eq("id", a["id"]).execute()
 
-        total_q = sum(v["total"] for v in per.values())
-        total_c = sum(v["correct"] for v in per.values())
-
-        scheme_id = exam.get("scoring_scheme_id")
         passing = exam.get("passing_value")
-        if scheme_id:
-            comp = await ScoringSchemeService.compute_score(ComputeScoreRequest(
-                scheme_id=scheme_id,
-                sections=[SectionScoreInput(section=k, total=v["total"], correct=v["correct"]) for k, v in per.items()],
-                passing_value=passing,
-            ))
-            score, passed, scale_unit = comp.score, comp.passed, comp.scale_unit
-            per_section = [SectionResult(section=ps.section, total=ps.total, correct=ps.correct, percent=ps.percent) for ps in comp.per_section]
-        else:
-            score = round(total_c / total_q * 100, 1) if total_q else 0.0
-            passed = (score >= passing) if passing is not None else None
-            scale_unit = "percent"
-            per_section = [
-                SectionResult(section=k, total=v["total"], correct=v["correct"],
-                              percent=round(v["correct"] / v["total"] * 100, 1) if v["total"] else 0.0)
-                for k, v in per.items()
-            ]
+        # Skor otomatis berdasarkan jenis tes + mode (TOEFL ITP resmi / Nilai 0–100).
+        comp = compute_exam_score(
+            test_type=exam.get("test_type", "itp"),
+            exam_mode=exam.get("exam_mode", "custom"),
+            per_section=[{"section": k, "total": v["total"], "correct": v["correct"]} for k, v in per.items()],
+            passing_value=passing,
+        )
+        score = comp["score"]
+        passed = comp["passed"]
+        scale_unit = comp["scale_unit"]
+        total_q = comp["total_questions"]
+        total_c = comp["total_correct"]
+        per_section = [SectionResult(**g) for g in comp["groups"]]
 
         now = datetime.now(timezone.utc)
         supabase.table("exam_attempts").update({
@@ -306,7 +294,7 @@ class ExamAttemptService:
         return AttemptResultResponse(
             attempt_id=attempt_id, exam_id=attempt["exam_id"], title=exam["title"], status=attempt["status"],
             score=attempt.get("score"), passed=attempt.get("passed"),
-            scale_unit=detail.get("scale_unit", "percent"),
+            scale_unit=detail.get("scale_unit", "nilai"),
             total_questions=attempt.get("total_questions") or 0,
             total_correct=attempt.get("total_correct") or 0,
             passing_value=exam.get("passing_value"),

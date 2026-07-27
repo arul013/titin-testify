@@ -74,6 +74,10 @@ export interface SectionResult {
   total: number;
   correct: number;
   percent: number;
+  /** Label tampilan (mis. "Structure & Written Expression" untuk grup gabungan ITP). */
+  label?: string | null;
+  /** Nilai konversi TOEFL ITP (bila skor resmi); null untuk Nilai 0–100. */
+  converted?: number | null;
 }
 
 export interface AttemptResult {

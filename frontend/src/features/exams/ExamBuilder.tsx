@@ -21,7 +21,6 @@ import {
   type PoolPreviewResponse,
   type SectionAvailability,
 } from './hooks/useExams';
-import { useScoringSchemes } from '@/features/scoring/hooks/useScoringSchemes';
 import { useTestTypes } from '@/features/test-types/useTestTypes';
 
 interface ExamBuilderProps {
@@ -92,10 +91,14 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
   const [title, setTitle] = useState(initial?.title || '');
   const [description, setDescription] = useState(initial?.description || '');
   const [duration, setDuration] = useState(initial ? String(initial.duration_minutes) : '60');
-  const { schemes } = useScoringSchemes();
-  const [scoringSchemeId, setScoringSchemeId] = useState(initial?.scoring_scheme_id ?? '');
+  // Skor otomatis (tanpa skema manual). Default passing 500 utk Tes Lengkap ITP baru.
+  const isOfficialItp = examMode === 'full' && testTypeCode === 'itp';
   const [passingValue, setPassingValue] = useState(
-    initial?.passing_value != null ? String(initial.passing_value) : '',
+    initial?.passing_value != null
+      ? String(initial.passing_value)
+      : isOfficialItp
+        ? '500'
+        : '',
   );
   const [allowRetake, setAllowRetake] = useState(initial?.allow_retake ?? false);
   const [scheduled, setScheduled] = useState(!!initial?.starts_at);
@@ -164,7 +167,7 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
     duration_minutes: Number(duration),
     test_type: testTypeCode,
     exam_mode: examMode,
-    scoring_scheme_id: scoringSchemeId || null,
+    scoring_scheme_id: null,
     passing_value: passingValue === '' ? null : Number(passingValue),
     allow_retake: allowRetake,
     status: 'draft',
@@ -186,11 +189,6 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
     }
     if (!duration || Number(duration) < 1) {
       toast.error('Total waktu harus minimal 1 menit.');
-      setStep(0);
-      return false;
-    }
-    if (!scoringSchemeId) {
-      toast.error('Pilih skema penilaian.');
       setStep(0);
       return false;
     }
@@ -255,7 +253,7 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
   }));
 
   // ─── Kelengkapan per step (gating strict) ───
-  const detailComplete = !!title.trim() && Number(duration) >= 1 && !!scoringSchemeId;
+  const detailComplete = !!title.trim() && Number(duration) >= 1;
   const komposisiComplete = activeSkillCodes.length > 0;
   const pesertaComplete = participantIds.length > 0;
 
@@ -350,9 +348,8 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
             setDescription={setDescription}
             duration={duration}
             setDuration={setDuration}
-            schemes={schemes}
-            scoringSchemeId={scoringSchemeId}
-            setScoringSchemeId={setScoringSchemeId}
+            testTypeCode={testTypeCode}
+            examMode={examMode}
             passingValue={passingValue}
             setPassingValue={setPassingValue}
             allowRetake={allowRetake}
@@ -396,10 +393,9 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
             title={title}
             testTypeName={testType?.name ?? testTypeCode.toUpperCase()}
             examMode={examMode}
+            testTypeCode={testTypeCode}
             durationMinutes={Number(duration) || 0}
-            schemeName={schemes.find((s) => s.id === scoringSchemeId)?.name ?? ''}
             passingValue={passingValue === '' ? null : Number(passingValue)}
-            passingUnit={(schemes.find((s) => s.id === scoringSchemeId)?.config?.passing_unit as string) || 'percent'}
             scheduleLabel={scheduleLabel}
             allowRetake={allowRetake}
             participantsCount={participantIds.length}

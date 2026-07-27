@@ -58,7 +58,11 @@ class SectionResult(BaseModel):
     section: str
     total: int
     correct: int
-    percent: float
+    percent: float = 0.0
+    # Label tampilan (mis. "Structure & Written Expression" untuk grup gabungan ITP).
+    label: Optional[str] = None
+    # Nilai konversi TOEFL ITP (bila skor resmi); None untuk Nilai 0–100.
+    converted: Optional[int] = None
 
 
 class AttemptResultResponse(BaseModel):

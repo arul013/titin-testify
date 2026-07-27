@@ -2,12 +2,10 @@
 
 import React from 'react';
 import { Input, Textarea } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DatePicker } from '@/components/ui/date-picker';
 import { ClockTimePicker } from '@/components/ui/clock-time-picker';
-import { CalendarClock, AlertTriangle, Repeat } from 'lucide-react';
-import type { ScoringScheme } from '@/features/scoring/hooks/useScoringSchemes';
+import { CalendarClock, AlertTriangle, Repeat, Gauge } from 'lucide-react';
 
 interface StepDetailProps {
   title: string;
@@ -16,9 +14,9 @@ interface StepDetailProps {
   setDescription: (v: string) => void;
   duration: string;
   setDuration: (v: string) => void;
-  schemes: ScoringScheme[];
-  scoringSchemeId: string;
-  setScoringSchemeId: (v: string) => void;
+  /** Jenis tes + mode → menentukan metode skor & unit nilai kelulusan. */
+  testTypeCode: string;
+  examMode: 'full' | 'custom';
   passingValue: string;
   setPassingValue: (v: string) => void;
   allowRetake: boolean;
@@ -35,8 +33,6 @@ interface StepDetailProps {
   setEndTime: (v: string) => void;
 }
 
-/** Hanya izinkan digit (+ titik untuk desimal, mis. band IELTS 6.5). */
-const digitsDot = (v: string) => v.replace(/[^0-9.]/g, '');
 const digits = (v: string) => v.replace(/[^0-9]/g, '');
 
 /** Waktu mulai (WIB) dianggap "sudah lewat" bila > 5 menit di masa lalu. */
@@ -56,9 +52,8 @@ export const StepDetail: React.FC<StepDetailProps> = ({
   setDescription,
   duration,
   setDuration,
-  schemes,
-  scoringSchemeId,
-  setScoringSchemeId,
+  testTypeCode,
+  examMode,
   passingValue,
   setPassingValue,
   allowRetake,
@@ -76,10 +71,16 @@ export const StepDetail: React.FC<StepDetailProps> = ({
 }) => {
   const pastWarning = scheduled && isStartInPast(startDate, startTime);
 
-  const scheme = schemes.find((s) => s.id === scoringSchemeId);
-  const unit = (scheme?.config?.passing_unit as string) || 'percent';
-  const passingLabel = unit === 'percent' ? 'Nilai Kelulusan (%) — opsional' : 'Nilai Kelulusan (opsional)';
-  const passingPlaceholder = unit === 'percent' ? 'mis. 70' : 'mis. 500';
+  // Skor otomatis: Tes Lengkap ITP → skor resmi; selain itu → Nilai 0–100.
+  const isOfficialItp = examMode === 'full' && testTypeCode === 'itp';
+  const scoringMethod = isOfficialItp ? 'Skor Resmi TOEFL ITP (217–677)' : 'Nilai 0–100';
+  const scoringDesc = isOfficialItp
+    ? 'Skor dihitung otomatis dengan tabel konversi resmi TOEFL ITP.'
+    : 'Skor = (jawaban benar ÷ total soal) × 100, dibulatkan.';
+  const passingLabel = isOfficialItp
+    ? 'Nilai Kelulusan (skor TOEFL) — opsional'
+    : 'Nilai Kelulusan (0–100) — opsional';
+  const passingPlaceholder = isOfficialItp ? 'mis. 500' : 'mis. 70';
 
   return (
     <div className="flex flex-col gap-6">
@@ -102,27 +103,21 @@ export const StepDetail: React.FC<StepDetailProps> = ({
         />
       </div>
 
-      {/* Skema penilaian + nilai kelulusan */}
+      {/* Metode penilaian (otomatis) + nilai kelulusan */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div>
-          <span className={fieldLabel}>
-            Skema Penilaian <span className="text-red-500">*</span>
-          </span>
-          <Select value={scoringSchemeId} onChange={(e) => setScoringSchemeId(e.target.value)}>
-            <option value="">Pilih skema…</option>
-            {schemes.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </Select>
-          <p className="mt-1 text-xs text-gray-400">
-            Menentukan cara skor dihitung. Kelola di menu <strong>Skema Penilaian</strong>.
-          </p>
+          <span className={fieldLabel}>Metode Penilaian</span>
+          <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-2.5 flex items-center gap-2">
+            <Gauge className="w-4 h-4 text-brand shrink-0" />
+            <span className="text-sm font-semibold text-slate-700">{scoringMethod}</span>
+          </div>
+          <p className="mt-1 text-xs text-gray-400">{scoringDesc}</p>
         </div>
         <Input
           label={passingLabel}
-          inputMode="decimal"
+          inputMode="numeric"
           value={passingValue}
-          onChange={(e) => setPassingValue(digitsDot(e.target.value))}
+          onChange={(e) => setPassingValue(digits(e.target.value))}
           placeholder={passingPlaceholder}
           hint="Kosongkan bila tak memakai ambang lulus."
         />
