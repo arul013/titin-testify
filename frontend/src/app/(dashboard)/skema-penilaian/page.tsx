@@ -1,7 +1,7 @@
 'use client';
 
-import { SkemaPenilaianPage } from '@/features/scoring/SkemaPenilaianPage';
+import { SkemaRooms } from '@/features/scoring/SkemaRooms';
 
 export default function Page() {
-  return <SkemaPenilaianPage />;
+  return <SkemaRooms />;
 }

@@ -1,7 +1,7 @@
 'use client';
 
-import { BankSoalPage } from '@/features/questions/BankSoalPage';
+import { BankSoalRooms } from '@/features/questions/BankSoalRooms';
 
 export default function Page() {
-  return <BankSoalPage />;
+  return <BankSoalRooms />;
 }

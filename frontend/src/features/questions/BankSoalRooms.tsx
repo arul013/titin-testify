@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Library, Folder, ChevronRight, Clock, Layers } from 'lucide-react';
 import { PageContainer } from '@/components/ui/page-container';
 import { PageHeader } from '@/components/ui/page-header';
@@ -10,10 +11,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ListToolbar, type ListView, type SortOption } from '@/components/ui/list-toolbar';
 import { cn } from '@/src/lib/cn';
 import { useTestTypes, type TestType } from '@/features/test-types/useTestTypes';
-
-interface BankSoalRoomsProps {
-  onSelect: (t: TestType) => void;
-}
 
 // Legend per jenis tes (kemampuan yang diujikan). Fallback ke deskripsi untuk
 // jenis tes baru yang belum terdaftar di sini.
@@ -145,7 +142,8 @@ function RoomFolder({
  * Gerbang Bank Soal ala Google Drive — pilih "folder" jenis tes dulu.
  * Toolbar (cari/urut/grid-list) + 2 seksi: Tersedia & Segera Hadir.
  */
-export function BankSoalRooms({ onSelect }: BankSoalRoomsProps) {
+export function BankSoalRooms() {
+  const router = useRouter();
   const { testTypes, isLoading, error } = useTestTypes();
   const [view, setView] = useState<ListView>('grid');
   const [search, setSearch] = useState('');
@@ -226,7 +224,12 @@ export function BankSoalRooms({ onSelect }: BankSoalRoomsProps) {
               </h2>
               <div className={view === 'grid' ? gridClass : listClass}>
                 {active.map((t) => (
-                  <RoomFolder key={t.id} testType={t} view={view} onOpen={() => onSelect(t)} />
+                  <RoomFolder
+                    key={t.id}
+                    testType={t}
+                    view={view}
+                    onOpen={() => router.push(`/bank-soal/${t.code}`)}
+                  />
                 ))}
               </div>
             </section>
