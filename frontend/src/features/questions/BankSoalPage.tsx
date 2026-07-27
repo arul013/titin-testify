@@ -39,13 +39,14 @@ export function BankSoalPage() {
   ];
 
   const isBuilderOpen = bank.isQuestionOpen || bank.isPassageOpen;
-  // FAB hanya muncul di daftar (bukan builder, bukan detail materi). Ruang bawah
-  // (pb-24) hanya perlu saat FAB ada — kalau tidak, jadi white space kosong.
+  // FAB hanya muncul di daftar (bukan builder, bukan detail materi). Saat FAB ada,
+  // sisakan ruang bawah secukupnya (pb-8) agar tak menutupi paginasi di layar
+  // sempit — bukan pb-24 yang jadi white space kosong. Tanpa FAB: tanpa ruang ekstra.
   const showFab = !isBuilderOpen && !bank.selectedPassage;
 
   return (
     <PageContainer
-      className={isBuilderOpen ? 'space-y-4' : showFab ? 'space-y-6 pb-24' : 'space-y-6'}
+      className={isBuilderOpen ? 'space-y-4' : showFab ? 'space-y-6 pb-8' : 'space-y-6'}
       header={
         <PageHeader
           icon={<Library />}
