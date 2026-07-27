@@ -1,24 +1,24 @@
-'use client';
+"use client";
 
-import { Library, Trash2, FileText, Layers, ChevronLeft } from 'lucide-react';
-import { Card } from '@/components/ui/card';
-import { Pagination } from '@/components/ui/pagination';
-import { PageContainer } from '@/components/ui/page-container';
-import { PageHeader } from '@/components/ui/page-header';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { FAB, type FABAction } from '@/components/ui/FAB';
-import { useBankSoalPage } from '@/features/questions/hooks/useBankSoalPage';
-import { BankSoalStats } from '@/features/questions/BankSoalStats';
-import { BankSoalFilters } from '@/features/questions/BankSoalFilters';
-import { BankSoalTableSkeleton } from '@/features/questions/BankSoalTableSkeleton';
-import { PassageTable } from '@/features/questions/PassageTable';
-import { PassageDetailPanel } from '@/features/questions/PassageDetailPanel';
-import { QuestionTable } from '@/features/questions/QuestionTable';
-import { QuestionBuilder } from '@/features/questions/QuestionBuilder';
-import { PassageBuilder } from '@/features/questions/PassageBuilder';
-import { PassageTypeChooser } from '@/features/questions/PassageTypeChooser';
-import { QuestionPreview } from '@/features/questions/QuestionPreview';
-import type { TestType } from '@/features/test-types/useTestTypes';
+import { Library, Trash2, FileText, Layers, ChevronLeft } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Pagination } from "@/components/ui/pagination";
+import { PageContainer } from "@/components/ui/page-container";
+import { PageHeader } from "@/components/ui/page-header";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { FAB, type FABAction } from "@/components/ui/FAB";
+import { useBankSoalPage } from "@/features/questions/hooks/useBankSoalPage";
+import { BankSoalStats } from "@/features/questions/BankSoalStats";
+import { BankSoalFilters } from "@/features/questions/BankSoalFilters";
+import { BankSoalTableSkeleton } from "@/features/questions/BankSoalTableSkeleton";
+import { PassageTable } from "@/features/questions/PassageTable";
+import { PassageDetailPanel } from "@/features/questions/PassageDetailPanel";
+import { QuestionTable } from "@/features/questions/QuestionTable";
+import { QuestionBuilder } from "@/features/questions/QuestionBuilder";
+import { PassageBuilder } from "@/features/questions/PassageBuilder";
+import { PassageTypeChooser } from "@/features/questions/PassageTypeChooser";
+import { QuestionPreview } from "@/features/questions/QuestionPreview";
+import type { TestType } from "@/features/test-types/useTestTypes";
 
 interface BankSoalRoomProps {
   testType: TestType;
@@ -30,32 +30,35 @@ export function BankSoalRoom({ testType, onBack }: BankSoalRoomProps) {
   const sections = testType.skills.map((s) => ({ code: s.code, name: s.name }));
   const bank = useBankSoalPage(testType.code, sections);
 
-  const isDeletingPassage = bank.pendingDelete?.kind === 'passage';
+  const isDeletingPassage = bank.pendingDelete?.kind === "passage";
 
   const createActions: FABAction[] = [
     {
       icon: <FileText className="w-5 h-5" />,
-      label: 'Soal Tunggal',
+      label: "Soal Tunggal",
       onClick: bank.openCreateQuestion,
     },
     {
       icon: <Layers className="w-5 h-5" />,
-      label: 'Soal + Materi Bersama',
+      label: "Soal + Materi Bersama",
       onClick: bank.openPassageTypeChooser,
     },
   ];
 
   const isBuilderOpen = bank.isQuestionOpen || bank.isPassageOpen;
   const showFab = !isBuilderOpen && !bank.selectedPassage;
-  const sectionOptions = sections.map((s) => ({ value: s.code, label: s.name }));
+  const sectionOptions = sections.map((s) => ({
+    value: s.code,
+    label: s.name,
+  }));
   // Ruang bawah sama dengan tampilan detail materi (yang sudah pas): tanpa
   // padding ekstra. FAB mengambang di kanan, tak menutupi konten di layar lebar.
 
   return (
     <PageContainer
-      className={isBuilderOpen ? 'space-y-4' : 'space-y-6'}
+      className={isBuilderOpen ? "space-y-4" : "space-y-6"}
       header={
-        <div className="-mt-3 bg-white border border-slate-100 rounded-3xl shadow-md shadow-slate-100 overflow-hidden">
+        <div className="-mt-4 bg-white border border-slate-100 rounded-3xl shadow-md shadow-slate-100 overflow-hidden">
           <div className="p-6">
             <PageHeader
               icon={<Library />}
@@ -77,10 +80,12 @@ export function BankSoalRoom({ testType, onBack }: BankSoalRoomProps) {
     >
       {bank.isQuestionOpen ? (
         <QuestionBuilder
-          key={`q-${bank.editingQuestion?.id ?? 'new'}`}
+          key={`q-${bank.editingQuestion?.id ?? "new"}`}
           initialData={bank.editingQuestion}
           passageId={bank.builderPassage?.id}
-          defaultSection={bank.builderPassage ? bank.builderPassage.type : sections[0]?.code}
+          defaultSection={
+            bank.builderPassage ? bank.builderPassage.type : sections[0]?.code
+          }
           sectionOptions={sectionOptions}
           passage={bank.builderPassage}
           passageLoading={bank.isBuilderPassageLoading}
@@ -89,7 +94,7 @@ export function BankSoalRoom({ testType, onBack }: BankSoalRoomProps) {
         />
       ) : bank.isPassageOpen ? (
         <PassageBuilder
-          key={`p-${bank.editingPassage?.id ?? 'new'}`}
+          key={`p-${bank.editingPassage?.id ?? "new"}`}
           initialData={bank.editingPassage}
           defaultType={bank.passageDraftType}
           onCancel={bank.closePassage}
@@ -137,7 +142,7 @@ export function BankSoalRoom({ testType, onBack }: BankSoalRoomProps) {
                 onStatusChange={bank.onStatusChange}
               />
 
-              {bank.activeTab === 'passages' ? (
+              {bank.activeTab === "passages" ? (
                 <PassageTable
                   passages={bank.passages}
                   isLoading={bank.isPassagesLoading}
@@ -195,7 +200,7 @@ export function BankSoalRoom({ testType, onBack }: BankSoalRoomProps) {
       <ConfirmDialog
         open={!!bank.pendingDelete}
         onClose={bank.cancelDelete}
-        title={isDeletingPassage ? 'Hapus Materi Ini?' : 'Hapus Soal Ini?'}
+        title={isDeletingPassage ? "Hapus Materi Ini?" : "Hapus Soal Ini?"}
         icon={<Trash2 className="w-4 h-4" />}
         confirmLabel="Ya, Hapus"
         confirmVariant="danger"
@@ -205,8 +210,8 @@ export function BankSoalRoom({ testType, onBack }: BankSoalRoomProps) {
       >
         <p className="text-sm text-slate-600 leading-relaxed">
           {isDeletingPassage
-            ? 'Menghapus materi ini akan ikut menghapus semua soal di dalamnya. Tindakan ini tidak bisa dibatalkan.'
-            : 'Soal ini akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.'}
+            ? "Menghapus materi ini akan ikut menghapus semua soal di dalamnya. Tindakan ini tidak bisa dibatalkan."
+            : "Soal ini akan dihapus permanen. Tindakan ini tidak bisa dibatalkan."}
         </p>
       </ConfirmDialog>
     </PageContainer>
