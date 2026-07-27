@@ -1,13 +1,14 @@
 'use client';
 
-import { KeyRound, Trash2, AlertTriangle } from 'lucide-react';
+import { KeyRound, Trash2, AlertTriangle, Users, Sparkles, UserPlus } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { Pagination } from '@/components/ui/pagination';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { PageContainer } from '@/components/ui/page-container';
+import { PageHeader } from '@/components/ui/page-header';
+import { FAB, type FABAction } from '@/components/ui/FAB';
 import { useUsersPage } from '@/features/users/hooks/useUsersPage';
-import { UsersHeader } from '@/features/users/UsersHeader';
 import { UsersToolbar } from '@/features/users/UsersToolbar';
 import { UserTable } from '@/features/users/UserTable';
 import { UserForm } from '@/features/users/UserForm';
@@ -17,39 +18,37 @@ import { CredentialsModal } from '@/features/users/CredentialsModal';
 export function UsersPage() {
   const p = useUsersPage();
 
-  return (
-    <div className="flex flex-col gap-6 animate-fade-in">
-      <UsersHeader />
+  const createActions: FABAction[] = [
+    { icon: <Sparkles className="w-5 h-5" />, label: 'Generate Peserta', onClick: p.generate.onOpen },
+    {
+      icon: <UserPlus className="w-5 h-5" />,
+      label: p.isSuperAdmin ? 'Tambah User' : 'Tambah Peserta',
+      onClick: p.openAdd,
+    },
+  ];
 
+  return (
+    <PageContainer
+      className="space-y-6 pb-4"
+      header={
+        <PageHeader
+          icon={<Users />}
+          title="Manajemen User"
+          subtitle="Kelola & generate akun pengguna terdaftar pada sistem CBT Titin Testify."
+        />
+      }
+    >
       <UsersToolbar
         isSuperAdmin={p.isSuperAdmin}
         activeTab={p.activeTab}
         onTabChange={p.onTabChange}
-        onGenerate={p.generate.onOpen}
-        onAdd={p.openAdd}
+        search={p.search}
+        onSearchChange={p.onSearchChange}
+        total={p.total}
       />
 
-      {/* Search + total */}
-      <Card className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="w-full max-w-sm">
-          <Input
-            type="text"
-            placeholder="Cari berdasarkan nama atau username..."
-            value={p.search}
-            onChange={(e) => p.onSearchChange(e.target.value)}
-            className="w-full"
-            containerClassName="w-full"
-          />
-        </div>
-        <div className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
-          <span>Total:</span>
-          <span className="text-indigo-600 font-extrabold">{p.total}</span>
-          <span>Akun</span>
-        </div>
-      </Card>
-
       {/* Tabel utama */}
-      <Card className="overflow-hidden p-0 border border-slate-100/80 shadow-xs">
+      <Card className="overflow-hidden p-0 rounded-3xl border border-slate-100 shadow-md shadow-slate-100">
         <UserTable
           users={p.users}
           currentUserId={p.currentUser?.id}
@@ -61,6 +60,8 @@ export function UsersPage() {
       </Card>
 
       <Pagination page={p.page} totalPages={p.totalPages} onPrev={p.prevPage} onNext={p.nextPage} />
+
+      <FAB actions={createActions} />
 
       {/* Add/Edit User Modal */}
       <Modal
@@ -153,6 +154,6 @@ export function UsersPage() {
           </div>
         </div>
       </ConfirmDialog>
-    </div>
+    </PageContainer>
   );
 }

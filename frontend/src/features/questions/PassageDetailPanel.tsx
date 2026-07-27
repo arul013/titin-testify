@@ -60,19 +60,23 @@ export const PassageDetailPanel: React.FC<PassageDetailPanelProps> = ({
         </div>
       </div>
 
-      {/* Materi (stimulus) — pinned agar tetap terlihat saat menyusun soal.
-          z-20 supaya selalu di atas input opsi (Input DS punya lapisan internal z-10). */}
-      <div className="sticky top-4 z-20 flex flex-col gap-4 bg-white/95 backdrop-blur-sm pb-1">
-        {passage.audio_url && (
+      {/* Materi (stimulus). AUDIO di-pin (sticky) agar tetap terlihat & berjalan
+          saat scroll menyusun soal; teks/gambar TIDAK di-pin (menggulung biasa)
+          supaya bacaan panjang tak mengganggu.
+          z-20 supaya audio selalu di atas input opsi (Input DS punya z-10 internal). */}
+      {passage.audio_url && (
+        <div className="sticky top-4 z-20 bg-white/95 backdrop-blur-sm pb-1">
           <div className="bg-slate-50 p-2.5 border border-slate-200/50 rounded-xl">
             <audio src={passage.audio_url} controls className="w-full h-8" />
           </div>
-        )}
+        </div>
+      )}
+      <div className="flex flex-col gap-4">
         {(() => {
           const textNode = passage.content ? (
             <div
               key="text"
-              className="text-slate-600 text-sm max-h-56 overflow-y-auto bg-slate-50 border border-slate-100 p-4 rounded-xl leading-relaxed"
+              className="text-slate-600 text-sm bg-slate-50 border border-slate-100 p-4 rounded-xl leading-relaxed"
             >
               {passage.type === "reading" ? (
                 <PassageView content={passage.content} />
