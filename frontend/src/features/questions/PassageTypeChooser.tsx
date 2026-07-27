@@ -3,45 +3,48 @@
 import React from 'react';
 import { Modal } from '@/components/ui/modal';
 import { Layers, Music, FileText, AlignLeft, PencilLine, ChevronRight } from 'lucide-react';
+import type { BankSoalSection } from './hooks/useBankSoalPage';
 
 interface PassageTypeChooserProps {
   open: boolean;
   onClose: () => void;
   onChoose: (type: string) => void;
+  /** Bagian jenis tes ruang → pilihan jenis materi. */
+  sections: BankSoalSection[];
 }
 
-const TYPES: { value: string; label: string; desc: string; icon: React.ReactNode }[] = [
-  {
-    value: 'reading',
-    label: 'Reading Comprehension',
+// Ikon & deskripsi untuk kode bagian yang dikenal (fallback generik untuk kode baru).
+const KNOWN: Record<string, { desc: string; icon: React.ReactNode }> = {
+  reading: {
     desc: 'Teks bacaan panjang yang dibagi beberapa soal.',
     icon: <FileText className="w-5 h-5" />,
   },
-  {
-    value: 'listening',
-    label: 'Listening Comprehension',
+  listening: {
     desc: 'Audio yang diputar, lalu soal mengacu ke audio itu.',
     icon: <Music className="w-5 h-5" />,
   },
-  {
-    value: 'structure',
-    label: 'Structure Section',
+  structure: {
     desc: 'Teks/kalimat bersama untuk beberapa soal Structure.',
     icon: <AlignLeft className="w-5 h-5" />,
   },
-  {
-    value: 'written_expression',
-    label: 'Written Expression',
+  written_expression: {
     desc: 'Kalimat bergaris bawah untuk beberapa soal.',
     icon: <PencilLine className="w-5 h-5" />,
   },
-];
+};
 
 /**
  * Modal ringan: hanya memilih JENIS materi. Setelah dipilih, builder materi
  * halaman-penuh (2-panel) yang dibuka untuk mengisi kontennya.
  */
-export const PassageTypeChooser: React.FC<PassageTypeChooserProps> = ({ open, onClose, onChoose }) => {
+export const PassageTypeChooser: React.FC<PassageTypeChooserProps> = ({ open, onClose, onChoose, sections }) => {
+  const TYPES = sections.map((s) => ({
+    value: s.code,
+    label: s.name,
+    desc: KNOWN[s.code]?.desc ?? 'Materi bersama untuk beberapa soal pada bagian ini.',
+    icon: KNOWN[s.code]?.icon ?? <Layers className="w-5 h-5" />,
+  }));
+
   return (
     <Modal
       open={open}

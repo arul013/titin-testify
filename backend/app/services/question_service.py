@@ -555,25 +555,33 @@ class QuestionService:
     # ─── Statistics ───────────────────────────────────────────
 
     @staticmethod
-    async def get_stats(user_id: str, user_role: str) -> QuestionStatsResponse:
-        """Get question bank statistics for the current user."""
+    async def get_stats(user_id: str, user_role: str, test_type: str | None = None) -> QuestionStatsResponse:
+        """Get question bank statistics, optionally scoped to a test type."""
         supabase = get_supabase_admin()
 
-        # Build base query filter
+        # Build base query filter (kepemilikan + jenis tes)
         def filtered_query(table: str):
             q = supabase.table(table).select("id", count=CountMethod.exact)
             if user_role != "super_admin":
                 q = q.eq("created_by", user_id)
+            if test_type:
+                q = q.eq("test_type", test_type)
             return q
 
         total_questions = filtered_query("questions").execute().count or 0
         total_passages = filtered_query("question_passages").execute().count or 0
 
-        # By section
-        by_section = {}
-        for section in ["listening", "structure", "written_expression", "reading"]:
-            count = filtered_query("questions").eq("section", section).execute().count or 0
-            by_section[section] = count
+        # By section — dinamis (kelompokkan `section` dalam scope). Satu query, tally di Python.
+        sec_q = supabase.table("questions").select("section")
+        if user_role != "super_admin":
+            sec_q = sec_q.eq("created_by", user_id)
+        if test_type:
+            sec_q = sec_q.eq("test_type", test_type)
+        by_section: dict[str, int] = {}
+        for row in (sec_q.execute().data or []):
+            sec = row.get("section")
+            if sec:
+                by_section[sec] = by_section.get(sec, 0) + 1
 
         # By difficulty
         by_difficulty = {}

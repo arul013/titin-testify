@@ -15,6 +15,8 @@ interface QuestionBuilderProps {
   initialData?: Question | null;
   passageId?: string | null;
   defaultSection?: string;
+  /** Opsi bagian (dari skill jenis tes ruang). Bila kosong → default ITP-4. */
+  sectionOptions?: { value: string; label: string }[];
   /** Passage terkait (untuk konteks preview bila soal berada di dalam materi). */
   passage?: Passage | null;
   /** Materi masih dimuat (edit soal dari daftar) → preview tampil skeleton. */
@@ -23,7 +25,7 @@ interface QuestionBuilderProps {
   onSubmit: (data: Record<string, unknown>) => Promise<void>;
 }
 
-const SECTION_OPTIONS = [
+const DEFAULT_SECTION_OPTIONS = [
   { value: 'listening', label: 'Listening' },
   { value: 'structure', label: 'Structure' },
   { value: 'written_expression', label: 'Written Expression' },
@@ -43,11 +45,13 @@ export const QuestionBuilder: React.FC<QuestionBuilderProps> = ({
   initialData,
   passageId,
   defaultSection,
+  sectionOptions,
   passage,
   passageLoading = false,
   onCancel,
   onSubmit,
 }) => {
+  const SECTION_OPTIONS = sectionOptions && sectionOptions.length > 0 ? sectionOptions : DEFAULT_SECTION_OPTIONS;
   const form = useQuestionForm({ initialData, passageId, defaultSection });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);

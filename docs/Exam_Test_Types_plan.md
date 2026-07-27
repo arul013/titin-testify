@@ -72,8 +72,8 @@ bisa dua-duanya (kolom DB `allow_custom` disisakan, default true, untuk pembatas
   diberi catatan "skor resmi menyusul". Saat tabel resmi masuk (skema STANDAR), tinggal dipasang ke
   jenis tes tanpa bongkar ulang. **Angka konversi WAJIB dari sumber resmi — jangan dikarang.**
 
-## 8. Sub-fase Fase A
-1. **A1 — DB** (`013_test_types.sql`): test_types + test_type_skills + tag questions/passages/exams + RLS + seed. ✅ **DIBUAT (menunggu user jalankan).**
+## 8. Sub-fase Fase A — ✅ SELESAI (untuk ITP) 2026-07-27
+1. **A1 — DB** (`013_test_types.sql`): test_types + test_type_skills + tag questions/passages/exams + RLS + seed. ✅ **DIJALANKAN user** (termasuk re-run untuk kolom `question_passages.test_type` yang ditambah belakangan).
 2. **A2 — Backend** ✅ SELESAI 2026-07-26 (compile/diagnostics bersih, belum di-commit):
    - `models/test_type.py` + `services/test_type_service.py` (CRUD + `get_skills_by_code`) + `routes/test_types.py` (`/api/test-types`, admin) → register main.
    - `questions` & `question_passages` bawa `test_type` (insert/update/response + filter `?test_type=`; soal **mewarisi** test_type dari materi induk).
@@ -87,10 +87,16 @@ bisa dua-duanya (kolom DB `allow_custom` disisakan, default true, untuk pembatas
    - `StepSource` prop `testType` (filter Bank Soal via `?test_type=`) + `exact` (badge "perlu tepat N"); `useQuestions`/`usePassages` tambah param `testType`.
    - `StepReview` tampilkan Jenis Ujian + mode ("Tes Lengkap"/"Latihan"). `useExams.Exam` tambah `test_type`+`exam_mode`.
    - Form **Jenis Ujian**: centang `allow_custom` **DIHAPUS** dari UI (setiap jenis aktif otomatis bisa dua mode). Validasi eksak keras tetap di backend `publish_exam`.
-5. **A5 — Bank Soal:** untuk Fase A **cukup default `test_type='itp'`** (semua soal ITP; backend set default). **Selektor/filter jenis tes di Bank Soal ditunda** sampai ada jenis tes aktif ke-2 (Fase B).
+5. **A5 — Bank Soal** ✅ **TERPENUHI OTOMATIS (tanpa kode baru) 2026-07-27:** dijamin oleh A2 — model backend + kolom DB default `test_type='itp'` (soal & materi), dan soal **mewarisi** test_type dari materi induk. Semua soal lama & baru = ITP tanpa perlu input. **Selektor/filter jenis tes di Bank Soal SENGAJA DITUNDA** ke Fase B (baru berguna saat ada jenis tes aktif ke-2 — menambah dropdown sekarang = kompleksitas tanpa manfaat).
+
+> **Fase A tuntas untuk ITP.** Yang tersisa semua di **Fase B** dan bergantung pada pemicu eksternal (tabel skor resmi terverifikasi, atau keputusan menambah jenis tes ke-2). Tidak ada pekerjaan Fase A yang menggantung.
 
 ## 9. Fase B (menyusul)
-- Penataan ulang UI Bank Soal per jenis tes (tab/filter, pengelompokan).
+- **Penataan ulang UI Bank Soal per jenis tes** ✅ **SELESAI 2026-07-27** (diagnostics/compile bersih, belum di-commit):
+  - **Gerbang "ruang per jenis tes":** `/bank-soal` kini menampilkan kartu jenis tes dulu (`BankSoalRooms`, jenis **active + soon** — bisa siapkan soal sebelum launch). Pilih → masuk ruang (`BankSoalRoom`), soal antar-jenis **tak bercampur**. `BankSoalPage` = gerbang tipis (rooms↔room, keyed by code).
+  - **Data ter-scope:** `useBankSoalPage(testTypeCode, sections)` → semua query soal/materi/**stats** pakai `?test_type=`. Soal/materi baru **membawa test_type ruang** (inject di create; child mewarisi dari materi).
+  - **Tab & stats & opsi DINAMIS dari skill jenis tes:** `BankSoalFilters` tab = [Semua Soal, Materi, …skills]; `BankSoalStats` kartu per-skill (kolom auto); `QuestionBuilder` `sectionOptions` = skills; `PassageTypeChooser` opsi = skills (ikon/desc dikenal utk kode standar, fallback generik). `defaultSection` soal baru = skill pertama ruang.
+  - **Backend:** `/api/questions/stats?test_type=` + `get_stats(test_type)` (by_section dinamis: tally section dalam scope, satu query). Editor per-section tetap keyed by kode (aman utk tes MCQ baru yg reuse kode listening/reading/…). → **Tambah tes MCQ baru (mis. TOEIC) = cukup tambah data di Jenis Ujian, nol kode.**
 - Menambah jenis tes ke-2 sungguhan (mis. TOEIC MCQ) end-to-end.
 - Penanganan **Speaking/Writing non-MCQ** (rekam/berkas + rubrik manusia) — proyek tersendiri.
 - Skema penilaian STANDAR resmi (TOEFL ITP 310–677, IELTS band) saat tabel terverifikasi.

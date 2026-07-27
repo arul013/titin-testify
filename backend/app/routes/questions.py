@@ -97,10 +97,11 @@ async def delete_passage(
 
 @router.get("/api/questions/stats", response_model=QuestionStatsResponse)
 async def get_question_stats(
+    test_type: Optional[str] = Query(None, description="Scope stats to a test type (itp/ibt/…)"),
     current_user: UserProfile = Depends(require_admin),
 ):
-    """Get question bank statistics (admin only)."""
-    return await QuestionService.get_stats(current_user.id, current_user.role.value)
+    """Get question bank statistics (admin only), optionally scoped to a test type."""
+    return await QuestionService.get_stats(current_user.id, current_user.role.value, test_type)
 
 
 @router.get("/api/questions", response_model=QuestionListResponse)

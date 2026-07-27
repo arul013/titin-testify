@@ -13,21 +13,23 @@ import {
   type Passage,
 } from './useQuestions';
 
-export type BankSoalTab =
-  | 'all'
-  | 'passages'
-  | 'listening'
-  | 'structure'
-  | 'written_expression'
-  | 'reading';
+// 'all' | 'passages' | <kode skill jenis tes> (mis. 'listening', 'reading', …)
+export type BankSoalTab = string;
+
+/** Satu bagian/skill jenis tes (untuk tab & opsi). */
+export interface BankSoalSection {
+  code: string;
+  name: string;
+}
 
 const PER_PAGE = 10;
 
 /**
- * Semua state, data, dan handler untuk halaman Bank Soal.
+ * Semua state, data, dan handler untuk satu "ruang" jenis tes di Bank Soal.
+ * Data ter-scope ke `testTypeCode`; soal/materi baru mewarisi jenis tes ini.
  * Memisahkan logika dari tampilan agar `page.tsx` tetap tipis (smart page, dumb components).
  */
-export function useBankSoalPage() {
+export function useBankSoalPage(testTypeCode: string, sections: BankSoalSection[]) {
   const { user } = useAuth();
 
   // ─── Filter & pagination state ─────────────────────────────
@@ -93,6 +95,7 @@ export function useBankSoalPage() {
     search: debouncedSearch,
     page,
     perPage: PER_PAGE,
+    testType: testTypeCode,
   });
 
   const {
@@ -108,9 +111,10 @@ export function useBankSoalPage() {
     search: debouncedSearch,
     page,
     perPage: PER_PAGE,
+    testType: testTypeCode,
   });
 
-  const { stats, refetch: refetchStats } = useQuestionStats();
+  const { stats, refetch: refetchStats } = useQuestionStats(testTypeCode);
 
   const refreshPassageQuestions = () => setPassageQuestionsRefetch((i) => i + 1);
 
@@ -230,7 +234,7 @@ export function useBankSoalPage() {
         await updateQuestion(editingQuestion.id, data);
         toast.success('Soal berhasil diperbarui.');
       } else {
-        await createQuestion(data);
+        await createQuestion({ test_type: testTypeCode, ...data });
         toast.success('Soal baru berhasil ditambahkan.');
       }
       refetchStats();
@@ -243,7 +247,7 @@ export function useBankSoalPage() {
   // ─── Editor inline soal-dalam-materi (Paket B) ─────────────
   // Melempar error agar kartu bisa menampilkan status gagal.
   const createPassageQuestion = async (data: Record<string, unknown>) => {
-    await createQuestion(data);
+    await createQuestion({ test_type: testTypeCode, ...data });
     refetchStats();
     refreshPassageQuestions();
   };
@@ -278,7 +282,7 @@ export function useBankSoalPage() {
         await updatePassage(editingPassage.id, data);
         toast.success('Materi berhasil diperbarui.');
       } else {
-        await createPassage(data);
+        await createPassage({ test_type: testTypeCode, ...data });
         toast.success('Materi baru berhasil ditambahkan.');
       }
       refetchStats();
@@ -340,6 +344,10 @@ export function useBankSoalPage() {
   return {
     // current user
     user,
+
+    // jenis tes (ruang aktif)
+    testTypeCode,
+    sections,
 
     // filter & pagination
     activeTab,

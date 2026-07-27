@@ -5,11 +5,13 @@ import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Tabs } from '@/components/ui/tabs';
-import type { BankSoalTab } from './hooks/useBankSoalPage';
+import type { BankSoalTab, BankSoalSection } from './hooks/useBankSoalPage';
 
 interface BankSoalFiltersProps {
   activeTab: BankSoalTab;
   onTabChange: (tab: BankSoalTab) => void;
+  /** Bagian/skill jenis tes ruang ini → jadi tab (setelah Semua Soal & Materi). */
+  sections: BankSoalSection[];
   search: string;
   onSearchChange: (val: string) => void;
   difficulty: string;
@@ -18,18 +20,10 @@ interface BankSoalFiltersProps {
   onStatusChange: (val: string) => void;
 }
 
-const TABS: { id: BankSoalTab; label: string }[] = [
-  { id: 'all', label: 'Semua Soal' },
-  { id: 'passages', label: 'Teks Bacaan & Audio' },
-  { id: 'listening', label: 'Listening' },
-  { id: 'structure', label: 'Structure' },
-  { id: 'written_expression', label: 'Written Expression' },
-  { id: 'reading', label: 'Reading' },
-];
-
 export const BankSoalFilters: React.FC<BankSoalFiltersProps> = ({
   activeTab,
   onTabChange,
+  sections,
   search,
   onSearchChange,
   difficulty,
@@ -37,12 +31,18 @@ export const BankSoalFilters: React.FC<BankSoalFiltersProps> = ({
   statusFilter,
   onStatusChange,
 }) => {
+  const tabs: { id: BankSoalTab; label: string }[] = [
+    { id: 'all', label: 'Semua Soal' },
+    { id: 'passages', label: 'Teks Bacaan & Audio' },
+    ...sections.map((s) => ({ id: s.code, label: s.name })),
+  ];
+
   return (
     <>
       {/* Navigation Tabs */}
       <Tabs
         className="self-start"
-        tabs={TABS}
+        tabs={tabs}
         value={activeTab}
         onChange={(id) => onTabChange(id as BankSoalTab)}
       />

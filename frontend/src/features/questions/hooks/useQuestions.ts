@@ -254,7 +254,7 @@ export function usePassageDetail(passageId: string | null) {
 
 // ─── Stats Hook ──────────────────────────────────────────────
 
-export function useQuestionStats() {
+export function useQuestionStats(testType?: string) {
   const { user } = useAuth();
   const [stats, setStats] = useState<QuestionStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -264,8 +264,9 @@ export function useQuestionStats() {
     if (!user) return;
     let active = true;
 
+    const qs = testType ? `?test_type=${encodeURIComponent(testType)}` : '';
     api
-      .request<QuestionStats>('/api/questions/stats')
+      .request<QuestionStats>(`/api/questions/stats${qs}`)
       .then((data) => {
         if (active) setStats(data);
       })
@@ -277,7 +278,7 @@ export function useQuestionStats() {
     return () => {
       active = false;
     };
-  }, [user, refetchIndex]);
+  }, [user, refetchIndex, testType]);
 
   const refetch = useCallback(() => setRefetchIndex((i) => i + 1), []);
 
