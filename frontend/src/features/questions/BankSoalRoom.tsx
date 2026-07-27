@@ -56,6 +56,11 @@ export function BankSoalRoom({ testType, onBack }: BankSoalRoomProps) {
       className={isBuilderOpen ? 'space-y-4' : 'space-y-6'}
       header={
         <div className="space-y-3">
+          <PageHeader
+            icon={<Library />}
+            title={`Bank Soal — ${testType.name}`}
+            subtitle="Kelola soal untuk jenis tes ini — soal tunggal maupun soal yang berbagi teks bacaan atau audio yang sama."
+          />
           <button
             type="button"
             onClick={onBack}
@@ -63,11 +68,6 @@ export function BankSoalRoom({ testType, onBack }: BankSoalRoomProps) {
           >
             <ChevronLeft className="w-4 h-4" /> Semua Jenis Tes
           </button>
-          <PageHeader
-            icon={<Library />}
-            title={`Bank Soal — ${testType.name}`}
-            subtitle="Kelola soal untuk jenis tes ini — soal tunggal maupun soal yang berbagi teks bacaan atau audio yang sama."
-          />
         </div>
       }
     >
