@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Layers, FileText, Music, Eye, Shuffle, SlidersHorizontal } from 'lucide-react';
+import { Layers, FileText, Music, Eye, Shuffle, SlidersHorizontal, Eraser } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Tabs } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ToggleGroup } from '@/components/ui/toggle-group';
@@ -25,6 +26,16 @@ const DIFF_OPTIONS = [
   { value: 'medium', label: 'Sedang' },
   { value: 'hard', label: 'Sulit' },
 ];
+
+/** Fisher–Yates — salinan teracak (tak mengubah array asal). */
+function shuffled<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
 function DifficultyBadge({ difficulty }: { difficulty: string }) {
   const meta = DIFF[difficulty as DiffKey];
@@ -148,6 +159,39 @@ export const StepSource: React.FC<StepSourceProps> = ({
     (p) => diffFilter === 'all' || childrenOf(p.id).some(matchDiff),
   );
 
+  // ── #1/#2 Pilih Acak & Kosongkan (per bagian aktif) ──
+  const sectionPassageIds = new Set(passages.map((p) => p.id));
+  const sectionQuestionIds = new Set(standalone.map((q) => q.id));
+  const isSectionUnit = (u: ExamPoolUnit) =>
+    (u.passage_id != null && sectionPassageIds.has(u.passage_id)) ||
+    (u.question_id != null && sectionQuestionIds.has(u.question_id));
+
+  /** Isi sisa kuota dengan pilihan ACAK dari yang sedang tampil (hormati filter). */
+  const fillRandom = () => {
+    if (remaining <= 0) return;
+    const cands: { unit: ExamPoolUnit; count: number }[] = [
+      ...visiblePassages
+        .filter((p) => !hasPassage(p.id))
+        .map((p) => ({ unit: { passage_id: p.id, question_id: null }, count: pubCount(p) })),
+      ...visibleStandalone
+        .filter((q) => !hasQuestion(q.id))
+        .map((q) => ({ unit: { passage_id: null, question_id: q.id }, count: 1 })),
+    ];
+    let rem = remaining;
+    const adds: ExamPoolUnit[] = [];
+    for (const c of shuffled(cands)) {
+      if (rem <= 0) break;
+      if (c.count <= rem) {
+        adds.push(c.unit);
+        rem -= c.count;
+      }
+    }
+    if (adds.length) onChange([...poolUnits, ...adds]);
+  };
+
+  /** Hapus semua pilihan bagian aktif (bagian lain tak tersentuh). */
+  const clearSection = () => onChange(poolUnits.filter((u) => !isSectionUnit(u)));
+
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-slate-500">
@@ -197,8 +241,8 @@ export const StepSource: React.FC<StepSourceProps> = ({
         )}
       </div>
 
-      {/* Filter kesulitan (hanya menyaring tampilan) */}
-      <div className="flex items-center gap-2.5">
+      {/* Filter kesulitan + aksi cepat (acak / kosongkan) */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
           <SlidersHorizontal className="w-3.5 h-3.5" /> Kesulitan
         </span>
@@ -208,6 +252,33 @@ export const StepSource: React.FC<StepSourceProps> = ({
           value={diffFilter}
           onChange={(v) => setDiffFilter(v || 'all')}
         />
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={fillRandom}
+            disabled={remaining <= 0}
+            title={
+              remaining <= 0
+                ? 'Kuota bagian ini sudah penuh'
+                : `Pilih ${remaining} soal acak dari yang tampil`
+            }
+            className="font-bold gap-1.5"
+          >
+            <Shuffle className="w-3.5 h-3.5" />
+            Pilih Acak
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={clearSection}
+            disabled={selectedQuestions === 0}
+            className="font-bold gap-1.5"
+          >
+            <Eraser className="w-3.5 h-3.5" />
+            Kosongkan
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (

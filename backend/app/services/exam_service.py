@@ -2,6 +2,7 @@
 Learning Nexus CBT — Exam Builder Service (Manajemen Ujian)
 """
 
+import random
 from datetime import datetime, timezone, timedelta
 from fastapi import HTTPException, status
 from postgrest.types import CountMethod
@@ -405,9 +406,11 @@ class ExamService:
             return q.eq("test_type", test_type) if test_type else q
 
         if g and (g["passages"] or g["questions"]):
+            explicit = True
             passage_ids = g["passages"]
             question_ids = g["questions"]
         else:
+            explicit = False
             pr = owned(
                 supabase.table("question_passages").select("id").eq("type", sec).eq("status", "published").order("created_at")
             ).execute()
@@ -433,6 +436,12 @@ class ExamService:
             qrow = supabase.table("questions").select("*").eq("id", qid).eq("status", "published").execute().data
             if qrow:
                 units.append((None, [qrow[0]]))
+
+        # Default (pool kosong) → ACAK urutan unit agar soal terpilih acak saat publish
+        # (dibekukan sekali ke snapshot; tetap sama untuk semua peserta). Pilihan eksplisit
+        # user tetap stabil (hormati urutan pilihannya).
+        if not explicit:
+            random.shuffle(units)
         return units
 
     @staticmethod
