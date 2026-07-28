@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Layers, FileText, Music, Eye, Shuffle, SlidersHorizontal, Eraser } from 'lucide-react';
+import { Layers, FileText, Music, Eye, Shuffle, SlidersHorizontal, Eraser, CheckCircle2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs } from '@/components/ui/tabs';
@@ -151,7 +151,6 @@ export const StepSource: React.FC<StepSourceProps> = ({
   }
 
   const isLoading = pLoading || qLoading;
-  const quotaFull = target > 0 && remaining === 0;
 
   // Tampilan terfilter kesulitan (pilihan tetap tersimpan di pool meski tersembunyi).
   const visibleStandalone = standalone.filter(matchDiff);
@@ -192,6 +191,18 @@ export const StepSource: React.FC<StepSourceProps> = ({
   /** Hapus semua pilihan bagian aktif (bagian lain tak tersentuh). */
   const clearSection = () => onChange(poolUnits.filter((u) => !isSectionUnit(u)));
 
+  // Indikator target dinamis (menggantikan badge "Acak Dari Semua" yang redundan).
+  const indicator: { text: string; tone: 'neutral' | 'warning' | 'success'; done: boolean } =
+    selectedQuestions === 0
+      ? { text: `Target ${target} soal`, tone: 'neutral', done: false }
+      : exact
+        ? selectedQuestions === target
+          ? { text: `${target} / ${target} soal · pas`, tone: 'success', done: true }
+          : { text: `${selectedQuestions} / ${target} · perlu tepat ${target}`, tone: 'warning', done: false }
+        : remaining === 0
+          ? { text: `${selectedQuestions} / ${target} soal · penuh`, tone: 'success', done: true }
+          : { text: `${selectedQuestions} / ${target} soal · kurang ${remaining}`, tone: 'warning', done: false };
+
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-slate-500">
@@ -207,41 +218,7 @@ export const StepSource: React.FC<StepSourceProps> = ({
         onChange={(id) => setActiveSection(id as ExamSectionId)}
       />
 
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-          {activeSection ? SECTION_LABELS[activeSection] : ''}
-        </span>
-        {selectedQuestions === 0 ? (
-          <Badge variant="neutral" className="text-[10px] font-bold gap-1">
-            <Shuffle className="w-3 h-3" />
-            {exact ? `Acak → tepat ${target} soal` : `Acak dari semua · target ${target} soal`}
-          </Badge>
-        ) : (
-          <Badge
-            variant={
-              exact
-                ? selectedQuestions === target
-                  ? 'success'
-                  : 'warning'
-                : quotaFull
-                  ? 'success'
-                  : 'info'
-            }
-            className="text-[10px] font-bold"
-          >
-            Terpilih {selectedQuestions} / {target} soal
-            {exact
-              ? selectedQuestions === target
-                ? ' · pas'
-                : ` · perlu tepat ${target}`
-              : remaining > 0
-                ? ` · sisa ${remaining}`
-                : ' · kuota penuh'}
-          </Badge>
-        )}
-      </div>
-
-      {/* Filter kesulitan + aksi cepat (acak / kosongkan) */}
+      {/* Toolbar: filter kesulitan (kiri) + aksi cepat & indikator target (kanan) */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
           <SlidersHorizontal className="w-3.5 h-3.5" /> Kesulitan
@@ -278,6 +255,10 @@ export const StepSource: React.FC<StepSourceProps> = ({
             <Eraser className="w-3.5 h-3.5" />
             Kosongkan
           </Button>
+          <Badge variant={indicator.tone} className="ml-1 text-[10px] font-bold gap-1 whitespace-nowrap">
+            {indicator.done && <CheckCircle2 className="w-3 h-3" />}
+            {indicator.text}
+          </Badge>
         </div>
       </div>
 
