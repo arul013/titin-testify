@@ -50,6 +50,7 @@ export interface Exam {
   duration_minutes: number;
   test_type: string;
   exam_mode: ExamMode;
+  show_review: boolean;
   scoring_scheme_id: string | null;
   passing_value: number | null;
   allow_retake: boolean;

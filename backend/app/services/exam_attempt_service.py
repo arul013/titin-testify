@@ -13,6 +13,8 @@ from app.models.exam_attempt import (
     SaveAnswerRequest,
     SectionResult,
     AttemptResultResponse,
+    AttemptReviewQuestion,
+    AttemptReviewResponse,
 )
 from app.services.scoring_engine import compute_exam_score, is_official_itp
 
@@ -281,6 +283,7 @@ class ExamAttemptService:
             score=score, passed=passed, scale_unit=scale_unit,
             total_questions=total_q, total_correct=total_c, passing_value=passing,
             per_section=per_section, submitted_at=now,
+            show_review=bool(exam.get("show_review")),
         )
 
     # ─── Hasil ────────────────────────────────────────────────
@@ -288,7 +291,7 @@ class ExamAttemptService:
     async def get_result(attempt_id: str, user_id: str) -> AttemptResultResponse:
         supabase = get_supabase_admin()
         attempt = ExamAttemptService._load_owned_attempt(supabase, attempt_id, user_id)
-        exam = supabase.table("exams").select("title, passing_value").eq("id", attempt["exam_id"]).execute().data[0]
+        exam = supabase.table("exams").select("title, passing_value, show_review").eq("id", attempt["exam_id"]).execute().data[0]
         detail = attempt.get("score_detail") or {}
         per_section = [SectionResult(**ps) for ps in detail.get("per_section", [])]
         return AttemptResultResponse(
@@ -300,4 +303,57 @@ class ExamAttemptService:
             passing_value=exam.get("passing_value"),
             per_section=per_section,
             submitted_at=_parse_dt(attempt.get("submitted_at")),
+            show_review=bool(exam.get("show_review")),
+        )
+
+    # ─── Review / Pembahasan ──────────────────────────────────
+    @staticmethod
+    async def review_attempt(attempt_id: str, user_id: str) -> AttemptReviewResponse:
+        """Pembahasan per soal. Hanya untuk attempt SUBMITTED & ujian show_review=true."""
+        supabase = get_supabase_admin()
+        attempt = ExamAttemptService._load_owned_attempt(supabase, attempt_id, user_id)
+        if attempt["status"] != "submitted":
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Pembahasan hanya tersedia setelah ujian dikumpulkan.")
+
+        exam = supabase.table("exams").select("title, show_review").eq("id", attempt["exam_id"]).execute().data[0]
+        if not exam.get("show_review"):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Pembahasan tidak tersedia untuk ujian ini.")
+
+        eqs = (
+            supabase.table("exam_questions")
+            .select("id, position, section, payload, correct_answer, explanation")
+            .eq("exam_id", attempt["exam_id"]).order("position").execute().data or []
+        )
+        ans = (
+            supabase.table("exam_attempt_answers").select("exam_question_id, selected_answer, is_correct")
+            .eq("attempt_id", attempt_id).execute().data or []
+        )
+        sel_by_eq = {a["exam_question_id"]: a for a in ans}
+
+        questions = []
+        total_correct = 0
+        for q in eqs:
+            a = sel_by_eq.get(q["id"])
+            selected = a["selected_answer"] if a else None
+            is_correct = selected is not None and selected == q["correct_answer"]
+            if is_correct:
+                total_correct += 1
+            questions.append(AttemptReviewQuestion(
+                exam_question_id=q["id"],
+                position=q["position"],
+                section=q["section"],
+                payload=q["payload"],
+                correct_answer=q["correct_answer"],
+                selected_answer=selected,
+                is_correct=is_correct,
+                explanation=q.get("explanation"),
+            ))
+
+        return AttemptReviewResponse(
+            attempt_id=attempt_id,
+            exam_id=attempt["exam_id"],
+            title=exam["title"],
+            total_questions=len(eqs),
+            total_correct=total_correct,
+            questions=questions,
         )

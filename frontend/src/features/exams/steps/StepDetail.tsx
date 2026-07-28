@@ -19,6 +19,8 @@ interface StepDetailProps {
   examMode: 'full' | 'custom';
   passingValue: string;
   setPassingValue: (v: string) => void;
+  showReview: boolean;
+  setShowReview: (v: boolean) => void;
   allowRetake: boolean;
   setAllowRetake: (v: boolean) => void;
   scheduled: boolean;
@@ -56,6 +58,8 @@ export const StepDetail: React.FC<StepDetailProps> = ({
   examMode,
   passingValue,
   setPassingValue,
+  showReview,
+  setShowReview,
   allowRetake,
   setAllowRetake,
   scheduled,
@@ -191,6 +195,16 @@ export const StepDetail: React.FC<StepDetailProps> = ({
           onChange={setAllowRetake}
           label="Izinkan mengerjakan ulang"
           description="Bila mati, peserta hanya bisa mengerjakan sekali."
+        />
+        <Checkbox
+          checked={showReview}
+          onChange={setShowReview}
+          label="Tampilkan pembahasan & kunci jawaban setelah selesai"
+          description={
+            isOfficialItp
+              ? 'Hati-hati: untuk Tes Lengkap resmi, membuka kunci berisiko bocor (soal peserta sama).'
+              : 'Peserta bisa melihat jawaban benar + pembahasan di Riwayat setelah mengumpulkan.'
+          }
         />
       </div>
     </div>

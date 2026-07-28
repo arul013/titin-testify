@@ -102,6 +102,10 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
         : '',
   );
   const [allowRetake, setAllowRetake] = useState(initial?.allow_retake ?? false);
+  // Pembahasan: default Latihan ON, Tes Lengkap OFF (admin bisa ubah).
+  const [showReview, setShowReview] = useState(
+    initial?.show_review ?? examMode === 'custom',
+  );
   const [scheduled, setScheduled] = useState(!!initial?.starts_at);
   const _startParts = isoToParts(initial?.starts_at ?? null);
   const _endParts = isoToParts(initial?.ends_at ?? null);
@@ -163,6 +167,7 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
     duration_minutes: Number(duration),
     test_type: testTypeCode,
     exam_mode: examMode,
+    show_review: showReview,
     scoring_scheme_id: null,
     passing_value: passingValue === '' ? null : Number(passingValue),
     allow_retake: allowRetake,
@@ -360,6 +365,8 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
             examMode={examMode}
             passingValue={passingValue}
             setPassingValue={setPassingValue}
+            showReview={showReview}
+            setShowReview={setShowReview}
             allowRetake={allowRetake}
             setAllowRetake={setAllowRetake}
             scheduled={scheduled}

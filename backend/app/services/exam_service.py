@@ -106,6 +106,7 @@ class ExamService:
             "duration_minutes": request.duration_minutes,
             "test_type": request.test_type,
             "exam_mode": request.exam_mode,
+            "show_review": request.show_review,
             "scoring_scheme_id": request.scoring_scheme_id,
             "passing_value": request.passing_value,
             "allow_retake": request.allow_retake,
@@ -226,6 +227,7 @@ class ExamService:
             "duration_minutes": request.duration_minutes,
             "test_type": request.test_type,
             "exam_mode": request.exam_mode,
+            "show_review": request.show_review,
             "scoring_scheme_id": request.scoring_scheme_id,
             "passing_value": request.passing_value,
             "allow_retake": request.allow_retake,
@@ -461,6 +463,8 @@ class ExamService:
                         "position": position,
                         "source_question_id": q["id"],
                         "correct_answer": q["correct_answer"],
+                        # Pembahasan dibekukan (denormalisasi); dibuka hanya di endpoint review.
+                        "explanation": q.get("explanation"),
                         "payload": ExamService._question_payload(q, passage),
                     })
                     count += 1
@@ -583,6 +587,7 @@ class ExamService:
             duration_minutes=e["duration_minutes"],
             test_type=e.get("test_type", "itp"),
             exam_mode=e.get("exam_mode", "custom"),
+            show_review=e.get("show_review", False),
             scoring_scheme_id=e.get("scoring_scheme_id"),
             passing_value=e.get("passing_value"),
             allow_retake=e.get("allow_retake", False),

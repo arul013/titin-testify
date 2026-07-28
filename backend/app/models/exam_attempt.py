@@ -78,7 +78,30 @@ class AttemptResultResponse(BaseModel):
     passing_value: Optional[float] = None
     per_section: list[SectionResult] = []
     submitted_at: Optional[datetime] = None
+    # Pembahasan tersedia? (exam.show_review) → frontend tampilkan tombol pembahasan.
+    show_review: bool = False
 
 
 class SimpleMessage(BaseModel):
     success: bool = True
+
+
+# ─── Review / Pembahasan (dibuka setelah submit bila exam.show_review) ───
+class AttemptReviewQuestion(BaseModel):
+    exam_question_id: str
+    position: int
+    section: str
+    payload: dict[str, Any]                 # konten render (soal + opsi + materi)
+    correct_answer: Optional[str] = None    # kunci ('a'..'d')
+    selected_answer: Optional[str] = None
+    is_correct: bool = False
+    explanation: Optional[str] = None
+
+
+class AttemptReviewResponse(BaseModel):
+    attempt_id: str
+    exam_id: str
+    title: str
+    total_questions: int = 0
+    total_correct: int = 0
+    questions: list[AttemptReviewQuestion] = []

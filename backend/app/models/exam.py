@@ -42,6 +42,7 @@ class CreateExamRequest(BaseModel):
     duration_minutes: int = Field(..., ge=1, description="Total waktu (menit)")
     test_type: str = Field(default="itp", description="Jenis tes (test_types.code)")
     exam_mode: str = Field(default="custom", description="'full' (preset terkunci + eksak) | 'custom' (bebas + toleran)")
+    show_review: bool = Field(default=False, description="Tampilkan pembahasan & kunci ke peserta setelah selesai")
     scoring_scheme_id: Optional[str] = Field(None, description="Skema penilaian yang dipakai")
     passing_value: Optional[float] = Field(None, ge=0, description="Nilai kelulusan dalam skala skema (opsional)")
     allow_retake: bool = False
@@ -77,6 +78,7 @@ class UpdateExamRequest(BaseModel):
     duration_minutes: Optional[int] = Field(None, ge=1)
     test_type: Optional[str] = None
     exam_mode: Optional[str] = None
+    show_review: Optional[bool] = None
     scoring_scheme_id: Optional[str] = None
     passing_value: Optional[float] = Field(None, ge=0)
     allow_retake: Optional[bool] = None
@@ -116,6 +118,7 @@ class ExamResponse(BaseModel):
     duration_minutes: int
     test_type: str = "itp"
     exam_mode: str = "custom"
+    show_review: bool = False
     scoring_scheme_id: Optional[str] = None
     passing_value: Optional[float] = None
     allow_retake: bool = False

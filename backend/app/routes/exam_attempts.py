@@ -9,6 +9,7 @@ from app.models.exam_attempt import (
     StartAttemptResponse,
     SaveAnswerRequest,
     AttemptResultResponse,
+    AttemptReviewResponse,
     SimpleMessage,
 )
 from app.models.user import UserProfile
@@ -51,3 +52,9 @@ async def submit_attempt(attempt_id: str, current_user: UserProfile = Depends(ge
 async def get_result(attempt_id: str, current_user: UserProfile = Depends(get_current_user)):
     """Hasil sebuah percobaan."""
     return await ExamAttemptService.get_result(attempt_id, current_user.id)
+
+
+@router.get("/api/attempts/{attempt_id}/review", response_model=AttemptReviewResponse)
+async def review_attempt(attempt_id: str, current_user: UserProfile = Depends(get_current_user)):
+    """Pembahasan per soal (hanya bila ujian mengizinkan & attempt sudah dikumpulkan)."""
+    return await ExamAttemptService.review_attempt(attempt_id, current_user.id)
