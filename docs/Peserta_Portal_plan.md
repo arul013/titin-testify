@@ -1,6 +1,6 @@
 # Portal Peserta (Fase P5)
 
-Status: **disepakati, dikoding bertahap (review antar-step).** Tanggal: 2026-07-28.
+Status: **SELESAI (P5.0–P5.4, diagnostics bersih, belum di-commit).** Tanggal: 2026-07-28.
 Terkait: `Exam_Engine_Phase4_plan.md` (mesin ujian), `Exam_Scoring_TOEFL_ITP.md`, `Exam_Test_Types_plan.md`.
 
 ## 1. Struktur: 3 menu (sidebar peserta)
@@ -49,7 +49,12 @@ Ujian **deterministik** (semua peserta soal SAMA). Bila satu peserta melihat kun
    - `api.ts`: `AttemptResult.show_review`, tipe `ReviewQuestion`/`AttemptReview`, method `attemptsApi.review(id)` → `GET /api/attempts/{id}/review`.
    - `AttemptResultPage`: back → `/riwayat`; tombol **"Lihat Pembahasan & Kunci Jawaban"** (muncul hanya bila `show_review`) → toggle `AttemptReviewPanel`.
    - `AttemptReviewPanel` (komponen feature baru): lazy-fetch review; per soal render materi via `SoalPanel` + opsi bertanda (kunci hijau / jawaban salah merah / tak dijawab) + keterangan Jawabanmu/Kunci + blok Pembahasan (amber). Gate `show_review` sudah di backend (403 bila false) → tombol tak pernah muncul saat terlarang.
-5. **P5.4 — Dashboard peserta** (home glanceable).
+5. **P5.4 — Dashboard peserta** ✅ SELESAI 2026-07-28 (diagnostics bersih, belum di-commit) — **Fase P5 lengkap**:
+   - `PesertaBerandaPage` (dari placeholder → home glanceable), pakai `useMyExams` + `bucketOf` + `useCountdown`.
+   - **Hero "Ujian Berikutnya"** (`NextExamHero`): pilih 1 ujian prioritas (in_progress→available→retake→upcoming terdekat); CTA Lanjutkan/Mulai/Ulangi (Button putih di atas gradient brand) atau **countdown** untuk upcoming (onDone→refetch); kosong → kartu "Tidak ada ujian aktif".
+   - **Statistik + pintasan** (`StatTile`): Ditugaskan (non-klik) · Perlu Dikerjakan → /ujian · Selesai → /riwayat.
+   - **Hasil Terakhir**: s/d 3 hasil selesai (skor + Lulus/Belum) → /ujian/hasil/{id}, header "Lihat Semua" → /riwayat.
+   - Catatan: sortir "terbaru" mengikuti urutan list (belum ada `submitted_at` di MyExamItem) — bisa dihaluskan nanti bila perlu.
 
 ## 6. Di luar scope P5 (dibahas terpisah nanti)
 - **Anti-cheat** (lockdown/deteksi pindah-tab/kamera) — desain & DB tersendiri.
