@@ -1,15 +1,40 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Layers, FileText, Music, Eye, Shuffle } from 'lucide-react';
+import { Layers, FileText, Music, Eye, Shuffle, SlidersHorizontal } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tabs } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ToggleGroup } from '@/components/ui/toggle-group';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useQuestions, usePassages, type Question, type Passage } from '@/features/questions/hooks/useQuestions';
 import { QuestionPreview } from '@/features/questions/QuestionPreview';
 import { SECTION_LABELS, type ExamPoolUnit, type ExamSectionId } from '../hooks/useExams';
+
+// ── Kesulitan soal (selaras Bank Soal) ──────────────────────────────────
+type DiffKey = 'easy' | 'medium' | 'hard';
+const DIFF: Record<DiffKey, { label: string; variant: 'success' | 'warning' | 'danger'; dot: string }> = {
+  easy: { label: 'Mudah', variant: 'success', dot: 'bg-emerald-500' },
+  medium: { label: 'Sedang', variant: 'warning', dot: 'bg-amber-500' },
+  hard: { label: 'Sulit', variant: 'danger', dot: 'bg-rose-500' },
+};
+const DIFF_OPTIONS = [
+  { value: '', label: 'Semua' },
+  { value: 'easy', label: 'Mudah' },
+  { value: 'medium', label: 'Sedang' },
+  { value: 'hard', label: 'Sulit' },
+];
+
+function DifficultyBadge({ difficulty }: { difficulty: string }) {
+  const meta = DIFF[difficulty as DiffKey];
+  if (!meta) return null;
+  return (
+    <Badge variant={meta.variant} className="text-[10px] font-extrabold uppercase shrink-0">
+      {meta.label}
+    </Badge>
+  );
+}
 
 interface StepSourceProps {
   enabledSections: ExamSectionId[];
@@ -47,6 +72,7 @@ export const StepSource: React.FC<StepSourceProps> = ({
     enabledSections[0] ?? null,
   );
   const [previewQuestion, setPreviewQuestion] = useState<Question | null>(null);
+  const [diffFilter, setDiffFilter] = useState<string>(''); // '' = semua kesulitan
 
   const section = activeSection ?? undefined;
   const { passages, isLoading: pLoading } = usePassages({
@@ -67,6 +93,16 @@ export const StepSource: React.FC<StepSourceProps> = ({
   // saat rakit ujian). Materi tanpa soal Tayang disembunyikan.
   const pubCount = (p: Passage) => p.published_questions_count ?? 0;
   const availablePassages = passages.filter((p) => pubCount(p) > 0);
+
+  // ── Filter kesulitan (hanya memfilter tampilan, tak mengubah pilihan) ──
+  const matchDiff = (q: Question) => !diffFilter || q.difficulty === diffFilter;
+  const childrenOf = (pid: string) => questions.filter((q) => q.passage_id === pid);
+  /** Distribusi kesulitan soal anak materi, urut easy→medium→hard. */
+  const diffCounts = (pid: string) => {
+    const c: Record<DiffKey, number> = { easy: 0, medium: 0, hard: 0 };
+    for (const q of childrenOf(pid)) if (q.difficulty in c) c[q.difficulty as DiffKey] += 1;
+    return c;
+  };
 
   const hasPassage = (id: string) => poolUnits.some((u) => u.passage_id === id);
   const hasQuestion = (id: string) => poolUnits.some((u) => u.question_id === id);
@@ -105,6 +141,12 @@ export const StepSource: React.FC<StepSourceProps> = ({
 
   const isLoading = pLoading || qLoading;
   const quotaFull = target > 0 && remaining === 0;
+
+  // Tampilan terfilter kesulitan — materi/soal terpilih tetap ditampilkan agar tak "hilang".
+  const visibleStandalone = standalone.filter((q) => matchDiff(q) || hasQuestion(q.id));
+  const visiblePassages = availablePassages.filter(
+    (p) => !diffFilter || hasPassage(p.id) || childrenOf(p.id).some(matchDiff),
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -155,6 +197,14 @@ export const StepSource: React.FC<StepSourceProps> = ({
         )}
       </div>
 
+      {/* Filter kesulitan (hanya menyaring tampilan) */}
+      <div className="flex items-center gap-2.5">
+        <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
+          <SlidersHorizontal className="w-3.5 h-3.5" /> Kesulitan
+        </span>
+        <ToggleGroup size="sm" options={DIFF_OPTIONS} value={diffFilter} onChange={setDiffFilter} />
+      </div>
+
       {isLoading ? (
         <div className="flex flex-col gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -170,16 +220,17 @@ export const StepSource: React.FC<StepSourceProps> = ({
       ) : (
         <div className="flex flex-col gap-5">
           {/* Materi (passage utuh) */}
-          {availablePassages.length > 0 && (
+          {visiblePassages.length > 0 && (
             <div>
               <p className="text-xs font-bold text-slate-600 mb-2 flex items-center gap-1.5">
                 <Layers className="w-3.5 h-3.5 text-indigo-600" /> Materi (unit utuh)
               </p>
               <div className="flex flex-col gap-2">
-                {availablePassages.map((p) => {
+                {visiblePassages.map((p) => {
                   const checked = hasPassage(p.id);
                   const count = pubCount(p);
                   const disabled = !checked && count > remaining;
+                  const dc = diffCounts(p.id);
                   return (
                     <label
                       key={p.id}
@@ -202,9 +253,22 @@ export const StepSource: React.FC<StepSourceProps> = ({
                       ) : (
                         <FileText className="w-4 h-4 text-slate-400 shrink-0" />
                       )}
-                      <p className="text-sm font-medium text-slate-700 line-clamp-2 flex-1 min-w-0">
-                        {clean(p.content || '') || 'Audio Listening'}
-                      </p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-700 line-clamp-2">
+                          {clean(p.content || '') || 'Audio Listening'}
+                        </p>
+                        {/* Distribusi kesulitan soal di dalam materi */}
+                        <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                          {(['easy', 'medium', 'hard'] as DiffKey[]).map((k) =>
+                            dc[k] > 0 ? (
+                              <span key={k} className="flex items-center gap-1 text-[10px] font-semibold text-slate-400">
+                                <span className={`w-1.5 h-1.5 rounded-full ${DIFF[k].dot}`} />
+                                {dc[k]} {DIFF[k].label}
+                              </span>
+                            ) : null,
+                          )}
+                        </div>
+                      </div>
                       <Badge variant="neutral" className="text-[10px] font-bold shrink-0">
                         {count} soal
                       </Badge>
@@ -216,13 +280,13 @@ export const StepSource: React.FC<StepSourceProps> = ({
           )}
 
           {/* Soal tunggal (standalone) */}
-          {standalone.length > 0 && (
+          {visibleStandalone.length > 0 && (
             <div>
               <p className="text-xs font-bold text-slate-600 mb-2 flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-indigo-600" /> Soal tunggal
               </p>
               <div className="flex flex-col gap-2">
-                {standalone.map((q) => {
+                {visibleStandalone.map((q) => {
                   const checked = hasQuestion(q.id);
                   const disabled = !checked && remaining < 1;
                   return (
@@ -241,6 +305,7 @@ export const StepSource: React.FC<StepSourceProps> = ({
                     <p className="text-sm font-medium text-slate-700 line-clamp-1 flex-1 min-w-0">
                       {clean(q.question_text)}
                     </p>
+                    <DifficultyBadge difficulty={q.difficulty} />
                     <button
                       type="button"
                       onClick={() => setPreviewQuestion(q)}
@@ -254,6 +319,14 @@ export const StepSource: React.FC<StepSourceProps> = ({
                 })}
               </div>
             </div>
+          )}
+
+          {/* Kosong akibat filter kesulitan */}
+          {diffFilter && visiblePassages.length === 0 && visibleStandalone.length === 0 && (
+            <p className="text-sm text-slate-400 italic py-2">
+              Tidak ada soal berkategori <strong>{DIFF[diffFilter as DiffKey]?.label}</strong> di
+              bagian ini.
+            </p>
           )}
         </div>
       )}

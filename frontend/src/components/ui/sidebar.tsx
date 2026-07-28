@@ -79,17 +79,25 @@ export function SidebarBackdrop({ open, onClose }: { open: boolean; onClose: () 
 export function SidebarBrand({
   title,
   badge,
+  logo,
   onClose,
 }: {
   title: React.ReactNode;
   badge?: React.ReactNode;
+  /** Logo/maskot opsional di kiri judul (mengungguli badge bila keduanya diisi). */
+  logo?: React.ReactNode;
   onClose?: () => void;
 }) {
   return (
     <div className="flex items-center justify-between px-5 py-5">
-      <div className="flex items-center gap-2">
+      <div className="group flex items-center gap-2.5">
+        {logo && (
+          <span className="h-9 w-9 shrink-0 drop-shadow-sm transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-105">
+            {logo}
+          </span>
+        )}
         <span className="text-base font-bold tracking-tight text-gray-900">{title}</span>
-        {badge && (
+        {!logo && badge && (
           <span className="rounded bg-linear-to-br from-brand-start to-brand-end px-1.5 py-0.5 text-xs font-semibold text-white">
             {badge}
           </span>

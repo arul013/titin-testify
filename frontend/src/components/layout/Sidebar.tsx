@@ -133,7 +133,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       >
         <SidebarBrand
           title="Titin Testify"
-          badge="Mock Test"
+          logo={
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src="/icon.svg" alt="Titin Testify" className="h-9 w-9" />
+          }
           onClose={onClose}
         />
         {user && (
