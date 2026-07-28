@@ -20,7 +20,7 @@ const DIFF: Record<DiffKey, { label: string; variant: 'success' | 'warning' | 'd
   hard: { label: 'Sulit', variant: 'danger', dot: 'bg-rose-500' },
 };
 const DIFF_OPTIONS = [
-  { value: '', label: 'Semua' },
+  { value: 'all', label: 'Semua' },
   { value: 'easy', label: 'Mudah' },
   { value: 'medium', label: 'Sedang' },
   { value: 'hard', label: 'Sulit' },
@@ -72,7 +72,7 @@ export const StepSource: React.FC<StepSourceProps> = ({
     enabledSections[0] ?? null,
   );
   const [previewQuestion, setPreviewQuestion] = useState<Question | null>(null);
-  const [diffFilter, setDiffFilter] = useState<string>(''); // '' = semua kesulitan
+  const [diffFilter, setDiffFilter] = useState<string>('all'); // 'all' = semua kesulitan
 
   const section = activeSection ?? undefined;
   const { passages, isLoading: pLoading } = usePassages({
@@ -95,7 +95,7 @@ export const StepSource: React.FC<StepSourceProps> = ({
   const availablePassages = passages.filter((p) => pubCount(p) > 0);
 
   // ── Filter kesulitan (hanya memfilter tampilan, tak mengubah pilihan) ──
-  const matchDiff = (q: Question) => !diffFilter || q.difficulty === diffFilter;
+  const matchDiff = (q: Question) => diffFilter === 'all' || q.difficulty === diffFilter;
   const childrenOf = (pid: string) => questions.filter((q) => q.passage_id === pid);
   /** Distribusi kesulitan soal anak materi, urut easy→medium→hard. */
   const diffCounts = (pid: string) => {
@@ -142,10 +142,10 @@ export const StepSource: React.FC<StepSourceProps> = ({
   const isLoading = pLoading || qLoading;
   const quotaFull = target > 0 && remaining === 0;
 
-  // Tampilan terfilter kesulitan — materi/soal terpilih tetap ditampilkan agar tak "hilang".
-  const visibleStandalone = standalone.filter((q) => matchDiff(q) || hasQuestion(q.id));
+  // Tampilan terfilter kesulitan (pilihan tetap tersimpan di pool meski tersembunyi).
+  const visibleStandalone = standalone.filter(matchDiff);
   const visiblePassages = availablePassages.filter(
-    (p) => !diffFilter || hasPassage(p.id) || childrenOf(p.id).some(matchDiff),
+    (p) => diffFilter === 'all' || childrenOf(p.id).some(matchDiff),
   );
 
   return (
@@ -202,7 +202,12 @@ export const StepSource: React.FC<StepSourceProps> = ({
         <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
           <SlidersHorizontal className="w-3.5 h-3.5" /> Kesulitan
         </span>
-        <ToggleGroup size="sm" options={DIFF_OPTIONS} value={diffFilter} onChange={setDiffFilter} />
+        <ToggleGroup
+          size="sm"
+          options={DIFF_OPTIONS}
+          value={diffFilter}
+          onChange={(v) => setDiffFilter(v || 'all')}
+        />
       </div>
 
       {isLoading ? (
@@ -322,12 +327,14 @@ export const StepSource: React.FC<StepSourceProps> = ({
           )}
 
           {/* Kosong akibat filter kesulitan */}
-          {diffFilter && visiblePassages.length === 0 && visibleStandalone.length === 0 && (
-            <p className="text-sm text-slate-400 italic py-2">
-              Tidak ada soal berkategori <strong>{DIFF[diffFilter as DiffKey]?.label}</strong> di
-              bagian ini.
-            </p>
-          )}
+          {diffFilter !== 'all' &&
+            visiblePassages.length === 0 &&
+            visibleStandalone.length === 0 && (
+              <p className="text-sm text-slate-400 italic py-2">
+                Tidak ada soal berkategori <strong>{DIFF[diffFilter as DiffKey]?.label}</strong> di
+                bagian ini.
+              </p>
+            )}
         </div>
       )}
 
