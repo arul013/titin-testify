@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Layers, FileText, Music, Eye, Shuffle, SlidersHorizontal, Eraser, CheckCircle2 } from 'lucide-react';
+import { Layers, FileText, Music, Eye, Shuffle, Eraser, CheckCircle2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs } from '@/components/ui/tabs';
@@ -218,18 +218,15 @@ export const StepSource: React.FC<StepSourceProps> = ({
         onChange={(id) => setActiveSection(id as ExamSectionId)}
       />
 
-      {/* Toolbar: filter kesulitan (kiri) + aksi cepat & indikator target (kanan) */}
+      {/* Toolbar 1 baris: filter kesulitan (kiri) · aksi + indikator (kanan) */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">
-          <SlidersHorizontal className="w-3.5 h-3.5" /> Kesulitan
-        </span>
         <ToggleGroup
           size="sm"
           options={DIFF_OPTIONS}
           value={diffFilter}
           onChange={(v) => setDiffFilter(v || 'all')}
         />
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           <Button
             size="sm"
             variant="secondary"
@@ -255,7 +252,7 @@ export const StepSource: React.FC<StepSourceProps> = ({
             <Eraser className="w-3.5 h-3.5" />
             Kosongkan
           </Button>
-          <Badge variant={indicator.tone} className="ml-1 text-[10px] font-bold gap-1 whitespace-nowrap">
+          <Badge variant={indicator.tone} className="text-[10px] font-bold gap-1 whitespace-nowrap">
             {indicator.done && <CheckCircle2 className="w-3 h-3" />}
             {indicator.text}
           </Badge>
