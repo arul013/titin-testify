@@ -133,7 +133,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       >
         <SidebarBrand
           title="Titin Testify"
-          badge="Exam Simulation"
+          badge="Mock Test"
           onClose={onClose}
         />
         {user && (

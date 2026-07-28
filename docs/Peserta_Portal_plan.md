@@ -38,7 +38,12 @@ Ujian **deterministik** (semua peserta soal SAMA). Bila satu peserta melihat kun
    - Route: **`/beranda`** (Dashboard, `PesertaBerandaPage`), **`/ujian`** (Ujian Saya, tetap `MyExamsPage`), **`/riwayat`** (`RiwayatPage`). Beranda & Riwayat masih **placeholder** (diisi P5.4 & P5.3).
    - Sidebar peserta: Dashboard(/beranda) · Ujian Saya(/ujian) · Riwayat Ujian(/riwayat). ("Ujian CBT" → "Ujian Saya".)
    - Guard `layout.tsx`: `pesertaAllowed` = /beranda | /ujian | /riwayat; default redirect peserta → **/beranda**. Login & change-password redirect peserta → /beranda.
-3. **P5.2 — Ujian Saya** (refactor MyExamsPage → actionable-only + countdown mendatang).
+3. **P5.2 — Ujian Saya** ✅ SELESAI 2026-07-28 (diagnostics bersih, belum di-commit):
+   - `MyExamsPage` di-refactor: welcome banner dihapus (pindah ke Dashboard/P5.4), pakai `PageHeader` (kartu) + `PageContainer`.
+   - **Actionable-only**: `bucketOf(e)` → `in_progress` | `available` | `retake` (submitted+allow_retake+can_start) | `upcoming` | `null`. Ujian selesai-tak-bisa-diulang & ended = `null` (tak ditampilkan, ada di Riwayat).
+   - Dua grup ber-header: **Perlu Dikerjakan** (in_progress→available→retake, grid s/d 3 kolom) & **Akan Datang** (upcoming, urut `starts_at`).
+   - **Countdown** hook baru `useCountdown(targetIso, onDone)` (derive-saat-render + tick 1 dtk, aman react-compiler); kartu upcoming tampil "Dibuka dalam HH:MM:SS" (+`Nh` bila ≥1 hari); `onDone`→`refetch` saat pembukaan tiba.
+   - Komponen baru (feature-level, bukan DS): `ExamCard` (in_progress di-highlight amber; CTA Lanjutkan/Mulai/Ulangi) + `useCountdown` hook. EmptyState "Tidak ada ujian aktif".
 4. **P5.3 — Riwayat Ujian** (daftar selesai + detail hasil + pembahasan bila diizinkan, pakai endpoint review).
 5. **P5.4 — Dashboard peserta** (home glanceable).
 
