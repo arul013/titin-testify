@@ -8,12 +8,15 @@ import {
   XCircle,
   AlertTriangle,
   Trophy,
+  BookOpen,
+  ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SECTION_LABELS, type ExamSectionId } from '@/features/exams/hooks/useExams';
 import { attemptsApi, type AttemptResult } from '@/features/attempts/api';
+import { AttemptReviewPanel } from '@/features/attempts/AttemptReviewPanel';
 
 export function AttemptResultPage() {
   const params = useParams<{ attemptId: string }>();
@@ -23,6 +26,7 @@ export function AttemptResultPage() {
   const [result, setResult] = useState<AttemptResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   useEffect(() => {
     if (!attemptId) return;
@@ -47,11 +51,11 @@ export function AttemptResultPage() {
     <div className="flex flex-col gap-6 py-2 max-w-4xl">
       <Button
         variant="ghost"
-        onClick={() => router.push('/ujian')}
+        onClick={() => router.push('/riwayat')}
         className="self-start font-bold text-slate-500 flex items-center gap-2"
       >
         <ArrowLeft className="w-4 h-4" />
-        Kembali ke Daftar Ujian
+        Kembali ke Riwayat
       </Button>
 
       {loading ? (
@@ -163,6 +167,27 @@ export function AttemptResultPage() {
               </>
             )}
           </Card>
+
+          {/* Pembahasan (bila diizinkan admin: exam.show_review) */}
+          {result.show_review && (
+            <div className="flex flex-col gap-5">
+              <Button
+                variant={reviewOpen ? 'secondary' : 'primary'}
+                onClick={() => setReviewOpen((v) => !v)}
+                className="self-start font-bold flex items-center gap-2"
+              >
+                <BookOpen className="w-4 h-4" />
+                {reviewOpen ? 'Sembunyikan Pembahasan' : 'Lihat Pembahasan & Kunci Jawaban'}
+                <ChevronDown
+                  className={
+                    'w-4 h-4 transition-transform ' + (reviewOpen ? 'rotate-180' : '')
+                  }
+                />
+              </Button>
+
+              {reviewOpen && <AttemptReviewPanel attemptId={result.attempt_id} />}
+            </div>
+          )}
         </>
       ) : null}
     </div>

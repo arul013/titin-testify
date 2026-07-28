@@ -93,6 +93,29 @@ export interface AttemptResult {
   passing_value: number | null;
   per_section: SectionResult[];
   submitted_at: string | null;
+  /** Pembahasan & kunci tersedia (exam.show_review) → tampilkan tombol pembahasan. */
+  show_review: boolean;
+}
+
+/** Satu soal pada pembahasan (setelah submit, bila show_review). */
+export interface ReviewQuestion {
+  exam_question_id: string;
+  position: number;
+  section: string;
+  payload: QuestionPayload;
+  correct_answer: string | null;
+  selected_answer: string | null;
+  is_correct: boolean;
+  explanation: string | null;
+}
+
+export interface AttemptReview {
+  attempt_id: string;
+  exam_id: string;
+  title: string;
+  total_questions: number;
+  total_correct: number;
+  questions: ReviewQuestion[];
 }
 
 // ─── Panggilan API peserta ───────────────────────────────────────────
@@ -114,4 +137,7 @@ export const attemptsApi = {
 
   result: (attemptId: string) =>
     api.request<AttemptResult>(`/api/attempts/${attemptId}/result`),
+
+  review: (attemptId: string) =>
+    api.request<AttemptReview>(`/api/attempts/${attemptId}/review`),
 };

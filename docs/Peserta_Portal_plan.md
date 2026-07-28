@@ -44,7 +44,11 @@ Ujian **deterministik** (semua peserta soal SAMA). Bila satu peserta melihat kun
    - Dua grup ber-header: **Perlu Dikerjakan** (in_progress→available→retake, grid s/d 3 kolom) & **Akan Datang** (upcoming, urut `starts_at`).
    - **Countdown** hook baru `useCountdown(targetIso, onDone)` (derive-saat-render + tick 1 dtk, aman react-compiler); kartu upcoming tampil "Dibuka dalam HH:MM:SS" (+`Nh` bila ≥1 hari); `onDone`→`refetch` saat pembukaan tiba.
    - Komponen baru (feature-level, bukan DS): `ExamCard` (in_progress di-highlight amber; CTA Lanjutkan/Mulai/Ulangi) + `useCountdown` hook. EmptyState "Tidak ada ujian aktif".
-4. **P5.3 — Riwayat Ujian** (daftar selesai + detail hasil + pembahasan bila diizinkan, pakai endpoint review).
+4. **P5.3 — Riwayat Ujian** ✅ SELESAI 2026-07-28 (diagnostics bersih, belum di-commit):
+   - `RiwayatPage`: daftar ujian **selesai** (`useMyExams` difilter `attempt_status==='submitted' && attempt_id`), kartu premium (skor + satuan, badge Lulus/Belum/Selesai) → klik → `/ujian/hasil/{attempt_id}`.
+   - `api.ts`: `AttemptResult.show_review`, tipe `ReviewQuestion`/`AttemptReview`, method `attemptsApi.review(id)` → `GET /api/attempts/{id}/review`.
+   - `AttemptResultPage`: back → `/riwayat`; tombol **"Lihat Pembahasan & Kunci Jawaban"** (muncul hanya bila `show_review`) → toggle `AttemptReviewPanel`.
+   - `AttemptReviewPanel` (komponen feature baru): lazy-fetch review; per soal render materi via `SoalPanel` + opsi bertanda (kunci hijau / jawaban salah merah / tak dijawab) + keterangan Jawabanmu/Kunci + blok Pembahasan (amber). Gate `show_review` sudah di backend (403 bila false) → tombol tak pernah muncul saat terlarang.
 5. **P5.4 — Dashboard peserta** (home glanceable).
 
 ## 6. Di luar scope P5 (dibahas terpisah nanti)
