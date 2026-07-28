@@ -19,6 +19,8 @@ interface WorkflowStepperProps {
   onStepClick?: (idx: number) => void;
   /** 0-based index of the step currently being viewed — adds an extra ring highlight. */
   viewingIdx?: number;
+  /** Buat SEMUA step bisa diklik (mis. mode edit) walau state 'locked'. */
+  unlockAll?: boolean;
 }
 
 export function WorkflowStepper({
@@ -27,6 +29,7 @@ export function WorkflowStepper({
   className,
   onStepClick,
   viewingIdx,
+  unlockAll = false,
 }: WorkflowStepperProps) {
   return (
     <div className={className ?? "bg-white rounded-2xl border border-gray-100 p-5"}>
@@ -39,8 +42,8 @@ export function WorkflowStepper({
           const isActive = step.state === "active";
           const isLocked = step.state === "locked";
           const isLast = idx === steps.length - 1;
-          const isViewing = viewingIdx === idx && !isLocked;
-          const canClick = !!onStepClick && !isLocked;
+          const isViewing = viewingIdx === idx && (!isLocked || unlockAll);
+          const canClick = !!onStepClick && (!isLocked || unlockAll);
 
           const circle = (
             <div

@@ -83,7 +83,8 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
   const testType = testTypes.find((t) => t.code === testTypeCode) ?? null;
   const skills = testType?.skills ?? [];
 
-  const [step, setStep] = useState(0);
+  // Edit ujian yang sudah ada → mulai di Review (step terakhir); buat baru → step 0.
+  const [step, setStep] = useState(() => (initial ? STEP_LABELS.length - 1 : 0));
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
 
@@ -155,11 +156,6 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
     acc[code as ExamSectionId] = targetByCode[code] ?? 0;
     return acc;
   }, {});
-
-  const steps: WorkflowStep[] = STEP_LABELS.map((label, i) => ({
-    label,
-    state: i < step ? 'complete' : i === step ? 'active' : 'locked',
-  }));
 
   const buildPayload = (): Record<string, unknown> => ({
     title: title.trim(),
@@ -286,6 +282,17 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
   const canReach = (idx: number) => stepComplete.slice(0, idx).every(Boolean);
   const currentComplete = stepComplete[step];
 
+  // Centang stepper: mode buat baru = berbasis posisi + gating; mode edit = berbasis
+  // DATA (Sumber Soal opsional → dianggap selesai; kesiapan stok tampil di Review).
+  const stepDone = [detailComplete, komposisiComplete, true, pesertaComplete, true];
+  const steps: WorkflowStep[] = STEP_LABELS.map((label, i) => {
+    let state: WorkflowStep['state'];
+    if (i === step) state = 'active';
+    else if (isEditing) state = stepDone[i] ? 'complete' : 'locked';
+    else state = i < step ? 'complete' : 'locked';
+    return { label, state };
+  });
+
   const STEP_HINT = [
     'Isi Nama Ujian, Total Waktu, dan Skema Penilaian untuk lanjut.',
     'Tentukan minimal satu bagian dengan jumlah soal.',
@@ -331,8 +338,9 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
           steps={steps}
           title="Langkah"
           className=""
+          unlockAll={isEditing}
           onStepClick={(idx) => {
-            if (idx <= step || canReach(idx)) setStep(idx);
+            if (isEditing || idx <= step || canReach(idx)) setStep(idx);
             else toast.error('Selesaikan langkah sebelumnya dulu.');
           }}
           viewingIdx={step}
@@ -406,8 +414,8 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
         )}
       </div>
 
-      {/* Hint kelengkapan step (bila belum lengkap & belum di Review) */}
-      {!isLastStep && !currentComplete && (
+      {/* Hint kelengkapan step (hanya mode buat baru; edit = navigasi bebas) */}
+      {!isEditing && !isLastStep && !currentComplete && (
         <div className="flex items-center gap-2 -mb-2 text-xs text-amber-700 bg-amber-50/70 border border-amber-100 rounded-xl px-3 py-2">
           <Info className="w-3.5 h-3.5 shrink-0 text-amber-500" />
           <span>{STEP_HINT[step]}</span>
@@ -441,9 +449,9 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
           {!isLastStep ? (
             <Button
               variant="primary"
-              onClick={() => currentComplete && setStep((s) => s + 1)}
-              disabled={!currentComplete}
-              loading={sumberChecking}
+              onClick={() => (isEditing || currentComplete) && setStep((s) => s + 1)}
+              disabled={!isEditing && !currentComplete}
+              loading={!isEditing && sumberChecking}
               className="font-bold gap-2"
             >
               Lanjut
