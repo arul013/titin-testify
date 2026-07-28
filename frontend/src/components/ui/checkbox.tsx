@@ -14,7 +14,7 @@
 
 import * as React from "react";
 import { motion } from "framer-motion";
-import { Check } from "lucide-react";
+import { Check, Minus } from "lucide-react";
 import { cn } from "@/src/lib/cn";
 
 export type CheckboxVariant = "brand" | "warning";
@@ -35,6 +35,8 @@ const RING: Record<CheckboxVariant, string> = {
 export interface CheckboxProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
+  /** Sebagian terpilih (mis. materi dengan sebagian soal dicentang). Tampil tanda strip. */
+  indeterminate?: boolean;
   label?: React.ReactNode;
   description?: React.ReactNode;
   variant?: CheckboxVariant;
@@ -47,6 +49,7 @@ export interface CheckboxProps {
 export function Checkbox({
   checked,
   onChange,
+  indeterminate = false,
   label,
   description,
   variant = "brand",
@@ -57,6 +60,7 @@ export function Checkbox({
 }: CheckboxProps) {
   const autoId = React.useId();
   const cbId = id ?? autoId;
+  const active = checked || indeterminate;
 
   const control = (
     <span className="relative inline-flex shrink-0">
@@ -65,6 +69,7 @@ export function Checkbox({
         type="checkbox"
         checked={checked}
         disabled={disabled}
+        aria-checked={indeterminate && !checked ? "mixed" : checked}
         onChange={(e) => onChange(e.target.checked)}
         className="peer sr-only"
       />
@@ -73,7 +78,7 @@ export function Checkbox({
         className={cn(
           "flex items-center justify-center rounded-md border-2 transition-colors",
           BOX[size],
-          checked
+          active
             ? FILL[variant]
             : "border-gray-300 bg-white group-hover:border-gray-400",
           "peer-focus-visible:ring-2 peer-focus-visible:ring-offset-1",
@@ -83,13 +88,15 @@ export function Checkbox({
       >
         <motion.span
           initial={false}
-          animate={
-            checked ? { scale: 1, opacity: 1 } : { scale: 0, opacity: 0 }
-          }
+          animate={active ? { scale: 1, opacity: 1 } : { scale: 0, opacity: 0 }}
           transition={{ type: "spring", stiffness: 500, damping: 25 }}
           className="text-white"
         >
-          <Check className={cn(ICON[size], "stroke-3")} />
+          {checked ? (
+            <Check className={cn(ICON[size], "stroke-3")} />
+          ) : (
+            <Minus className={cn(ICON[size], "stroke-3")} />
+          )}
         </motion.span>
       </span>
     </span>

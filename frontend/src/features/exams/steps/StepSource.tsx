@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Layers, FileText, Music, Eye, Shuffle, Eraser, CheckCircle2 } from 'lucide-react';
+import { Layers, FileText, Music, Eye, Shuffle, Eraser, CheckCircle2, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs } from '@/components/ui/tabs';
@@ -83,7 +83,9 @@ export const StepSource: React.FC<StepSourceProps> = ({
     enabledSections[0] ?? null,
   );
   const [previewQuestion, setPreviewQuestion] = useState<Question | null>(null);
+  const [previewPassage, setPreviewPassage] = useState<Passage | null>(null);
   const [diffFilter, setDiffFilter] = useState<string>('all'); // 'all' = semua kesulitan
+  const [expanded, setExpanded] = useState<Set<string>>(new Set()); // id materi yang dibuka
 
   const section = activeSection ?? undefined;
   const { passages, isLoading: pLoading } = usePassages({
@@ -107,7 +109,8 @@ export const StepSource: React.FC<StepSourceProps> = ({
 
   // ── Filter kesulitan (hanya memfilter tampilan, tak mengubah pilihan) ──
   const matchDiff = (q: Question) => diffFilter === 'all' || q.difficulty === diffFilter;
-  const childrenOf = (pid: string) => questions.filter((q) => q.passage_id === pid);
+  const childrenOf = (pid: string) =>
+    questions.filter((q) => q.passage_id === pid).sort((a, b) => a.sort_order - b.sort_order);
   /** Distribusi kesulitan soal anak materi, urut easy→medium→hard. */
   const diffCounts = (pid: string) => {
     const c: Record<DiffKey, number> = { easy: 0, medium: 0, hard: 0 };
@@ -115,28 +118,61 @@ export const StepSource: React.FC<StepSourceProps> = ({
     return c;
   };
 
-  const hasPassage = (id: string) => poolUnits.some((u) => u.passage_id === id);
-  const hasQuestion = (id: string) => poolUnits.some((u) => u.question_id === id);
+  // ── Selektor pilihan (3 bentuk unit: materi utuh / soal tunggal / subset materi) ──
+  const hasWholePassage = (pid: string) =>
+    poolUnits.some((u) => u.passage_id === pid && u.question_id == null);
+  const hasStandalone = (qid: string) =>
+    poolUnits.some((u) => u.passage_id == null && u.question_id === qid);
+  /** Id soal terpilih dalam sebuah materi (materi utuh legacy → dianggap semua anaknya). */
+  const selectedQidsOf = (pid: string): string[] =>
+    hasWholePassage(pid)
+      ? childrenOf(pid).map((q) => q.id)
+      : poolUnits
+          .filter((u) => u.passage_id === pid && u.question_id != null)
+          .map((u) => u.question_id as string);
 
-  // ── Kuota per bagian (dihitung dalam JUMLAH SOAL Tayang, bukan unit) ──
+  // ── Kuota per bagian (dihitung dalam JUMLAH SOAL Tayang) ──
   const target = (activeSection ? targets[activeSection] : undefined) ?? 0;
   const selectedQuestions =
-    availablePassages.filter((p) => hasPassage(p.id)).reduce((n, p) => n + pubCount(p), 0) +
-    standalone.filter((q) => hasQuestion(q.id)).length;
+    standalone.filter((q) => hasStandalone(q.id)).length +
+    availablePassages.reduce((n, p) => n + selectedQidsOf(p.id).length, 0);
   const remaining = Math.max(0, target - selectedQuestions);
 
-  const togglePassage = (id: string, count: number) => {
-    if (hasPassage(id)) {
-      onChange(poolUnits.filter((u) => u.passage_id !== id));
-    } else if (count <= remaining) {
-      onChange([...poolUnits, { passage_id: id, question_id: null }]);
+  /** Ganti seluruh pilihan sebuah materi dengan unit per-soal (buang unit lama materi itu). */
+  const setPassageSelection = (pid: string, qids: string[]) => {
+    const others = poolUnits.filter((u) => u.passage_id !== pid);
+    onChange([...others, ...qids.map((qid) => ({ passage_id: pid, question_id: qid }))]);
+  };
+  /** Toggle satu soal di dalam materi (hormati sisa kuota). */
+  const togglePQ = (pid: string, qid: string) => {
+    const sel = selectedQidsOf(pid);
+    if (sel.includes(qid)) setPassageSelection(pid, sel.filter((x) => x !== qid));
+    else if (remaining >= 1) setPassageSelection(pid, [...sel, qid]);
+  };
+  /** Toggle materi: kosongkan bila penuh; jika tidak, isi soal sebanyak muat sisa kuota. */
+  const toggleWholePassage = (p: Passage) => {
+    const all = childrenOf(p.id).map((q) => q.id);
+    const sel = selectedQidsOf(p.id);
+    if (all.length > 0 && sel.length >= all.length) {
+      setPassageSelection(p.id, []);
+    } else {
+      const unsel = all.filter((id) => !sel.includes(id));
+      setPassageSelection(p.id, [...sel, ...unsel.slice(0, remaining)]);
     }
   };
-  const toggleQuestion = (id: string) => {
-    if (hasQuestion(id)) {
-      onChange(poolUnits.filter((u) => u.question_id !== id));
+  const toggleExpand = (pid: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(pid)) next.delete(pid);
+      else next.add(pid);
+      return next;
+    });
+  /** Toggle soal tunggal (standalone). */
+  const toggleStandalone = (qid: string) => {
+    if (hasStandalone(qid)) {
+      onChange(poolUnits.filter((u) => !(u.passage_id == null && u.question_id === qid)));
     } else if (remaining >= 1) {
-      onChange([...poolUnits, { passage_id: null, question_id: id }]);
+      onChange([...poolUnits, { passage_id: null, question_id: qid }]);
     }
   };
 
@@ -165,26 +201,20 @@ export const StepSource: React.FC<StepSourceProps> = ({
     (u.passage_id != null && sectionPassageIds.has(u.passage_id)) ||
     (u.question_id != null && sectionQuestionIds.has(u.question_id));
 
-  /** Isi sisa kuota dengan pilihan ACAK dari yang sedang tampil (hormati filter). */
+  /** Isi sisa kuota dengan SOAL acak (per-soal → bisa pas) dari yang tampil (hormati filter). */
   const fillRandom = () => {
     if (remaining <= 0) return;
-    const cands: { unit: ExamPoolUnit; count: number }[] = [
-      ...visiblePassages
-        .filter((p) => !hasPassage(p.id))
-        .map((p) => ({ unit: { passage_id: p.id, question_id: null }, count: pubCount(p) })),
-      ...visibleStandalone
-        .filter((q) => !hasQuestion(q.id))
-        .map((q) => ({ unit: { passage_id: null, question_id: q.id }, count: 1 })),
-    ];
-    let rem = remaining;
-    const adds: ExamPoolUnit[] = [];
-    for (const c of shuffled(cands)) {
-      if (rem <= 0) break;
-      if (c.count <= rem) {
-        adds.push(c.unit);
-        rem -= c.count;
+    const cands: ExamPoolUnit[] = [];
+    for (const p of visiblePassages) {
+      const sel = new Set(selectedQidsOf(p.id));
+      for (const q of childrenOf(p.id)) {
+        if (!sel.has(q.id) && matchDiff(q)) cands.push({ passage_id: p.id, question_id: q.id });
       }
     }
+    for (const q of visibleStandalone) {
+      if (!hasStandalone(q.id)) cands.push({ passage_id: null, question_id: q.id });
+    }
+    const adds = shuffled(cands).slice(0, remaining);
     if (adds.length) onChange([...poolUnits, ...adds]);
   };
 
@@ -273,60 +303,113 @@ export const StepSource: React.FC<StepSourceProps> = ({
         />
       ) : (
         <div className="flex flex-col gap-5">
-          {/* Materi (passage utuh) */}
+          {/* Materi — bisa pilih sebagian soal (expand) */}
           {visiblePassages.length > 0 && (
             <div>
               <p className="text-xs font-bold text-slate-600 mb-2 flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5 text-indigo-600" /> Materi (unit utuh)
+                <Layers className="w-3.5 h-3.5 text-indigo-600" /> Materi
+                <span className="font-normal text-slate-400">· klik untuk pilih sebagian soal</span>
               </p>
               <div className="flex flex-col gap-2">
                 {visiblePassages.map((p) => {
-                  const checked = hasPassage(p.id);
-                  const count = pubCount(p);
-                  const disabled = !checked && count > remaining;
+                  const kids = childrenOf(p.id);
+                  const sel = selectedQidsOf(p.id);
+                  const selSet = new Set(sel);
+                  const allSel = kids.length > 0 && sel.length >= kids.length;
+                  const someSel = sel.length > 0 && !allSel;
+                  const isOpen = expanded.has(p.id);
                   const dc = diffCounts(p.id);
+                  const visKids = kids.filter((q) => matchDiff(q) || selSet.has(q.id));
                   return (
-                    <label
-                      key={p.id}
-                      title={
-                        disabled
-                          ? `Materi ${count} soal melebihi sisa kuota (${remaining} soal)`
-                          : undefined
-                      }
-                      className={`flex items-center gap-3 rounded-xl border border-slate-100 p-3 transition-colors ${
-                        disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-slate-200 cursor-pointer'
-                      }`}
-                    >
-                      <Checkbox
-                        checked={checked}
-                        disabled={disabled}
-                        onChange={() => togglePassage(p.id, count)}
-                      />
-                      {!p.content ? (
-                        <Music className="w-4 h-4 text-indigo-600 shrink-0" />
-                      ) : (
-                        <FileText className="w-4 h-4 text-slate-400 shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-700 line-clamp-2">
-                          {clean(p.content || '') || 'Audio Listening'}
-                        </p>
-                        {/* Distribusi kesulitan soal di dalam materi */}
-                        <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                          {(['easy', 'medium', 'hard'] as DiffKey[]).map((k) =>
-                            dc[k] > 0 ? (
-                              <span key={k} className="flex items-center gap-1 text-[10px] font-semibold text-slate-400">
-                                <span className={`w-1.5 h-1.5 rounded-full ${DIFF[k].dot}`} />
-                                {dc[k]} {DIFF[k].label}
-                              </span>
-                            ) : null,
+                    <div key={p.id} className="rounded-xl border border-slate-100 overflow-hidden">
+                      {/* Header materi */}
+                      <div className="flex items-center gap-3 p-3">
+                        <Checkbox
+                          checked={allSel}
+                          indeterminate={someSel}
+                          onChange={() => toggleWholePassage(p)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => toggleExpand(p.id)}
+                          className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                        >
+                          {!p.content ? (
+                            <Music className="w-4 h-4 text-indigo-600 shrink-0" />
+                          ) : (
+                            <FileText className="w-4 h-4 text-slate-400 shrink-0" />
                           )}
-                        </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-700 line-clamp-2">
+                              {clean(p.content || '') || 'Audio Listening'}
+                            </p>
+                            <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                              {(['easy', 'medium', 'hard'] as DiffKey[]).map((k) =>
+                                dc[k] > 0 ? (
+                                  <span key={k} className="flex items-center gap-1 text-[10px] font-semibold text-slate-400">
+                                    <span className={`w-1.5 h-1.5 rounded-full ${DIFF[k].dot}`} />
+                                    {dc[k]} {DIFF[k].label}
+                                  </span>
+                                ) : null,
+                              )}
+                            </div>
+                          </div>
+                          <Badge
+                            variant={allSel ? 'success' : someSel ? 'info' : 'neutral'}
+                            className="text-[10px] font-bold shrink-0"
+                          >
+                            {sel.length}/{kids.length} soal
+                          </Badge>
+                          <ChevronDown
+                            className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                          />
+                        </button>
                       </div>
-                      <Badge variant="neutral" className="text-[10px] font-bold shrink-0">
-                        {count} soal
-                      </Badge>
-                    </label>
+
+                      {/* Daftar soal di dalam materi */}
+                      {isOpen && (
+                        <div className="border-t border-slate-100 bg-slate-50/60 px-3 py-2 flex flex-col gap-1">
+                          {visKids.map((q) => {
+                            const qChecked = selSet.has(q.id);
+                            const qDisabled = !qChecked && remaining < 1;
+                            return (
+                              <div
+                                key={q.id}
+                                title={qDisabled ? `Kuota bagian ini sudah penuh (${target} soal)` : undefined}
+                                className={`flex items-center gap-3 rounded-lg px-2 py-2 transition-colors ${
+                                  qDisabled ? 'opacity-50' : 'hover:bg-white'
+                                }`}
+                              >
+                                <Checkbox
+                                  size="sm"
+                                  checked={qChecked}
+                                  disabled={qDisabled}
+                                  onChange={() => togglePQ(p.id, q.id)}
+                                />
+                                <span className="text-[11px] font-bold text-slate-400 tabular-nums w-5 shrink-0 text-center">
+                                  {kids.indexOf(q) + 1}
+                                </span>
+                                <p className="text-sm text-slate-700 line-clamp-1 flex-1 min-w-0">
+                                  {clean(q.question_text)}
+                                </p>
+                                <DifficultyBadge difficulty={q.difficulty} />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPreviewPassage(p);
+                                    setPreviewQuestion(q);
+                                  }}
+                                  title="Pratinjau soal"
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50/40 transition-colors shrink-0"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -341,7 +424,7 @@ export const StepSource: React.FC<StepSourceProps> = ({
               </p>
               <div className="flex flex-col gap-2">
                 {visibleStandalone.map((q) => {
-                  const checked = hasQuestion(q.id);
+                  const checked = hasStandalone(q.id);
                   const disabled = !checked && remaining < 1;
                   return (
                   <div
@@ -354,7 +437,7 @@ export const StepSource: React.FC<StepSourceProps> = ({
                     <Checkbox
                       checked={checked}
                       disabled={disabled}
-                      onChange={() => toggleQuestion(q.id)}
+                      onChange={() => toggleStandalone(q.id)}
                     />
                     <p className="text-sm font-medium text-slate-700 line-clamp-1 flex-1 min-w-0">
                       {clean(q.question_text)}
@@ -362,7 +445,10 @@ export const StepSource: React.FC<StepSourceProps> = ({
                     <DifficultyBadge difficulty={q.difficulty} />
                     <button
                       type="button"
-                      onClick={() => setPreviewQuestion(q)}
+                      onClick={() => {
+                        setPreviewPassage(null);
+                        setPreviewQuestion(q);
+                      }}
                       title="Pratinjau soal"
                       className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50/40 transition-colors shrink-0"
                     >
@@ -389,9 +475,12 @@ export const StepSource: React.FC<StepSourceProps> = ({
 
       <QuestionPreview
         open={!!previewQuestion}
-        onClose={() => setPreviewQuestion(null)}
+        onClose={() => {
+          setPreviewQuestion(null);
+          setPreviewPassage(null);
+        }}
         question={previewQuestion}
-        passage={null}
+        passage={previewPassage}
       />
     </div>
   );

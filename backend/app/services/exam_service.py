@@ -290,9 +290,12 @@ class ExamService:
 
     @staticmethod
     def _resolve_pool_by_section(supabase, pool_units) -> dict:
-        """Kelompokkan pool unit per section (resolve section dari passage/question)."""
+        """Kelompokkan pool unit per section. Struktur per section:
+        {passages: [pid utuh], questions: [qid standalone], partials: {pid: [qid subset]}}.
+        """
         passage_ids = [u.passage_id for u in pool_units if u.passage_id]
-        question_ids = [u.question_id for u in pool_units if u.question_id]
+        # question_id standalone = yang TANPA passage_id (subset materi pakai passage type).
+        question_ids = [u.question_id for u in pool_units if u.question_id and not u.passage_id]
         ptype, qsec = {}, {}
         if passage_ids:
             r = supabase.table("question_passages").select("id, type").in_("id", passage_ids).execute()
@@ -300,12 +303,25 @@ class ExamService:
         if question_ids:
             r = supabase.table("questions").select("id, section").in_("id", question_ids).execute()
             qsec = {x["id"]: x["section"] for x in (r.data or [])}
+
         grouped: dict = {}
+
+        def bucket(sec):
+            return grouped.setdefault(sec, {"passages": [], "questions": [], "partials": {}})
+
         for u in pool_units:
-            if u.passage_id and u.passage_id in ptype:
-                grouped.setdefault(ptype[u.passage_id], {"passages": [], "questions": []})["passages"].append(u.passage_id)
-            elif u.question_id and u.question_id in qsec:
-                grouped.setdefault(qsec[u.question_id], {"passages": [], "questions": []})["questions"].append(u.question_id)
+            if u.passage_id and u.question_id:
+                sec = ptype.get(u.passage_id)
+                if sec:
+                    bucket(sec)["partials"].setdefault(u.passage_id, []).append(u.question_id)
+            elif u.passage_id:
+                sec = ptype.get(u.passage_id)
+                if sec:
+                    bucket(sec)["passages"].append(u.passage_id)
+            elif u.question_id:
+                sec = qsec.get(u.question_id)
+                if sec:
+                    bucket(sec)["questions"].append(u.question_id)
         return grouped
 
     @staticmethod
@@ -323,19 +339,28 @@ class ExamService:
             target = s.target_count
             g = grouped.get(sec)
 
-            if g and (g["passages"] or g["questions"]):
+            if g and (g["passages"] or g["questions"] or g.get("partials")):
                 avail_q = 0
                 if g["passages"]:
                     avail_q += owned(
                         supabase.table("questions").select("id", count=CountMethod.exact)
                         .in_("passage_id", g["passages"]).eq("status", "published")
                     ).execute().count or 0
+                # Subset materi (lewati materi yang juga dipilih utuh)
+                partials = g.get("partials", {})
+                partial_pids = [pid for pid in partials if pid not in g["passages"]]
+                partial_qids = [qid for pid in partial_pids for qid in partials[pid]]
+                if partial_qids:
+                    avail_q += owned(
+                        supabase.table("questions").select("id", count=CountMethod.exact)
+                        .in_("id", partial_qids).eq("status", "published")
+                    ).execute().count or 0
                 if g["questions"]:
                     avail_q += owned(
                         supabase.table("questions").select("id", count=CountMethod.exact)
                         .in_("id", g["questions"]).eq("status", "published")
                     ).execute().count or 0
-                avail_u = len(g["passages"]) + len(g["questions"])
+                avail_u = len(g["passages"]) + len(partial_pids) + len(g["questions"])
             else:
                 avail_q = owned(
                     supabase.table("questions").select("id", count=CountMethod.exact)
@@ -405,10 +430,12 @@ class ExamService:
             q = q if user_role == "super_admin" else q.eq("created_by", user_id)
             return q.eq("test_type", test_type) if test_type else q
 
-        if g and (g["passages"] or g["questions"]):
+        partials: dict = {}
+        if g and (g["passages"] or g["questions"] or g.get("partials")):
             explicit = True
             passage_ids = g["passages"]
             question_ids = g["questions"]
+            partials = g.get("partials", {})
         else:
             explicit = False
             pr = owned(
@@ -421,6 +448,7 @@ class ExamService:
             question_ids = [x["id"] for x in (qr.data or [])]
 
         units = []
+        # Materi UTUH (semua soal anaknya)
         for pid in passage_ids:
             prow = supabase.table("question_passages").select("*").eq("id", pid).execute().data
             if not prow:
@@ -432,6 +460,21 @@ class ExamService:
             )
             if qrows:
                 units.append((prow[0], qrows))
+        # Materi SUBSET (hanya soal terpilih) — lewati bila materi juga dipilih utuh
+        for pid, qids in partials.items():
+            if pid in passage_ids or not qids:
+                continue
+            prow = supabase.table("question_passages").select("*").eq("id", pid).execute().data
+            if not prow:
+                continue
+            qrows = (
+                supabase.table("questions").select("*")
+                .in_("id", qids).eq("status", "published").order("sort_order")
+                .execute().data or []
+            )
+            if qrows:
+                units.append((prow[0], qrows))
+        # Soal tunggal (standalone)
         for qid in question_ids:
             qrow = supabase.table("questions").select("*").eq("id", qid).eq("status", "published").execute().data
             if qrow:

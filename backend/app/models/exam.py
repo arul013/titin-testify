@@ -21,15 +21,18 @@ class ExamSectionInput(BaseModel):
 
 
 class ExamPoolUnitInput(BaseModel):
-    """Satu unit pool: materi utuh (passage_id) ATAU soal tunggal (question_id)."""
+    """Satu unit pool. Kombinasi valid:
+    - passage_id saja        → materi UTUH (semua soal anaknya).
+    - question_id saja       → soal tunggal (standalone).
+    - passage_id+question_id → SATU soal spesifik di dalam materi (subset).
+    """
     passage_id: Optional[str] = None
     question_id: Optional[str] = None
 
     @model_validator(mode="after")
-    def _exactly_one(self) -> "ExamPoolUnitInput":
-        filled = [bool(self.passage_id), bool(self.question_id)]
-        if sum(filled) != 1:
-            raise ValueError("Setiap unit pool harus mengisi tepat satu dari passage_id atau question_id.")
+    def _at_least_one(self) -> "ExamPoolUnitInput":
+        if not self.passage_id and not self.question_id:
+            raise ValueError("Setiap unit pool harus mengisi passage_id dan/atau question_id.")
         return self
 
 
