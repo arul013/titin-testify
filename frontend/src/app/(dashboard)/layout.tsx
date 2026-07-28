@@ -16,15 +16,21 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
 
+  // Route yang boleh diakses peserta (portal peserta).
+  const pesertaAllowed =
+    pathname.startsWith('/beranda') ||
+    pathname.startsWith('/ujian') ||
+    pathname.startsWith('/riwayat');
+
   useEffect(() => {
     if (!isLoading && user) {
       if (user.force_change_password) {
         router.replace('/change-password');
-      } else if (user.role === 'peserta' && !pathname.startsWith('/ujian')) {
-        router.replace('/ujian');
+      } else if (user.role === 'peserta' && !pesertaAllowed) {
+        router.replace('/beranda');
       }
     }
-  }, [user, isLoading, pathname, router]);
+  }, [user, isLoading, pathname, router, pesertaAllowed]);
 
   // Show a logout loading overlay at dead center
   if (isLoggingOut) {
@@ -65,7 +71,7 @@ export default function DashboardLayout({
 
   // Protect against flash of content before useEffect redirects
   if (user.force_change_password) return null;
-  if (user.role === 'peserta' && !pathname.startsWith('/ujian')) return null;
+  if (user.role === 'peserta' && !pesertaAllowed) return null;
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">

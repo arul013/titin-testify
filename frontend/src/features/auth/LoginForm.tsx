@@ -74,7 +74,7 @@ export const LoginForm: React.FC = () => {
       if (loggedInUser.force_change_password) {
         router.push("/change-password");
       } else if (loggedInUser.role === "peserta") {
-        router.push("/ujian");
+        router.push("/beranda");
       } else {
         router.push("/dashboard");
       }

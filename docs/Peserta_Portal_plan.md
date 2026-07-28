@@ -34,7 +34,10 @@ Ujian **deterministik** (semua peserta soal SAMA). Bila satu peserta melihat kun
    - `exam.py`/`exam_service.py`: `show_review` di Create/Update/Response; assembly (`_assemble_and_freeze`) **bekukan `explanation`** ke exam_questions (TAK ke payload).
    - Endpoint **`GET /api/attempts/{id}/review`** (`review_attempt`): per soal + kunci + jawaban + benar/salah + pembahasan; guard (owned + submitted + `exam.show_review`). Model `AttemptReviewQuestion`/`AttemptReviewResponse`. `AttemptResultResponse` +`show_review`.
    - Frontend admin: StepDetail toggle "Tampilkan pembahasan…" (default Latihan ON / Tes Lengkap OFF), ExamBuilder state+payload, `useExams.Exam`+`show_review`.
-2. **P5.1 — Sidebar + route peserta** (Dashboard, Ujian Saya, Riwayat) + update guard layout (peserta boleh akses route baru).
+2. **P5.1 — Sidebar + route peserta** ✅ SELESAI 2026-07-28 (diagnostics bersih, belum di-commit):
+   - Route: **`/beranda`** (Dashboard, `PesertaBerandaPage`), **`/ujian`** (Ujian Saya, tetap `MyExamsPage`), **`/riwayat`** (`RiwayatPage`). Beranda & Riwayat masih **placeholder** (diisi P5.4 & P5.3).
+   - Sidebar peserta: Dashboard(/beranda) · Ujian Saya(/ujian) · Riwayat Ujian(/riwayat). ("Ujian CBT" → "Ujian Saya".)
+   - Guard `layout.tsx`: `pesertaAllowed` = /beranda | /ujian | /riwayat; default redirect peserta → **/beranda**. Login & change-password redirect peserta → /beranda.
 3. **P5.2 — Ujian Saya** (refactor MyExamsPage → actionable-only + countdown mendatang).
 4. **P5.3 — Riwayat Ujian** (daftar selesai + detail hasil + pembahasan bila diizinkan, pakai endpoint review).
 5. **P5.4 — Dashboard peserta** (home glanceable).

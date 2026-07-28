@@ -52,7 +52,7 @@ export function ChangePasswordPage() {
 
       // Redirect based on role
       if (user?.role === "peserta") {
-        router.push("/ujian");
+        router.push("/beranda");
       } else {
         router.push("/dashboard");
       }
