@@ -183,9 +183,23 @@ class UserService:
         )
 
     @staticmethod
-    async def update_user(user_id: str, request: UpdateUserRequest) -> UserProfile:
-        """Update a user's profile information."""
+    async def update_user(user_id: str, request: UpdateUserRequest, actor_role: str) -> UserProfile:
+        """Update a user's profile information.
+
+        Otorisasi: admin hanya boleh mengubah akun **peserta** (tak boleh menyentuh
+        akun admin/super_admin). Super_admin bebas.
+        """
         supabase = get_supabase_admin()
+
+        if actor_role != "super_admin":
+            target = supabase.table("profiles").select("role").eq("id", user_id).single().execute()
+            if not target.data:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "Pengguna tidak ditemukan")
+            if target.data["role"] != "peserta":
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN,
+                    "Admin hanya diperbolehkan mengubah akun Peserta.",
+                )
 
         # Build update data (only non-None fields)
         update_data = {}

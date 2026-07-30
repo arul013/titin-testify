@@ -50,10 +50,11 @@ export const QuestionFields: React.FC<QuestionFieldsProps> = ({ form, idPrefix =
             <FileUploader
               variant="dropzone"
               accept="audio/*"
+              maxSizeMB={50}
               disabled={isUploadingAudio}
               icon={<Music />}
               label="Klik atau seret file audio ke sini"
-              hint="Format mp3, wav, m4a, dan sejenisnya"
+              hint="Format mp3, wav, m4a, dsb — maks 50 MB"
               onFilesSelected={([f]) => uploadAudioFile(f)}
               onError={(m) => toast.error(m)}
             />
@@ -185,10 +186,11 @@ export const QuestionFields: React.FC<QuestionFieldsProps> = ({ form, idPrefix =
                 <FileUploader
                   variant="dropzone"
                   accept="image/*"
+                  maxSizeMB={10}
                   disabled={isUploadingImage}
                   icon={<ImageIcon />}
                   label="Klik atau seret gambar ke sini"
-                  hint="Format jpg, png, webp, dan sejenisnya"
+                  hint="Format jpg, png, webp, dsb — maks 10 MB"
                   onFilesSelected={async ([f]) => {
                     setIsUploadingImage(true);
                     const url = await doUploadImage(f);

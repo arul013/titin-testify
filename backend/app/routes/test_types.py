@@ -13,7 +13,7 @@ from app.models.test_type import (
 )
 from app.models.user import UserProfile
 from app.services.test_type_service import TestTypeService
-from app.dependencies import require_admin
+from app.dependencies import require_admin, require_super_admin
 
 router = APIRouter(prefix="/api/test-types", tags=["Test Types"])
 
@@ -27,9 +27,9 @@ async def list_test_types(_current_user: UserProfile = Depends(require_admin)):
 @router.post("", response_model=TestTypeResponse, status_code=201)
 async def create_test_type(
     request: CreateTestTypeRequest,
-    _current_user: UserProfile = Depends(require_admin),
+    _current_user: UserProfile = Depends(require_super_admin),
 ):
-    """Buat jenis tes baru (+ skill)."""
+    """Buat jenis tes baru (+ skill). Super Admin only (konfigurasi global)."""
     return await TestTypeService.create_test_type(request)
 
 
@@ -37,17 +37,17 @@ async def create_test_type(
 async def update_test_type(
     test_type_id: str,
     request: UpdateTestTypeRequest,
-    _current_user: UserProfile = Depends(require_admin),
+    _current_user: UserProfile = Depends(require_super_admin),
 ):
-    """Ubah jenis tes (skill diganti bila dikirim)."""
+    """Ubah jenis tes (skill diganti bila dikirim). Super Admin only."""
     return await TestTypeService.update_test_type(test_type_id, request)
 
 
 @router.delete("/{test_type_id}", response_model=TestTypeMessageResponse)
 async def delete_test_type(
     test_type_id: str,
-    _current_user: UserProfile = Depends(require_admin),
+    _current_user: UserProfile = Depends(require_super_admin),
 ):
-    """Hapus jenis tes (non-bawaan & tak sedang dipakai)."""
+    """Hapus jenis tes (non-bawaan & tak sedang dipakai). Super Admin only."""
     await TestTypeService.delete_test_type(test_type_id)
     return TestTypeMessageResponse(message="Jenis tes berhasil dihapus.")

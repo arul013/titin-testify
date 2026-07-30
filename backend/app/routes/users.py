@@ -77,10 +77,10 @@ async def get_user(
 async def update_user(
     user_id: str,
     request: UpdateUserRequest,
-    _current_user: UserProfile = Depends(require_admin),
+    current_user: UserProfile = Depends(require_admin),
 ):
-    """Update a user's profile information (admin only)."""
-    return await UserService.update_user(user_id, request)
+    """Update a user's profile information (admin: peserta saja; super_admin: bebas)."""
+    return await UserService.update_user(user_id, request, current_user.role.value)
 
 
 @router.delete("/{user_id}", response_model=MessageResponse)

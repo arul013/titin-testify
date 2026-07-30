@@ -2,30 +2,70 @@
 Learning Nexus CBT — Auth Service (Business Logic)
 """
 
+import math
+from datetime import datetime, timezone, timedelta
+from typing import Any, Optional
+
 from fastapi import HTTPException, status
 from app.database import get_supabase_client, get_supabase_admin
 from app.models.user import LoginRequest, AuthResponse, UserProfile
+from app.config import get_settings
+from app.services.audit_service import AuditService
 # pyrefly: ignore [missing-import]
 from gotrue.errors import AuthApiError
+
+
+def _parse_dt(v) -> Optional[datetime]:
+    if not v:
+        return None
+    if isinstance(v, datetime):
+        return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
+    try:
+        dt = datetime.fromisoformat(str(v).replace("Z", "+00:00"))
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
 
 
 class AuthService:
     """Handles authentication business logic via Supabase Auth."""
 
     @staticmethod
-    async def login(request: LoginRequest) -> AuthResponse:
+    def _register_failed_login(admin, user_id: str, prev_count: int, http_request: Any = None) -> None:
+        """Naikkan hitungan gagal login; kunci akun bila melewati ambang."""
+        settings = get_settings()
+        count = (prev_count or 0) + 1
+        update: dict = {"failed_login_count": count}
+        if count >= settings.login_max_failures:
+            locked = datetime.now(timezone.utc) + timedelta(minutes=settings.login_lockout_minutes)
+            update["locked_until"] = locked.isoformat()
+            update["failed_login_count"] = 0  # reset penghitung setelah dikunci
+            ip, ua = AuditService.context_from_request(http_request)
+            AuditService.log(
+                action="auth.account_locked", entity_type="user", entity_id=user_id,
+                actor_id=user_id, actor_role="peserta",
+                summary=f"Akun dikunci {settings.login_lockout_minutes} menit setelah {count} gagal login.",
+                ip=ip, user_agent=ua,
+            )
+        try:
+            admin.table("profiles").update(update).eq("id", user_id).execute()
+        except Exception:
+            pass  # jangan gagalkan alur login karena kegagalan bookkeeping
+
+    @staticmethod
+    async def login(request: LoginRequest, http_request: Any = None) -> AuthResponse:
         """Authenticate user with username and password.
-        
-        Resolves username to email via profiles and gotrue admin,
-        then authenticates credentials via Supabase Auth.
+
+        Resolves username to email via profiles and gotrue admin, cek lockout
+        per-akun, lalu autentikasi kredensial via Supabase Auth.
         """
         admin = get_supabase_admin()
-        
-        # 1. Resolve username to user ID
+
+        # 1. Resolve username to user ID (+ status lockout)
         try:
             profile_res = (
                 admin.table("profiles")
-                .select("id")
+                .select("id, failed_login_count, locked_until")
                 .eq("username", request.username)
                 .execute()
             )
@@ -41,7 +81,18 @@ class AuthService:
                 detail="Username atau password salah",
             )
 
-        user_id = profile_res.data[0]["id"]
+        prow = profile_res.data[0]
+        user_id = prow["id"]
+
+        # 1b. Lockout per-akun (anti-brute-force / credential stuffing)
+        locked_until = _parse_dt(prow.get("locked_until"))
+        now = datetime.now(timezone.utc)
+        if locked_until and locked_until > now:
+            mins = max(1, math.ceil((locked_until - now).total_seconds() / 60))
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Akun terkunci sementara karena terlalu banyak gagal login. Coba lagi dalam ~{mins} menit.",
+            )
 
         # 2. Get email from auth admin
         try:
@@ -61,6 +112,10 @@ class AuthService:
                 {"email": email, "password": request.password}  # type: ignore[arg-type]
             )
         except AuthApiError as e:
+            # Password salah → catat kegagalan (kunci akun bila melewati ambang).
+            AuthService._register_failed_login(
+                admin, user_id, prow.get("failed_login_count") or 0, http_request
+            )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Username atau password salah",
@@ -74,6 +129,15 @@ class AuthService:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Gagal melakukan autentikasi",
             )
+
+        # Sukses → reset penghitung gagal + buka kunci (bila ada).
+        if (prow.get("failed_login_count") or 0) or prow.get("locked_until"):
+            try:
+                admin.table("profiles").update(
+                    {"failed_login_count": 0, "locked_until": None}
+                ).eq("id", user_id).execute()
+            except Exception:
+                pass
 
         # Fetch user profile
         profile_result = (

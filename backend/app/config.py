@@ -34,6 +34,14 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
 
+    # Rate limiting (Redis-ready). Dev: "memory://". Prod: "redis://:pass@host:6379"
+    # (mis. Upstash). Ganti backend = cukup ubah env, tanpa ubah kode.
+    rate_limit_enabled: bool = True
+    rate_limit_storage_uri: str = "memory://"
+    # Anti-brute-force login per-akun.
+    login_max_failures: int = 5          # gagal berturut sebelum terkunci
+    login_lockout_minutes: int = 15      # durasi kunci
+
     class Config:
         env_file = ".env"
         case_sensitive = False

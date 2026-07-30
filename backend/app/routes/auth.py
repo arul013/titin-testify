@@ -2,7 +2,7 @@
 Learning Nexus CBT — Auth Routes
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from app.models.user import (
     LoginRequest,
@@ -13,6 +13,7 @@ from app.models.user import (
 )
 from app.services.auth_service import AuthService
 from app.dependencies import get_current_user
+from app.middleware.rate_limit import limiter
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
@@ -24,12 +25,13 @@ class RefreshRequest(BaseModel):
 
 
 @router.post("/login", response_model=AuthResponse)
-async def login(request: LoginRequest):
-    """Login with username and password.
-    
+@limiter.limit("10/minute")
+async def login(request: Request, payload: LoginRequest):
+    """Login with username and password (rate-limited per IP + lockout per akun).
+
     Returns access token, refresh token, and user profile.
     """
-    return await AuthService.login(request)
+    return await AuthService.login(payload, request)
 
 
 @router.post("/logout", response_model=MessageResponse)
@@ -48,14 +50,17 @@ async def get_me(current_user: UserProfile = Depends(get_current_user)):
 
 
 @router.post("/refresh", response_model=AuthResponse)
-async def refresh_token(request: RefreshRequest):
+@limiter.limit("30/minute")
+async def refresh_token(request: Request, payload: RefreshRequest):
     """Refresh an expired access token using a refresh token."""
-    return await AuthService.refresh_token(request.refresh_token)
+    return await AuthService.refresh_token(payload.refresh_token)
 
 
 @router.post("/change-password", response_model=MessageResponse)
+@limiter.limit("10/minute")
 async def change_password(
-    request: ChangePasswordRequest,
+    request: Request,
+    payload: ChangePasswordRequest,
     current_user: UserProfile = Depends(get_current_user),
 ):
     """Change the password for the current logged-in user.
@@ -65,18 +70,18 @@ async def change_password(
     """
     if current_user.force_change_password:
         # Forced first-time change: no current password needed.
-        await AuthService.change_password(current_user.id, request.new_password)
+        await AuthService.change_password(current_user.id, payload.new_password)
     else:
         # Voluntary change: verify the current password first.
-        if not request.current_password:
+        if not payload.current_password:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Password lama wajib diisi.",
             )
         await AuthService.change_password(
             current_user.id,
-            request.new_password,
-            current_password=request.current_password,
+            payload.new_password,
+            current_password=payload.current_password,
         )
     return MessageResponse(message="Password berhasil diubah", success=True)
 
