@@ -139,9 +139,9 @@ class AuthService:
             except Exception:
                 pass
 
-        # Fetch user profile
+        # Fetch user profile (service-role → tak bergantung RLS authenticated)
         profile_result = (
-            supabase.table("profiles")
+            admin.table("profiles")
             .select("*")
             .eq("id", user.id)
             .single()
@@ -204,9 +204,10 @@ class AuthService:
                 detail="Gagal memperbarui sesi",
             )
 
-        # Fetch profile
+        # Fetch profile (service-role → tak bergantung RLS authenticated)
         profile_result = (
-            supabase.table("profiles")
+            get_supabase_admin()
+            .table("profiles")
             .select("*")
             .eq("id", user.id)
             .single()

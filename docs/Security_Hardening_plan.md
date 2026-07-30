@@ -8,7 +8,10 @@ Prinsip: least-privilege, defense-in-depth, jangan percaya klien, server-authori
 - **F2.b — Rate-limit & anti-brute-force** ✅ (butuh `pip install` + migrasi 018) — batasi login & endpoint sensitif; lockout per-akun.
 - **F2.c — Upload aman** — batas ukuran, validasi tipe kuat (magic bytes), nama acak (sudah), tolak ekstensi berbahaya.
 - **F2.d — Sanitasi anti-XSS** ✅ — **hasil: sudah aman by design.** `dangerouslySetInnerHTML`/`innerHTML` = **0**; tak ada lib markdown→HTML; `renderExamText`+`PassageView` render konten admin sbg **React text node (auto-escape)** → `<script>` jadi teks. `href` dinamis hanya di komponen DS navigasi/preview (bukan free-text). **Guard ditambahkan:** ESLint `react/no-danger: error` (`eslint.config.mjs`) → `dangerouslySetInnerHTML` masa depan gagal lint. Opsional (belum): validasi skema URL utk media yang di-*paste* (http(s) only) — bukan XSS (src img/audio tak eksekusi js), sekadar hygiene.
-- **F2.e — RLS Supabase (defense-in-depth)** — **PALING AKHIR & hati-hati** (backend pakai service-role → RLS untuk akses langsung/anon).
+- **F2.e — RLS Supabase (Opsi A: tutup data API publik)** ✅ (butuh migrasi 019) — service-role-only.
+  - **Temuan**: frontend tak pernah query data (`.from()`=0), semua via backend service-role; RLS aktif di semua tabel kecuali `audit_events`; TAPI policy lama beri `authenticated` akses langsung → **peserta bisa PATCH exam_attempts (score/status) / ubah jawaban pasca-submit via anon URL + token-nya**, bypass backend. Lubang curang + `audit_events` tanpa RLS.
+  - **Prasyarat kode** (biar lockdown tak matikan login): `auth_service` baca `profiles` di `login` & `refresh_token` dipindah ke **admin (service-role)**; `change_password` & `get_current_user` sudah service-role. → tak ada jalur backend yang butuh RLS authenticated.
+  - **Migrasi `019_rls_lockdown.sql`**: DO-block per tabel — ENABLE RLS + DROP semua policy + CREATE `service_role_all` + `REVOKE ALL FROM anon, authenticated`. Termasuk `audit_events`. Hasil: data API publik tertutup total; backend & auth tetap jalan.
 - Lintas: CORS diperketat, security headers, secrets, error tak bocor detail.
 
 ## F2.a — Temuan audit otorisasi (2026-07-30)
