@@ -517,6 +517,9 @@ class ExamService:
             "id": q["id"],
             "section": q["section"],
             "difficulty": q.get("difficulty"),
+            # F1: tipe soal + data render spesifik-tipe (TANPA kunci) → runner tahu cara render.
+            "question_type": q.get("question_type") or "mcq_single",
+            "content_json": q.get("content_json"),
             "question_text": q.get("question_text") or "",
             "option_a": q.get("option_a") or "",
             "option_b": q.get("option_b") or "",
@@ -628,9 +631,15 @@ class ExamService:
                         "section": sec,
                         "position": position,
                         "source_question_id": q["id"],
-                        "correct_answer": q["correct_answer"],
+                        "correct_answer": q.get("correct_answer"),
                         # Pembahasan dibekukan (denormalisasi); dibuka hanya di endpoint review.
                         "explanation": q.get("explanation"),
+                        # F1: bekukan tipe + kunci/konfig terpisah (answer_json TAK ke payload peserta).
+                        "question_type": q.get("question_type") or "mcq_single",
+                        "content_json": q.get("content_json"),
+                        "answer_json": q.get("answer_json"),
+                        "scoring_mode": q.get("scoring_mode") or "auto",
+                        "max_score": q.get("max_score", 1),
                         "payload": ExamService._question_payload(q, passage),
                     })
                     count += 1

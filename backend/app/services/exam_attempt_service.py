@@ -31,6 +31,21 @@ def _parse_dt(v) -> datetime | None:
         return None
 
 
+def _grade(qtype: str | None, correct_answer, answer_key_json, selected_answer, answer_json) -> bool:
+    """Nilai satu jawaban auto-scored per tipe soal (True = benar penuh).
+
+    - mcq_multi: himpunan pilihan peserta HARUS sama persis dengan kunci ({correct:[…]}).
+    - default (mcq_single/true_false_ng/…): single-choice, selected == correct_answer.
+    """
+    if qtype == "mcq_multi":
+        key = answer_key_json.get("correct") if isinstance(answer_key_json, dict) else None
+        got = answer_json.get("selected") if isinstance(answer_json, dict) else None
+        if not key:
+            return False
+        return {str(x) for x in (got or [])} == {str(x) for x in key}
+    return selected_answer is not None and selected_answer == correct_answer
+
+
 class ExamAttemptService:
     """Alur peserta: daftar ujian, mulai/lanjut, autosave, submit + nilai, hasil."""
 
@@ -152,14 +167,16 @@ class ExamAttemptService:
             .eq("exam_id", exam_id).order("position").execute().data or []
         )
         ans = (
-            supabase.table("exam_attempt_answers").select("exam_question_id, selected_answer")
+            supabase.table("exam_attempt_answers").select("exam_question_id, selected_answer, answer_json")
             .eq("attempt_id", attempt["id"]).execute().data or []
         )
         ans_map = {a["exam_question_id"]: a["selected_answer"] for a in ans}
+        ansj_map = {a["exam_question_id"]: a.get("answer_json") for a in ans}
         questions = [
             AttemptQuestion(
                 exam_question_id=q["id"], position=q["position"], section=q["section"],
                 payload=q["payload"], selected_answer=ans_map.get(q["id"]),
+                answer_json=ansj_map.get(q["id"]),
             )
             for q in eqs
         ]
@@ -212,15 +229,17 @@ class ExamAttemptService:
         if not eq:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "Soal tidak valid untuk ujian ini.")
 
+        # Simpan single-choice (selected_answer) ATAU jawaban kompleks (answer_json).
+        payload = {"selected_answer": sel, "answer_json": request.answer_json}
         existing = (
             supabase.table("exam_attempt_answers").select("id")
             .eq("attempt_id", attempt_id).eq("exam_question_id", request.exam_question_id).execute().data
         )
         if existing:
-            supabase.table("exam_attempt_answers").update({"selected_answer": sel}).eq("id", existing[0]["id"]).execute()
+            supabase.table("exam_attempt_answers").update(payload).eq("id", existing[0]["id"]).execute()
         else:
             supabase.table("exam_attempt_answers").insert({
-                "attempt_id": attempt_id, "exam_question_id": request.exam_question_id, "selected_answer": sel,
+                "attempt_id": attempt_id, "exam_question_id": request.exam_question_id, **payload,
             }).execute()
 
     # ─── Submit + nilai ───────────────────────────────────────
@@ -234,20 +253,23 @@ class ExamAttemptService:
         exam = supabase.table("exams").select("*").eq("id", attempt["exam_id"]).execute().data[0]
 
         eqs = (
-            supabase.table("exam_questions").select("id, section, correct_answer")
+            supabase.table("exam_questions").select("id, section, correct_answer, question_type, answer_json")
             .eq("exam_id", attempt["exam_id"]).execute().data or []
         )
         arows = (
-            supabase.table("exam_attempt_answers").select("id, exam_question_id, selected_answer")
+            supabase.table("exam_attempt_answers").select("id, exam_question_id, selected_answer, answer_json")
             .eq("attempt_id", attempt_id).execute().data or []
         )
         sel_by_eq = {a["exam_question_id"]: a["selected_answer"] for a in arows}
-        correct_by_eq = {q["id"]: q["correct_answer"] for q in eqs}
+        ansj_by_eq = {a["exam_question_id"]: a.get("answer_json") for a in arows}
+        q_by_id = {q["id"]: q for q in eqs}
 
         per: dict = {}
         for q in eqs:
-            sel = sel_by_eq.get(q["id"])
-            is_c = sel is not None and sel == q["correct_answer"]
+            is_c = _grade(
+                q.get("question_type"), q.get("correct_answer"), q.get("answer_json"),
+                sel_by_eq.get(q["id"]), ansj_by_eq.get(q["id"]),
+            )
             d = per.setdefault(q["section"], {"total": 0, "correct": 0})
             d["total"] += 1
             if is_c:
@@ -255,8 +277,11 @@ class ExamAttemptService:
 
         # Tandai is_correct pada baris jawaban yang ada
         for a in arows:
-            ca = correct_by_eq.get(a["exam_question_id"])
-            is_c = a["selected_answer"] is not None and a["selected_answer"] == ca
+            q = q_by_id.get(a["exam_question_id"])
+            is_c = bool(q) and _grade(
+                q.get("question_type"), q.get("correct_answer"), q.get("answer_json"),
+                a.get("selected_answer"), a.get("answer_json"),
+            )
             supabase.table("exam_attempt_answers").update({"is_correct": is_c}).eq("id", a["id"]).execute()
 
         passing = exam.get("passing_value")
@@ -328,11 +353,11 @@ class ExamAttemptService:
 
         eqs = (
             supabase.table("exam_questions")
-            .select("id, position, section, payload, correct_answer, explanation")
+            .select("id, position, section, payload, correct_answer, answer_json, question_type, explanation")
             .eq("exam_id", attempt["exam_id"]).order("position").execute().data or []
         )
         ans = (
-            supabase.table("exam_attempt_answers").select("exam_question_id, selected_answer, is_correct")
+            supabase.table("exam_attempt_answers").select("exam_question_id, selected_answer, answer_json, is_correct")
             .eq("attempt_id", attempt_id).execute().data or []
         )
         sel_by_eq = {a["exam_question_id"]: a for a in ans}
@@ -342,7 +367,11 @@ class ExamAttemptService:
         for q in eqs:
             a = sel_by_eq.get(q["id"])
             selected = a["selected_answer"] if a else None
-            is_correct = selected is not None and selected == q["correct_answer"]
+            ans_json = a.get("answer_json") if a else None
+            is_correct = _grade(
+                q.get("question_type"), q.get("correct_answer"), q.get("answer_json"),
+                selected, ans_json,
+            )
             if is_correct:
                 total_correct += 1
             questions.append(AttemptReviewQuestion(
@@ -352,6 +381,8 @@ class ExamAttemptService:
                 payload=q["payload"],
                 correct_answer=q["correct_answer"],
                 selected_answer=selected,
+                answer_json=ans_json,
+                answer_key_json=q.get("answer_json"),
                 is_correct=is_correct,
                 explanation=q.get("explanation"),
             ))

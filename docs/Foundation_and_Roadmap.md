@@ -55,10 +55,15 @@ Masalah sekarang: model soal mengasumsikan **pilihan ganda** (`option_a..d`, `co
 
 ## 2. Peta Jalan Milestone (fungsional)
 
+**Sudah selesai (2026-07-30, sebagian belum commit):**
+- **F3 (auditability)** ✅ — `audit_events` append-only, soft-delete, optimistic concurrency (migrasi 016).
+- **M1 (lifecycle + guard edit)** ✅ — status closed/archived, guard `update_exam`, clamp `ends_at`, close/archive/duplicate, mode Kelola-terbatas (M1.0+M1.1). Migrasi 017.
+- **F2 (security)** ✅ — authz audit, rate-limit+lockout, upload aman, anti-XSS, **RLS lockdown** (migrasi 018,019). Lihat `Security_Hardening_plan.md`.
+
 | Milestone | Isi | Bergantung | Status |
 |---|---|---|---|
-| **M1** | **Lifecycle + guard edit** (draft→published→closed→archived, guard `update_exam`, clamp `ends_at`, duplicate). Emit **audit events**. | F3 (audit) | mulai M1.0 |
-| **M2** | **Monitoring peserta + analitik** (progres real-ish per peserta; ringkasan; statistik per-soal: p-value & daya beda; breakdown; **ekspor CSV/PDF**). | — | rencana |
+| **M2** | **Monitoring peserta + analitik** (progres real-ish per peserta; ringkasan; statistik per-soal: p-value & daya beda; breakdown; **ekspor CSV/PDF**). | — | **kandidat berikutnya** |
+| **F1** | **Model soal ekstensibel** (`question_type`+JSONB, scoring_type/rubrik, band per jenis tes, timing per-section, media jawaban, grading manual) — fondasi IELTS/iBT. | — | **kandidat berikutnya (dipilih "fondasi dulu")** |
 | **M3** | **Auto-submit/expire job** (finalisasi attempt kedaluwarsa; auto-close saat `ends_at` lewat) + infra job (F4). | F4 | rencana |
 | **M4** | **Duplikat & template ujian**; tandai soal **"dipakai di N ujian"** (cegah/peringatan edit soal live). | — | rencana |
 | **M5** | **Manajemen peserta**: assign per **grup/kelas** (cohort), **perpanjangan waktu per-peserta** (akomodasi), re-invite. | — | rencana |

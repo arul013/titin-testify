@@ -1,7 +1,9 @@
 # Security Hardening (F2) — Rencana & Temuan
 
-Status: **mulai 2026-07-30, dikoding bertahap (review antar-sub-fase).** Pilar F2 dari `Foundation_and_Roadmap.md`.
+Status: **SELESAI 2026-07-30 (F2.a–F2.e). Kode belum di-commit sebagian; migrasi 018 & 019 SUDAH dijalankan & terverifikasi.** Pilar F2 dari `Foundation_and_Roadmap.md`.
 Prinsip: least-privilege, defense-in-depth, jangan percaya klien, server-authoritative.
+
+**Verifikasi F2.e (2026-07-30):** `pg_policies` → tiap tabel public hanya `service_role_all` `{service_role}`; `role_table_grants` anon/authenticated → kosong. Data API publik tertutup total. Sisa: smoke-test aplikasi (login/ujian) setelah restart backend.
 
 ## Sub-fase
 - **F2.a — Audit otorisasi endpoint** ✅ (lihat temuan) — pastikan tiap endpoint punya guard + ownership benar.

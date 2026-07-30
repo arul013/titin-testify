@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Input, Textarea } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ToggleGroup } from '@/components/ui/toggle-group';
 import { FileUploader } from '@/components/ui/file-uploader';
@@ -24,6 +25,7 @@ interface QuestionFieldsProps {
 export const QuestionFields: React.FC<QuestionFieldsProps> = ({ form, idPrefix = 'qf' }) => {
   const {
     section, questionText, setQuestionText,
+    questionType, setQuestionType, isTFNG,
     correctAnswer, setCorrectAnswer,
     explanation, setExplanation,
     imageUrl, setImageUrl, useImage, setUseImage,
@@ -38,6 +40,15 @@ export const QuestionFields: React.FC<QuestionFieldsProps> = ({ form, idPrefix =
 
   return (
     <>
+      {/* Tipe soal (F1) — menentukan bentuk editor jawaban */}
+      <div>
+        <label className="block text-xs font-bold text-slate-600 mb-1.5">Tipe Soal</label>
+        <Select value={questionType} onChange={(e) => setQuestionType(e.target.value)}>
+          <option value="mcq_single">Pilihan Ganda (1 jawaban)</option>
+          <option value="true_false_ng">True / False / Not Given</option>
+        </Select>
+      </div>
+
       {/* Audio soal — hanya Listening yang berdiri sendiri (di dalam materi → audio dari materi) */}
       {isListeningStandalone && (
         <div id={`${idPrefix}-audio`} className="scroll-mt-4 p-4 bg-indigo-50/50 border border-indigo-100 rounded-2xl flex flex-col gap-4">
@@ -232,6 +243,32 @@ export const QuestionFields: React.FC<QuestionFieldsProps> = ({ form, idPrefix =
                   }`}
                 >
                   {answerLabels[i]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : isTFNG ? (
+        <div id={`${idPrefix}-tfngAnswer`} className="scroll-mt-4">
+          <label className="block text-xs font-bold text-slate-600 mb-1.5">Jawaban benar</label>
+          <p className="text-[11px] text-slate-400 mb-2">
+            Pilih True / False / Not Given untuk pernyataan di atas.
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {[{ k: 'a', l: 'True' }, { k: 'b', l: 'False' }, { k: 'c', l: 'Not Given' }].map(({ k, l }) => {
+              const isCorrect = correctAnswer === k;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setCorrectAnswer(k)}
+                  className={`h-11 rounded-xl border-2 text-sm font-bold transition-colors ${
+                    isCorrect
+                      ? 'border-emerald-500 bg-emerald-500 text-white'
+                      : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                  }`}
+                >
+                  {l}
                 </button>
               );
             })}

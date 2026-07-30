@@ -2,7 +2,6 @@
 Learning Nexus CBT — Question Bank Service
 """
 
-import json
 from fastapi import HTTPException, status
 from postgrest.types import CountMethod
 from app.database import get_supabase_admin
@@ -19,6 +18,41 @@ from app.models.question import (
     PassageListResponse,
     QuestionStatsResponse,
 )
+
+
+def _q_resp(q: dict) -> QuestionResponse:
+    """Bangun QuestionResponse dari satu baris DB (termasuk field F1 & creator_name)."""
+    prof = q.get("profiles") or {}
+    return QuestionResponse(
+        id=q["id"],
+        created_by=q["created_by"],
+        passage_id=q.get("passage_id"),
+        test_type=q.get("test_type", "itp"),
+        section=q["section"],
+        difficulty=q["difficulty"],
+        question_text=q.get("question_text", ""),
+        option_a=q.get("option_a"),
+        option_b=q.get("option_b"),
+        option_c=q.get("option_c"),
+        option_d=q.get("option_d"),
+        correct_answer=q.get("correct_answer"),
+        explanation=q.get("explanation"),
+        image_url=q.get("image_url"),
+        options_image_url=q.get("options_image_url"),
+        audio_url=q.get("audio_url"),
+        status=q["status"],
+        tags=q.get("tags", []),
+        sort_order=q.get("sort_order", 0),
+        question_type=q.get("question_type") or "mcq_single",
+        content_json=q.get("content_json"),
+        answer_json=q.get("answer_json"),
+        scoring_mode=q.get("scoring_mode") or "auto",
+        rubric_id=q.get("rubric_id"),
+        max_score=q.get("max_score", 1),
+        creator_name=prof.get("full_name"),
+        created_at=q.get("created_at"),
+        updated_at=q.get("updated_at"),
+    )
 
 
 class QuestionService:
@@ -190,31 +224,7 @@ class QuestionService:
             updated_at=p.get("updated_at"),
         )
 
-        questions = []
-        for q in q_result.data or []:
-            questions.append(QuestionResponse(
-                id=q["id"],
-                created_by=q["created_by"],
-                passage_id=q.get("passage_id"),
-                test_type=q.get("test_type", "itp"),
-                section=q["section"],
-                difficulty=q["difficulty"],
-                question_text=q["question_text"],
-                option_a=q["option_a"],
-                option_b=q["option_b"],
-                option_c=q["option_c"],
-                option_d=q["option_d"],
-                correct_answer=q["correct_answer"],
-                explanation=q.get("explanation"),
-                image_url=q.get("image_url"),
-                options_image_url=q.get("options_image_url"),
-                audio_url=q.get("audio_url"),
-                status=q["status"],
-                tags=q.get("tags", []),
-                sort_order=q.get("sort_order", 0),
-                created_at=q.get("created_at"),
-                updated_at=q.get("updated_at"),
-            ))
+        questions = [_q_resp(q) for q in (q_result.data or [])]
 
         return PassageWithQuestionsResponse(passage=passage, questions=questions)
 
@@ -310,7 +320,7 @@ class QuestionService:
             "option_b": request.option_b,
             "option_c": request.option_c,
             "option_d": request.option_d,
-            "correct_answer": request.correct_answer.value,
+            "correct_answer": request.correct_answer.value if request.correct_answer else None,
             "explanation": request.explanation,
             "image_url": request.image_url,
             "options_image_url": request.options_image_url,
@@ -318,6 +328,13 @@ class QuestionService:
             "status": request.status.value,
             "tags": request.tags,
             "sort_order": request.sort_order,
+            # ── F1: model soal ekstensibel ──
+            "question_type": request.question_type,
+            "content_json": request.content_json,
+            "answer_json": request.answer_json,
+            "scoring_mode": request.scoring_mode,
+            "rubric_id": request.rubric_id,
+            "max_score": request.max_score,
         }
 
         result = supabase.table("questions").insert(data).execute()
@@ -328,30 +345,7 @@ class QuestionService:
                 detail="Gagal membuat soal baru.",
             )
 
-        q = result.data[0]
-        return QuestionResponse(
-            id=q["id"],
-            created_by=q["created_by"],
-            passage_id=q.get("passage_id"),
-            test_type=q.get("test_type", "itp"),
-            section=q["section"],
-            difficulty=q["difficulty"],
-            question_text=q["question_text"],
-            option_a=q["option_a"],
-            option_b=q["option_b"],
-            option_c=q["option_c"],
-            option_d=q["option_d"],
-            correct_answer=q["correct_answer"],
-            explanation=q.get("explanation"),
-            image_url=q.get("image_url"),
-            options_image_url=q.get("options_image_url"),
-            audio_url=q.get("audio_url"),
-            status=q["status"],
-            tags=q.get("tags", []),
-            sort_order=q.get("sort_order", 0),
-            created_at=q.get("created_at"),
-            updated_at=q.get("updated_at"),
-        )
+        return _q_resp(result.data[0])
 
     @staticmethod
     async def list_questions(
@@ -393,36 +387,7 @@ class QuestionService:
 
         result = query.execute()
 
-        questions = []
-        for q in result.data or []:
-            creator_name = None
-            if q.get("profiles"):
-                creator_name = q["profiles"].get("full_name")
-
-            questions.append(QuestionResponse(
-                id=q["id"],
-                created_by=q["created_by"],
-                passage_id=q.get("passage_id"),
-                test_type=q.get("test_type", "itp"),
-                section=q["section"],
-                difficulty=q["difficulty"],
-                question_text=q["question_text"],
-                option_a=q["option_a"],
-                option_b=q["option_b"],
-                option_c=q["option_c"],
-                option_d=q["option_d"],
-                correct_answer=q["correct_answer"],
-                explanation=q.get("explanation"),
-                image_url=q.get("image_url"),
-                options_image_url=q.get("options_image_url"),
-                audio_url=q.get("audio_url"),
-                status=q["status"],
-                tags=q.get("tags", []),
-                sort_order=q.get("sort_order", 0),
-                creator_name=creator_name,
-                created_at=q.get("created_at"),
-                updated_at=q.get("updated_at"),
-            ))
+        questions = [_q_resp(q) for q in (result.data or [])]
 
         return QuestionListResponse(
             questions=questions,
@@ -446,34 +411,7 @@ class QuestionService:
         if user_role != "super_admin" and q["created_by"] != user_id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Anda tidak memiliki akses ke soal ini.")
 
-        creator_name = None
-        if q.get("profiles"):
-            creator_name = q["profiles"].get("full_name")
-
-        return QuestionResponse(
-            id=q["id"],
-            created_by=q["created_by"],
-            passage_id=q.get("passage_id"),
-            test_type=q.get("test_type", "itp"),
-            section=q["section"],
-            difficulty=q["difficulty"],
-            question_text=q["question_text"],
-            option_a=q["option_a"],
-            option_b=q["option_b"],
-            option_c=q["option_c"],
-            option_d=q["option_d"],
-            correct_answer=q["correct_answer"],
-            explanation=q.get("explanation"),
-            image_url=q.get("image_url"),
-            options_image_url=q.get("options_image_url"),
-            audio_url=q.get("audio_url"),
-            status=q["status"],
-            tags=q.get("tags", []),
-            sort_order=q.get("sort_order", 0),
-            creator_name=creator_name,
-            created_at=q.get("created_at"),
-            updated_at=q.get("updated_at"),
-        )
+        return _q_resp(q)
 
     @staticmethod
     async def update_question(question_id: str, request: UpdateQuestionRequest, user_id: str, user_role: str) -> QuestionResponse:
@@ -505,6 +443,13 @@ class QuestionService:
             "status": request.status.value if request.status else None,
             "tags": request.tags,
             "sort_order": request.sort_order,
+            # ── F1 ──
+            "question_type": request.question_type,
+            "content_json": request.content_json,
+            "answer_json": request.answer_json,
+            "scoring_mode": request.scoring_mode,
+            "rubric_id": request.rubric_id,
+            "max_score": request.max_score,
         }
 
         for key, value in field_map.items():
@@ -519,30 +464,7 @@ class QuestionService:
         if not result.data:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Soal tidak ditemukan.")
 
-        q = result.data[0]
-        return QuestionResponse(
-            id=q["id"],
-            created_by=q["created_by"],
-            passage_id=q.get("passage_id"),
-            test_type=q.get("test_type", "itp"),
-            section=q["section"],
-            difficulty=q["difficulty"],
-            question_text=q["question_text"],
-            option_a=q["option_a"],
-            option_b=q["option_b"],
-            option_c=q["option_c"],
-            option_d=q["option_d"],
-            correct_answer=q["correct_answer"],
-            explanation=q.get("explanation"),
-            image_url=q.get("image_url"),
-            options_image_url=q.get("options_image_url"),
-            audio_url=q.get("audio_url"),
-            status=q["status"],
-            tags=q.get("tags", []),
-            sort_order=q.get("sort_order", 0),
-            created_at=q.get("created_at"),
-            updated_at=q.get("updated_at"),
-        )
+        return _q_resp(result.data[0])
 
     @staticmethod
     async def delete_question(question_id: str, user_id: str, user_role: str) -> None:

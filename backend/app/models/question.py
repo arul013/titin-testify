@@ -83,7 +83,8 @@ class CreateQuestionRequest(BaseModel):
     option_b: str = Field(default="", description="Option B text")
     option_c: str = Field(default="", description="Option C text")
     option_d: str = Field(default="", description="Option D text")
-    correct_answer: CorrectAnswer = Field(..., description="Correct answer (a/b/c/d)")
+    # Opsional: MCQ mengisi a/b/c/d; tipe non-MCQ (F1.1+) memakai answer_json.
+    correct_answer: Optional[CorrectAnswer] = Field(None, description="Correct answer (a/b/c/d) untuk MCQ")
     explanation: Optional[str] = Field(None, description="Answer explanation")
     image_url: Optional[str] = Field(None, description="Optional image URL for the question stem")
     options_image_url: Optional[str] = Field(None, description="Optional image containing the A/B/C/D choices")
@@ -91,6 +92,13 @@ class CreateQuestionRequest(BaseModel):
     status: ContentStatus = Field(default=ContentStatus.DRAFT, description="Publication status")
     tags: list[str] = Field(default_factory=list, description="Topic tags")
     sort_order: int = Field(default=0, description="Order within passage group")
+    # ── F1: model soal ekstensibel (default = MCQ, backward-compat) ──
+    question_type: str = Field(default="mcq_single", description="Tipe soal (mcq_single|mcq_multi|…|essay|speaking)")
+    content_json: Optional[dict] = Field(None, description="Data render spesifik-tipe (mis. {options:[…]})")
+    answer_json: Optional[dict] = Field(None, description="Kunci/konfig nilai spesifik-tipe")
+    scoring_mode: str = Field(default="auto", description="auto | manual")
+    rubric_id: Optional[str] = Field(None, description="Rubrik penilaian (untuk manual)")
+    max_score: float = Field(default=1, description="Poin soal")
 
 
 class UpdateQuestionRequest(BaseModel):
@@ -112,6 +120,13 @@ class UpdateQuestionRequest(BaseModel):
     status: Optional[ContentStatus] = None
     tags: Optional[list[str]] = None
     sort_order: Optional[int] = None
+    # ── F1 ──
+    question_type: Optional[str] = None
+    content_json: Optional[dict] = None
+    answer_json: Optional[dict] = None
+    scoring_mode: Optional[str] = None
+    rubric_id: Optional[str] = None
+    max_score: Optional[float] = None
 
 
 # ─── Response Models ─────────────────────────────────────────────
@@ -144,11 +159,11 @@ class QuestionResponse(BaseModel):
     section: QuestionSection
     difficulty: QuestionDifficulty
     question_text: str
-    option_a: str
-    option_b: str
-    option_c: str
-    option_d: str
-    correct_answer: CorrectAnswer
+    option_a: Optional[str] = None
+    option_b: Optional[str] = None
+    option_c: Optional[str] = None
+    option_d: Optional[str] = None
+    correct_answer: Optional[CorrectAnswer] = None
     explanation: Optional[str] = None
     image_url: Optional[str] = None
     options_image_url: Optional[str] = None
@@ -156,6 +171,13 @@ class QuestionResponse(BaseModel):
     status: ContentStatus
     tags: list[str] = []
     sort_order: int = 0
+    # ── F1: model soal ekstensibel ──
+    question_type: str = "mcq_single"
+    content_json: Optional[dict] = None
+    answer_json: Optional[dict] = None
+    scoring_mode: str = "auto"
+    rubric_id: Optional[str] = None
+    max_score: float = 1
     creator_name: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

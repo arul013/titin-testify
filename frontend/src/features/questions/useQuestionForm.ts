@@ -17,6 +17,7 @@ export interface UseQuestionFormArgs {
  */
 export function useQuestionForm({ initialData, passageId, defaultSection }: UseQuestionFormArgs) {
   const [section, setSection] = useState(initialData?.section || defaultSection || 'listening');
+  const [questionType, setQuestionType] = useState(initialData?.question_type || 'mcq_single');
   const [difficulty, setDifficulty] = useState(initialData?.difficulty || 'medium');
   const [questionText, setQuestionText] = useState(initialData?.question_text || '');
   const [optionA, setOptionA] = useState(initialData?.option_a || '');
@@ -42,13 +43,14 @@ export function useQuestionForm({ initialData, passageId, defaultSection }: UseQ
   const answerValues = [optionA, optionB, optionC, optionD];
   const optionSetters = [setOptionA, setOptionB, setOptionC, setOptionD];
 
-  // Bentuk editor menyesuaikan tipe soal (TOEFL ITP).
+  // Bentuk editor menyesuaikan tipe soal.
+  const isTFNG = questionType === 'true_false_ng';   // True/False/Not Given (opsi tetap a/b/c)
   const isListeningStandalone = section === 'listening' && !passageId;
   const isListening = section === 'listening';
-  const isWE = section === 'written_expression';
+  const isWE = !isTFNG && section === 'written_expression';
   const showImageOption = section === 'reading' || section === 'structure';
-  const allowImageAnswers = section === 'listening' || section === 'reading';
-  const effectiveFormat = isWE ? 'we' : allowImageAnswers ? answerFormat : 'text';
+  const allowImageAnswers = !isTFNG && (section === 'listening' || section === 'reading');
+  const effectiveFormat = isTFNG ? 'tfng' : isWE ? 'we' : allowImageAnswers ? answerFormat : 'text';
 
   const clearError = (key: string) =>
     setErrors((prev) => {
@@ -67,6 +69,8 @@ export function useQuestionForm({ initialData, passageId, defaultSection }: UseQ
       if (!(hasLabel('A') && hasLabel('B') && hasLabel('C') && hasLabel('D'))) {
         e.questionText = 'Tandai 4 bagian berlabel A, B, C, dan D pada kalimat.';
       }
+    } else if (isTFNG) {
+      if (!questionText.trim()) e.questionText = 'Pernyataan (statement) wajib diisi.';
     } else if (!isListening && !questionText.trim()) {
       e.questionText = 'Pertanyaan wajib diisi.';
     }
@@ -108,7 +112,7 @@ export function useQuestionForm({ initialData, passageId, defaultSection }: UseQ
   // Dirty = ada perubahan dari kondisi awal (untuk guard "buang perubahan?").
   const snapshot = () =>
     JSON.stringify([
-      section, difficulty, questionText, optionA, optionB, optionC, optionD,
+      section, questionType, difficulty, questionText, optionA, optionB, optionC, optionD,
       correctAnswer, explanation, status, imageUrl, useImage, answerFormat, optionsImageUrl, audioUrl,
     ]);
   const [initialSnapshot, setInitialSnapshot] = useState(snapshot);
@@ -172,15 +176,18 @@ export function useQuestionForm({ initialData, passageId, defaultSection }: UseQ
   };
 
   /** Payload untuk create/update (dikirim ke backend). */
+  // T/F/NG memakai opsi tetap (True/False/Not Given) → tak menyimpan teks opsi.
+  const noOptionText = isWE || isTFNG;
   const buildPayload = (): Record<string, unknown> => ({
     passage_id: passageId || null,
     section,
     difficulty,
+    question_type: questionType,
     question_text: questionText,
-    option_a: isWE ? '' : optionA,
-    option_b: isWE ? '' : optionB,
-    option_c: isWE ? '' : optionC,
-    option_d: isWE ? '' : optionD,
+    option_a: noOptionText ? '' : optionA,
+    option_b: noOptionText ? '' : optionB,
+    option_c: noOptionText ? '' : optionC,
+    option_d: noOptionText ? '' : optionD,
     correct_answer: correctAnswer,
     explanation: explanation || null,
     image_url: showImageOption ? imageUrl || null : null,
@@ -197,11 +204,12 @@ export function useQuestionForm({ initialData, passageId, defaultSection }: UseQ
     passage_id: passageId ?? null,
     section,
     difficulty,
+    question_type: questionType,
     question_text: questionText,
-    option_a: isWE ? '' : optionA,
-    option_b: isWE ? '' : optionB,
-    option_c: isWE ? '' : optionC,
-    option_d: isWE ? '' : optionD,
+    option_a: noOptionText ? '' : optionA,
+    option_b: noOptionText ? '' : optionB,
+    option_c: noOptionText ? '' : optionC,
+    option_d: noOptionText ? '' : optionD,
     correct_answer: correctAnswer,
     explanation: explanation || null,
     image_url: showImageOption ? imageUrl || null : null,
@@ -218,6 +226,7 @@ export function useQuestionForm({ initialData, passageId, defaultSection }: UseQ
   return {
     // values + setters
     section, setSection,
+    questionType, setQuestionType, isTFNG,
     difficulty, setDifficulty,
     questionText, setQuestionText,
     optionA, optionB, optionC, optionD,

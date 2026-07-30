@@ -43,14 +43,21 @@ export const AnswerSheet: React.FC<AnswerSheetProps> = ({
   onNext,
 }) => {
   const total = palette.length;
-  const letterMode = q.section === 'written_expression' || !!q.options_image_url;
+  const isTFNG = q.question_type === 'true_false_ng';
+  const letterMode = !isTFNG && (q.section === 'written_expression' || !!q.options_image_url);
 
-  const options = [
-    { key: 'a', label: 'A', val: q.option_a },
-    { key: 'b', label: 'B', val: q.option_b },
-    { key: 'c', label: 'C', val: q.option_c },
-    { key: 'd', label: 'D', val: q.option_d },
-  ];
+  const options = isTFNG
+    ? [
+        { key: 'a', label: 'A', val: 'True' },
+        { key: 'b', label: 'B', val: 'False' },
+        { key: 'c', label: 'C', val: 'Not Given' },
+      ]
+    : [
+        { key: 'a', label: 'A', val: q.option_a },
+        { key: 'b', label: 'B', val: q.option_b },
+        { key: 'c', label: 'C', val: q.option_c },
+        { key: 'd', label: 'D', val: q.option_d },
+      ];
 
   return (
     <div className="flex flex-col gap-5">

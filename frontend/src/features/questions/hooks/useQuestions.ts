@@ -12,6 +12,8 @@ export interface Question {
   passage_id: string | null;
   section: string;
   difficulty: string;
+  /** F1: tipe soal (default mcq_single). */
+  question_type?: string;
   question_text: string;
   option_a: string;
   option_b: string;

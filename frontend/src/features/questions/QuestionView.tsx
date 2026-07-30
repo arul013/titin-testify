@@ -57,7 +57,8 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
       ? 'grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch'
       : 'flex flex-col gap-6';
 
-  const isWE = question.section === 'written_expression';
+  const isTFNG = question.question_type === 'true_false_ng';
+  const isWE = !isTFNG && question.section === 'written_expression';
   const isListening = question.section === 'listening';
 
   // Audio soal berdiri sendiri (Listening standalone) — bila tak ada materi bersama.
@@ -217,6 +218,26 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
                     }`}
                   >
                     {['A', 'B', 'C', 'D'][i]}
+                  </div>
+                );
+              })}
+            </div>
+          ) : isTFNG ? (
+            /* True/False/Not Given: opsi tetap, tandai jawaban benar */
+            <div className="flex flex-col gap-3">
+              {[{ key: 'a', val: 'True' }, { key: 'b', val: 'False' }, { key: 'c', val: 'Not Given' }].map((opt) => {
+                const isCorrect = question.correct_answer === opt.key;
+                return (
+                  <div
+                    key={opt.key}
+                    className={`flex items-center gap-3.5 border p-3.5 rounded-xl text-sm font-medium transition-all ${
+                      isCorrect
+                        ? 'border-emerald-200 bg-emerald-50/40 text-emerald-800 shadow-sm shadow-emerald-50'
+                        : 'border-slate-100 text-slate-600 bg-slate-50/30'
+                    }`}
+                  >
+                    <span className="flex-1 leading-normal">{opt.val}</span>
+                    {isCorrect && <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600 shrink-0" />}
                   </div>
                 );
               })}

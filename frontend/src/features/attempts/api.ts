@@ -32,6 +32,9 @@ export interface QuestionPayload {
   id?: string;
   section: string;
   difficulty?: string;
+  /** F1: tipe soal — runner memilih cara render (default mcq_single). */
+  question_type?: string;
+  content_json?: Record<string, unknown> | null;
   question_text?: string | null;
   option_a?: string | null;
   option_b?: string | null;

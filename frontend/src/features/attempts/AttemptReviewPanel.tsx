@@ -74,14 +74,20 @@ export function AttemptReviewPanel({ attemptId }: { attemptId: string }) {
   );
 }
 
+const TFNG_LABELS: Record<string, string> = { a: 'True', b: 'False', c: 'Not Given' };
+
 function ReviewCard({ q, number }: { q: ReviewQuestion; number: number }) {
-  const letterMode = q.section === 'written_expression' || !!q.payload.options_image_url;
+  const isTFNG = q.payload.question_type === 'true_false_ng';
+  const letterMode = !isTFNG && (q.section === 'written_expression' || !!q.payload.options_image_url);
   const answered = q.selected_answer != null;
+  const optKeys = isTFNG ? (['a', 'b', 'c'] as const) : KEYS;
 
   const optVal = (k: string) =>
-    ({ a: q.payload.option_a, b: q.payload.option_b, c: q.payload.option_c, d: q.payload.option_d })[
-      k
-    ] ?? null;
+    isTFNG
+      ? (TFNG_LABELS[k] ?? null)
+      : (({ a: q.payload.option_a, b: q.payload.option_b, c: q.payload.option_c, d: q.payload.option_d })[
+          k
+        ] ?? null);
 
   return (
     <Card className="rounded-3xl border-slate-100 bg-white p-6 shadow-md shadow-slate-100/60 md:p-7">
@@ -131,7 +137,7 @@ function ReviewCard({ q, number }: { q: ReviewQuestion; number: number }) {
         )}
 
         <div className={letterMode ? 'grid grid-cols-4 gap-2.5' : 'flex flex-col gap-2.5'}>
-          {KEYS.map((k, i) => {
+          {optKeys.map((k, i) => {
             const isCorrect = q.correct_answer === k;
             const isPicked = q.selected_answer === k;
             const wrongPick = isPicked && !isCorrect;

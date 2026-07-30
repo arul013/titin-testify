@@ -34,7 +34,8 @@ class AttemptQuestion(BaseModel):
     position: int
     section: str
     payload: dict[str, Any]           # konten render — TANPA kunci jawaban
-    selected_answer: Optional[str] = None
+    selected_answer: Optional[str] = None       # single-choice (mcq_single/true_false_ng)
+    answer_json: Optional[dict[str, Any]] = None  # jawaban kompleks (mcq_multi/matching/…)
 
 
 class StartAttemptResponse(BaseModel):
@@ -51,7 +52,8 @@ class StartAttemptResponse(BaseModel):
 
 class SaveAnswerRequest(BaseModel):
     exam_question_id: str
-    selected_answer: Optional[str] = Field(default=None, description="'a'..'d' atau null")
+    selected_answer: Optional[str] = Field(default=None, description="'a'..'d' atau null (single-choice)")
+    answer_json: Optional[dict[str, Any]] = Field(default=None, description="Jawaban kompleks (mis. {selected:[…]}) untuk mcq_multi/matching/…")
 
 
 class SectionResult(BaseModel):
@@ -92,8 +94,10 @@ class AttemptReviewQuestion(BaseModel):
     position: int
     section: str
     payload: dict[str, Any]                 # konten render (soal + opsi + materi)
-    correct_answer: Optional[str] = None    # kunci ('a'..'d')
+    correct_answer: Optional[str] = None    # kunci single-choice ('a'..'d')
     selected_answer: Optional[str] = None
+    answer_json: Optional[dict[str, Any]] = None      # jawaban peserta (kompleks)
+    answer_key_json: Optional[dict[str, Any]] = None  # kunci kompleks (mis. {correct:[…]})
     is_correct: bool = False
     explanation: Optional[str] = None
 
