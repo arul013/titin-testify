@@ -58,6 +58,8 @@ export interface AttemptQuestion {
   section: string;
   payload: QuestionPayload;
   selected_answer: string | null;
+  /** F1: jawaban kompleks (mis. {selected:[…]}) untuk mcq_multi/matching/… */
+  answer_json?: Record<string, unknown> | null;
 }
 
 export interface StartAttemptResponse {
@@ -108,6 +110,8 @@ export interface ReviewQuestion {
   payload: QuestionPayload;
   correct_answer: string | null;
   selected_answer: string | null;
+  answer_json?: Record<string, unknown> | null;      // jawaban peserta (kompleks)
+  answer_key_json?: Record<string, unknown> | null;  // kunci kompleks (mis. {correct:[…]})
   is_correct: boolean;
   explanation: string | null;
 }
@@ -129,10 +133,19 @@ export const attemptsApi = {
   start: (examId: string) =>
     api.request<StartAttemptResponse>(`/api/my-exams/${examId}/start`, { method: 'POST' }),
 
-  saveAnswer: (attemptId: string, examQuestionId: string, selected: string | null) =>
+  saveAnswer: (
+    attemptId: string,
+    examQuestionId: string,
+    selected: string | null,
+    answerJson?: Record<string, unknown> | null,
+  ) =>
     api.request<{ success: boolean }>(`/api/attempts/${attemptId}/answer`, {
       method: 'PUT',
-      body: JSON.stringify({ exam_question_id: examQuestionId, selected_answer: selected }),
+      body: JSON.stringify({
+        exam_question_id: examQuestionId,
+        selected_answer: selected,
+        answer_json: answerJson ?? null,
+      }),
     }),
 
   submit: (attemptId: string) =>

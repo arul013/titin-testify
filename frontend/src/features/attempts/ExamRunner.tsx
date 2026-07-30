@@ -28,6 +28,7 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
   const [data, setData] = useState<StartAttemptResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, string | null>>({});
+  const [multi, setMulti] = useState<Record<string, string[]>>({}); // mcq_multi: himpunan opsi terpilih
   const [flags, setFlags] = useState<Set<string>>(new Set());
   const [current, setCurrent] = useState(0);
   const [endAt, setEndAt] = useState<number | null>(null);
@@ -46,8 +47,14 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
         if (!active) return;
         setData(res);
         const init: Record<string, string | null> = {};
-        res.questions.forEach((q) => (init[q.exam_question_id] = q.selected_answer));
+        const initMulti: Record<string, string[]> = {};
+        res.questions.forEach((q) => {
+          init[q.exam_question_id] = q.selected_answer;
+          const sel = (q.answer_json as { selected?: string[] } | null)?.selected;
+          if (Array.isArray(sel)) initMulti[q.exam_question_id] = sel;
+        });
         setAnswers(init);
+        setMulti(initMulti);
         setEndAt(Date.now() + res.remaining_seconds * 1000);
         setRemaining(res.remaining_seconds);
         try {
@@ -121,6 +128,25 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
     void attemptsApi.saveAnswer(attemptId, eqId, key).catch((e) => console.warn('autosave gagal', e));
   };
 
+  // mcq_multi: toggle satu opsi (hormati batas "pilih N" dari content_json.choose).
+  const handleMultiToggle = (key: string) => {
+    if (!q || !attemptId || submittedRef.current) return;
+    const eqId = q.exam_question_id;
+    const choose = (q.payload.content_json as { choose?: number } | null | undefined)?.choose;
+    const cur = multi[eqId] ?? [];
+    let next: string[];
+    if (cur.includes(key)) {
+      next = cur.filter((k) => k !== key);
+    } else {
+      if (choose && cur.length >= choose) return; // sudah mencapai jumlah maksimal
+      next = [...cur, key];
+    }
+    setMulti((prev) => ({ ...prev, [eqId]: next }));
+    void attemptsApi
+      .saveAnswer(attemptId, eqId, null, { selected: next })
+      .catch((e) => console.warn('autosave gagal', e));
+  };
+
   const toggleFlag = () => {
     if (!q) return;
     const eqId = q.exam_question_id;
@@ -167,10 +193,14 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
     );
   }
 
-  const answeredCount = questions.filter((x) => answers[x.exam_question_id]).length;
+  const isAnswered = (x: (typeof questions)[number]) =>
+    x.payload.question_type === 'mcq_multi'
+      ? (multi[x.exam_question_id]?.length ?? 0) > 0
+      : !!answers[x.exam_question_id];
+  const answeredCount = questions.filter(isAnswered).length;
   const unanswered = questions.length - answeredCount;
   const palette: PaletteItem[] = questions.map((x) => ({
-    answered: !!answers[x.exam_question_id],
+    answered: isAnswered(x),
     flagged: flags.has(x.exam_question_id),
   }));
 
@@ -230,6 +260,8 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
             number={current + 1}
             selected={answers[q.exam_question_id] ?? null}
             onSelect={handleSelect}
+            multiSelected={multi[q.exam_question_id] ?? []}
+            onMultiToggle={handleMultiToggle}
             flagged={flags.has(q.exam_question_id)}
             onToggleFlag={toggleFlag}
             palette={palette}

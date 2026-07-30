@@ -20,6 +20,9 @@ interface AnswerSheetProps {
   number: number; // nomor soal (1-based)
   selected: string | null;
   onSelect: (key: string) => void;
+  /** mcq_multi: himpunan opsi terpilih + toggle. */
+  multiSelected?: string[];
+  onMultiToggle?: (key: string) => void;
   flagged: boolean;
   onToggleFlag: () => void;
   palette: PaletteItem[];
@@ -29,11 +32,15 @@ interface AnswerSheetProps {
   onNext: () => void;
 }
 
+const MULTI_KEYS = 'abcdefgh';
+
 export const AnswerSheet: React.FC<AnswerSheetProps> = ({
   q,
   number,
   selected,
   onSelect,
+  multiSelected = [],
+  onMultiToggle,
   flagged,
   onToggleFlag,
   palette,
@@ -44,7 +51,16 @@ export const AnswerSheet: React.FC<AnswerSheetProps> = ({
 }) => {
   const total = palette.length;
   const isTFNG = q.question_type === 'true_false_ng';
-  const letterMode = !isTFNG && (q.section === 'written_expression' || !!q.options_image_url);
+  const isMulti = q.question_type === 'mcq_multi';
+  const letterMode = !isTFNG && !isMulti && (q.section === 'written_expression' || !!q.options_image_url);
+
+  // mcq_multi: opsi dari content_json.options (jumlah variabel) + batas "pilih N".
+  const multiOptions = ((q.content_json?.options as string[] | undefined) ?? []).map((text, i) => ({
+    key: MULTI_KEYS[i],
+    label: MULTI_KEYS[i].toUpperCase(),
+    text,
+  }));
+  const chooseN = (q.content_json?.choose as number | undefined) ?? 0;
 
   const options = isTFNG
     ? [
@@ -91,7 +107,47 @@ export const AnswerSheet: React.FC<AnswerSheetProps> = ({
         />
       )}
 
-      {letterMode ? (
+      {isMulti ? (
+        <div className="flex flex-col gap-2.5">
+          {chooseN > 0 && (
+            <p className="-mb-1 text-xs font-bold text-brand">
+              Pilih {chooseN} jawaban · {multiSelected.length}/{chooseN} dipilih
+            </p>
+          )}
+          {multiOptions.map((opt) => {
+            const active = multiSelected.includes(opt.key);
+            const atMax = chooseN > 0 && multiSelected.length >= chooseN && !active;
+            return (
+              <button
+                key={opt.key}
+                type="button"
+                disabled={atMax}
+                onClick={() => onMultiToggle?.(opt.key)}
+                className={cn(
+                  'flex items-center gap-3.5 border-2 p-3.5 rounded-2xl text-left text-[15px] font-medium transition-all',
+                  active
+                    ? 'border-brand bg-brand/5 text-slate-900 shadow-sm'
+                    : atMax
+                      ? 'border-slate-100 bg-white text-slate-300 cursor-not-allowed'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-brand/40 hover:bg-slate-50',
+                )}
+              >
+                <span
+                  className={cn(
+                    'flex shrink-0 items-center justify-center h-8 w-8 rounded-lg border-2 font-bold text-sm transition-colors',
+                    active ? 'border-brand bg-brand text-white' : 'border-slate-200 bg-white text-slate-400',
+                  )}
+                >
+                  {active ? <Check className="w-4 h-4" /> : opt.label}
+                </span>
+                <span className="flex-1 leading-normal">
+                  {opt.text ? renderExamText(opt.text) : <span className="text-slate-300 italic">—</span>}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ) : letterMode ? (
         <div className="grid grid-cols-4 gap-2.5">
           {KEYS.map((k, i) => {
             const active = selected === k;

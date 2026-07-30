@@ -25,7 +25,8 @@ Extensible **by data** (`question_type` enum + JSONB), bukan tabel-per-tipe. Tip
   - **F1.1.0b — BUILDER authoring T/F/NG ✅** (2026-07-31, tsc bersih, belum commit): `useQuestionForm` (+questionType/isTFNG, effectiveFormat='tfng', buildPayload kirim question_type), `QuestionFields` (selektor Tipe Soal + picker True/False/Not-Given), `QuestionView` preview TFNG, `useQuestions.Question`+question_type. **F1.1.0 LENGKAP end-to-end (buat→ujian→kerjakan→skor→review).**
   - **F1.1.1 — `mcq_multi`** (pertama yang butuh `answer_json` + `content_json.options` variabel + set-scoring):
     - **F1.1.1a — backend plumbing ✅** (2026-07-31, belum commit): `answer_json` di AttemptQuestion/SaveAnswer/Review; `_grade()` dispatch per-tipe (mcq_multi=set match); save/start/submit/review wired. Skor mcq_multi jalan di backend.
-    - **F1.1.1b — frontend** (berikutnya): runner multi-select + review + builder authoring (opsi variabel/multi-correct/choose-N) + api.ts.
+    - **F1.1.1b — frontend main/tinjau ✅** (2026-07-31, belum commit): api.ts answer_json; ExamRunner+AnswerSheet multi-select (content_json.options variabel, batas choose-N); AttemptReviewPanel render mcq_multi. Konvensi keys 'a','b',… ; choose di content_json (publik), correct di answer_json (rahasia).
+    - **F1.1.1c — builder authoring mcq_multi** (berikutnya): useQuestionForm (multiOptions/multiCorrect/chooseN) + QuestionFields editor opsi variabel + QuestionView preview. Tanpa ini belum bisa dibuat via UI.
 - **F1.2 — Grading manual** (essay): peran grader + antrean + rubrik + agregasi skor.
 - **F1.3 — Speaking** (rekam audio peserta → R2 + grading).
 - **F1.4 — Skala per jenis tes** (band IELTS / skala iBT) + timing per-bagian di runner.

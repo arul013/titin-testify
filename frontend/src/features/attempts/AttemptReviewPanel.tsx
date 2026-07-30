@@ -76,11 +76,22 @@ export function AttemptReviewPanel({ attemptId }: { attemptId: string }) {
 
 const TFNG_LABELS: Record<string, string> = { a: 'True', b: 'False', c: 'Not Given' };
 
+const MULTI_KEYS = 'abcdefgh';
+
 function ReviewCard({ q, number }: { q: ReviewQuestion; number: number }) {
   const isTFNG = q.payload.question_type === 'true_false_ng';
-  const letterMode = !isTFNG && (q.section === 'written_expression' || !!q.payload.options_image_url);
-  const answered = q.selected_answer != null;
+  const isMulti = q.payload.question_type === 'mcq_multi';
+  const letterMode =
+    !isTFNG && !isMulti && (q.section === 'written_expression' || !!q.payload.options_image_url);
   const optKeys = isTFNG ? (['a', 'b', 'c'] as const) : KEYS;
+
+  // mcq_multi: himpunan pilihan peserta vs kunci (keys 'a','b',…)
+  const pickedSet = ((q.answer_json?.selected as string[] | undefined) ?? []).map(String);
+  const correctSet = ((q.answer_key_json?.correct as string[] | undefined) ?? []).map(String);
+  const multiOptions = ((q.payload.content_json?.options as string[] | undefined) ?? []).map(
+    (text, i) => ({ key: MULTI_KEYS[i], label: MULTI_KEYS[i].toUpperCase(), text }),
+  );
+  const answered = isMulti ? pickedSet.length > 0 : q.selected_answer != null;
 
   const optVal = (k: string) =>
     isTFNG
@@ -136,6 +147,51 @@ function ReviewCard({ q, number }: { q: ReviewQuestion; number: number }) {
           />
         )}
 
+        {isMulti ? (
+          <div className="flex flex-col gap-2.5">
+            {multiOptions.map((opt) => {
+              const isCorrect = correctSet.includes(opt.key);
+              const isPicked = pickedSet.includes(opt.key);
+              const wrongPick = isPicked && !isCorrect;
+              const tone = isCorrect
+                ? 'border-emerald-300 bg-emerald-50'
+                : wrongPick
+                  ? 'border-rose-300 bg-rose-50'
+                  : 'border-slate-200 bg-white';
+              return (
+                <div key={opt.key} className={`flex items-center gap-3.5 rounded-2xl border-2 p-3.5 text-[15px] ${tone}`}>
+                  <span
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border-2 text-sm font-bold ${
+                      isCorrect
+                        ? 'border-emerald-400 bg-emerald-500 text-white'
+                        : wrongPick
+                          ? 'border-rose-400 bg-rose-500 text-white'
+                          : 'border-slate-200 bg-white text-slate-500'
+                    }`}
+                  >
+                    {opt.label}
+                  </span>
+                  <span className="flex-1 leading-normal text-slate-700">
+                    {opt.text ? renderExamText(opt.text) : <span className="text-slate-300 italic">—</span>}
+                  </span>
+                  {isCorrect && <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />}
+                  {wrongPick && <XCircle className="h-5 w-5 shrink-0 text-rose-500" />}
+                </div>
+              );
+            })}
+            <p className="mt-1 text-xs text-slate-500">
+              Pilihanmu:{' '}
+              <span className={q.is_correct ? 'font-bold text-emerald-600' : 'font-bold text-rose-600'}>
+                {pickedSet.map((k) => k.toUpperCase()).join(', ') || '—'}
+              </span>
+              {' · '}Kunci:{' '}
+              <span className="font-bold text-emerald-600">
+                {correctSet.map((k) => k.toUpperCase()).join(', ') || '—'}
+              </span>
+            </p>
+          </div>
+        ) : (
+        <>
         <div className={letterMode ? 'grid grid-cols-4 gap-2.5' : 'flex flex-col gap-2.5'}>
           {optKeys.map((k, i) => {
             const isCorrect = q.correct_answer === k;
@@ -210,6 +266,8 @@ function ReviewCard({ q, number }: { q: ReviewQuestion; number: number }) {
             </>
           )}
         </p>
+        </>
+        )}
       </div>
 
       {/* Pembahasan */}
