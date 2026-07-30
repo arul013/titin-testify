@@ -11,9 +11,15 @@ import { useUsers } from '@/features/users/hooks/useUsers';
 interface StepParticipantsProps {
   selectedIds: string[];
   onChange: (ids: string[]) => void;
+  /** Peserta yang sudah terdaftar & tak boleh dihapus (ujian sudah dikerjakan). */
+  lockedIds?: string[];
 }
 
-export const StepParticipants: React.FC<StepParticipantsProps> = ({ selectedIds, onChange }) => {
+export const StepParticipants: React.FC<StepParticipantsProps> = ({
+  selectedIds,
+  onChange,
+  lockedIds = [],
+}) => {
   const { users, isLoading, fetchUsers } = useUsers();
   const [search, setSearch] = useState('');
 
@@ -25,7 +31,9 @@ export const StepParticipants: React.FC<StepParticipantsProps> = ({ selectedIds,
   }, [search, fetchUsers]);
 
   const selected = new Set(selectedIds);
+  const locked = new Set(lockedIds);
   const toggle = (id: string) => {
+    if (locked.has(id) && selected.has(id)) return; // peserta terkunci tak bisa dihapus
     const next = new Set(selected);
     if (next.has(id)) next.delete(id);
     else next.add(id);
@@ -36,7 +44,7 @@ export const StepParticipants: React.FC<StepParticipantsProps> = ({ selectedIds,
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
   const toggleAllVisible = () => {
     const next = new Set(selected);
-    if (allVisibleSelected) visibleIds.forEach((id) => next.delete(id));
+    if (allVisibleSelected) visibleIds.forEach((id) => !locked.has(id) && next.delete(id));
     else visibleIds.forEach((id) => next.add(id));
     onChange([...next]);
   };
@@ -85,18 +93,32 @@ export const StepParticipants: React.FC<StepParticipantsProps> = ({ selectedIds,
               />
             </div>
           ) : (
-            users.map((u) => (
-              <label
-                key={u.id}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50/60 cursor-pointer transition-colors"
-              >
-                <Checkbox checked={selected.has(u.id)} onChange={() => toggle(u.id)} />
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-800 truncate">{u.full_name}</p>
-                  <p className="text-xs text-slate-400 truncate">@{u.username}</p>
-                </div>
-              </label>
-            ))
+            users.map((u) => {
+              const isLocked = locked.has(u.id) && selected.has(u.id);
+              return (
+                <label
+                  key={u.id}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+                    isLocked ? 'cursor-not-allowed' : 'hover:bg-slate-50/60 cursor-pointer'
+                  }`}
+                >
+                  <Checkbox
+                    checked={selected.has(u.id)}
+                    disabled={isLocked}
+                    onChange={() => toggle(u.id)}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-slate-800 truncate">{u.full_name}</p>
+                    <p className="text-xs text-slate-400 truncate">@{u.username}</p>
+                  </div>
+                  {isLocked && (
+                    <span className="text-[10px] font-bold text-slate-400 uppercase shrink-0">
+                      terdaftar
+                    </span>
+                  )}
+                </label>
+              );
+            })
           )}
         </div>
       </div>

@@ -78,6 +78,11 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
   const isEditing = !!initial;
   const isFull = examMode === 'full';
 
+  // Mode terbatas: ujian Tayang yang SUDAH dikerjakan → hanya perpanjang jadwal & tambah peserta.
+  const attemptsCount = initial?.attempts_count ?? 0;
+  const restricted = isEditing && initial?.status === 'published' && attemptsCount > 0;
+  const initialParticipantIds = initial?.participants?.map((p) => p.user_id) ?? [];
+
   // Jenis tes + skill-nya (menentukan bagian yang muncul & preset full test).
   const { testTypes } = useTestTypes();
   const testType = testTypes.find((t) => t.code === testTypeCode) ?? null;
@@ -222,6 +227,16 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
     return true;
   };
 
+  // Payload mode terbatas: HANYA field yang boleh diubah saat ujian sudah dikerjakan.
+  const buildRestrictedPayload = (): Record<string, unknown> => ({
+    title: title.trim(),
+    description: description.trim() || null,
+    show_review: showReview,
+    ends_at: scheduled ? partsToIso(endDate, endTime) : null,
+    participant_ids: participantIds,
+    version: initial?.version,
+  });
+
   const handleSaveDraft = async () => {
     // Draf boleh belum lengkap — cukup ada nama untuk mengidentifikasi.
     if (!title.trim()) {
@@ -231,7 +246,7 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
     }
     setIsSaving(true);
     try {
-      await onSaveDraft(buildPayload());
+      await onSaveDraft(restricted ? buildRestrictedPayload() : buildPayload());
     } finally {
       setIsSaving(false);
     }
@@ -354,9 +369,22 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
         />
       </div>
 
+      {restricted && (
+        <div className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50/80 border border-amber-100 rounded-xl px-4 py-3 -mt-2">
+          <Lock className="w-4 h-4 shrink-0 text-amber-600 mt-px" />
+          <span className="leading-relaxed">
+            Ujian ini sudah dikerjakan <strong>{attemptsCount} peserta</strong>. Demi integritas, kamu
+            hanya bisa <strong>memperpanjang waktu selesai</strong> & <strong>menambah peserta</strong>{' '}
+            (juga nama/deskripsi/pembahasan). Untuk mengubah soal atau komposisi, gunakan{' '}
+            <strong>Duplikat</strong> di daftar ujian.
+          </span>
+        </div>
+      )}
+
       <div className="min-h-64">
         {step === 0 && (
           <StepDetail
+            locked={restricted}
             title={title}
             setTitle={setTitle}
             description={description}
@@ -384,26 +412,34 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
           />
         )}
         {step === 1 && (
-          <StepComposition
-            skills={skills}
-            mode={examMode}
-            counts={counts}
-            onToggle={toggleSection}
-            onCountChange={setSectionCount}
-          />
+          <div className={restricted ? 'pointer-events-none opacity-60' : ''}>
+            <StepComposition
+              skills={skills}
+              mode={examMode}
+              counts={counts}
+              onToggle={toggleSection}
+              onCountChange={setSectionCount}
+            />
+          </div>
         )}
         {step === 2 && (
-          <StepSource
-            enabledSections={enabledSections}
-            targets={targetsById}
-            testType={testTypeCode}
-            exact={isFull}
-            poolUnits={poolUnits}
-            onChange={setPoolUnits}
-          />
+          <div className={restricted ? 'pointer-events-none opacity-60' : ''}>
+            <StepSource
+              enabledSections={enabledSections}
+              targets={targetsById}
+              testType={testTypeCode}
+              exact={isFull}
+              poolUnits={poolUnits}
+              onChange={setPoolUnits}
+            />
+          </div>
         )}
         {step === 3 && (
-          <StepParticipants selectedIds={participantIds} onChange={setParticipantIds} />
+          <StepParticipants
+            selectedIds={participantIds}
+            onChange={setParticipantIds}
+            lockedIds={restricted ? initialParticipantIds : undefined}
+          />
         )}
         {step === 4 && (
           <StepReview
@@ -446,14 +482,14 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
         </div>
         <div className="flex items-center gap-2.5">
           <Button
-            variant="secondary"
+            variant={restricted ? 'primary' : 'secondary'}
             onClick={handleSaveDraft}
             loading={isSaving}
             disabled={isPublishing}
             className="font-bold gap-2"
             leftIcon={<Check className="w-4 h-4" />}
           >
-            Simpan Draf
+            {restricted ? 'Simpan Perubahan' : 'Simpan Draf'}
           </Button>
           {!isLastStep ? (
             <Button
@@ -466,7 +502,7 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
               Lanjut
               <ChevronRight className="w-4 h-4" />
             </Button>
-          ) : (
+          ) : restricted ? null : (
             <Button
               variant="primary"
               onClick={handlePublish}

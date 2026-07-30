@@ -33,6 +33,8 @@ interface StepDetailProps {
   setEndDate: (v: string) => void;
   endTime: string;
   setEndTime: (v: string) => void;
+  /** Mode terbatas (ujian sudah dikerjakan): kunci durasi/kelulusan/waktu-mulai/retake. */
+  locked?: boolean;
 }
 
 const digits = (v: string) => v.replace(/[^0-9]/g, '');
@@ -72,6 +74,7 @@ export const StepDetail: React.FC<StepDetailProps> = ({
   setEndDate,
   endTime,
   setEndTime,
+  locked = false,
 }) => {
   const pastWarning = scheduled && isStartInPast(startDate, startTime);
 
@@ -104,6 +107,8 @@ export const StepDetail: React.FC<StepDetailProps> = ({
           value={duration}
           onChange={(e) => setDuration(digits(e.target.value))}
           placeholder="60"
+          disabled={locked}
+          hint={locked ? 'Terkunci — ujian sudah dikerjakan.' : undefined}
         />
       </div>
 
@@ -123,7 +128,8 @@ export const StepDetail: React.FC<StepDetailProps> = ({
           value={passingValue}
           onChange={(e) => setPassingValue(digits(e.target.value))}
           placeholder={passingPlaceholder}
-          hint="Kosongkan bila tak memakai ambang lulus."
+          disabled={locked}
+          hint={locked ? 'Terkunci — ujian sudah dikerjakan.' : 'Kosongkan bila tak memakai ambang lulus.'}
         />
       </div>
 
@@ -140,6 +146,7 @@ export const StepDetail: React.FC<StepDetailProps> = ({
         <Checkbox
           checked={scheduled}
           onChange={setScheduled}
+          disabled={locked}
           label={
             <span className="inline-flex items-center gap-1.5 font-bold text-slate-700">
               <CalendarClock className="w-4 h-4 text-indigo-600" /> Tetapkan jadwal ujian (WIB)
@@ -151,15 +158,20 @@ export const StepDetail: React.FC<StepDetailProps> = ({
         {scheduled && (
           <div className="flex flex-col gap-4 pt-1 border-t border-slate-100">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-4">
-              <div>
-                <span className={fieldLabel}>Waktu Mulai (WIB)</span>
+              <div className={locked ? 'pointer-events-none opacity-60' : ''}>
+                <span className={fieldLabel}>
+                  Waktu Mulai (WIB){locked && <span className="ml-1 text-[11px] font-normal text-slate-400">· terkunci</span>}
+                </span>
                 <div className="grid grid-cols-2 gap-2">
                   <DatePicker value={startDate} onChange={setStartDate} placeholder="Tanggal" />
                   <ClockTimePicker value={startTime} onChange={setStartTime} placeholder="Jam" />
                 </div>
               </div>
               <div>
-                <span className={fieldLabel}>Waktu Selesai (WIB, opsional)</span>
+                <span className={fieldLabel}>
+                  Waktu Selesai (WIB, opsional)
+                  {locked && <span className="ml-1 text-[11px] font-normal text-emerald-600">· hanya bisa diperpanjang</span>}
+                </span>
                 <div className="grid grid-cols-2 gap-2">
                   <DatePicker value={endDate} onChange={setEndDate} placeholder="Tanggal" />
                   <ClockTimePicker value={endTime} onChange={setEndTime} placeholder="Jam" />
@@ -193,6 +205,7 @@ export const StepDetail: React.FC<StepDetailProps> = ({
         <Checkbox
           checked={allowRetake}
           onChange={setAllowRetake}
+          disabled={locked}
           label="Izinkan mengerjakan ulang"
           description="Bila mati, peserta hanya bisa mengerjakan sekali."
         />
