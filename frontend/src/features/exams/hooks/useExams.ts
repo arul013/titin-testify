@@ -6,7 +6,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 
 // ─── Types ───────────────────────────────────────────────────
 
-export type ExamStatus = 'draft' | 'published';
+export type ExamStatus = 'draft' | 'published' | 'closed' | 'archived';
 export type ExamSectionId = 'listening' | 'structure' | 'written_expression' | 'reading';
 
 export const SECTION_LABELS: Record<ExamSectionId, string> = {
@@ -55,11 +55,13 @@ export interface Exam {
   passing_value: number | null;
   allow_retake: boolean;
   status: ExamStatus;
+  version: number;
   starts_at: string | null;
   ends_at: string | null;
   creator_name: string | null;
   sections: ExamSection[];
   participants_count: number;
+  attempts_count: number;
   total_target: number;
   created_at: string | null;
   updated_at: string | null;
@@ -185,6 +187,16 @@ export function useExams(filters?: {
     return res;
   };
 
+  const lifecycleAction = async (id: string, action: 'close' | 'archive' | 'unarchive' | 'duplicate') => {
+    const res = await api.request<ExamDetail>(`/api/exams/${id}/${action}`, { method: 'POST' });
+    refetch();
+    return res;
+  };
+  const closeExam = (id: string) => lifecycleAction(id, 'close');
+  const archiveExam = (id: string) => lifecycleAction(id, 'archive');
+  const unarchiveExam = (id: string) => lifecycleAction(id, 'unarchive');
+  const duplicateExam = (id: string) => lifecycleAction(id, 'duplicate');
+
   return {
     exams,
     total,
@@ -197,5 +209,9 @@ export function useExams(filters?: {
     poolPreview,
     publishExam,
     unpublishExam,
+    closeExam,
+    archiveExam,
+    unarchiveExam,
+    duplicateExam,
   };
 }

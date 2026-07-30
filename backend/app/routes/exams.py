@@ -3,7 +3,7 @@ Learning Nexus CBT — Exam Builder Routes (Manajemen Ujian)
 """
 
 from typing import Optional
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 
 from app.models.exam import (
     CreateExamRequest,
@@ -16,6 +16,7 @@ from app.models.exam import (
 )
 from app.models.user import UserProfile
 from app.services.exam_service import ExamService
+from app.services.audit_service import AuditService
 from app.dependencies import require_admin
 
 router = APIRouter(tags=["Exam Builder"])
@@ -52,10 +53,16 @@ async def list_exams(
 @router.post("/api/exams", response_model=ExamDetailResponse, status_code=201)
 async def create_exam(
     request: CreateExamRequest,
+    http_request: Request,
     current_user: UserProfile = Depends(require_admin),
 ):
     """Buat paket ujian baru (admin only)."""
-    return await ExamService.create_exam(request, current_user.id)
+    result = await ExamService.create_exam(request, current_user.id)
+    AuditService.log_action(
+        http_request, current_user, action="exam.create", entity_type="exam",
+        entity_id=result.id, summary=f"Buat ujian '{result.title}'",
+    )
+    return result
 
 
 @router.get("/api/exams/{exam_id}", response_model=ExamDetailResponse)
@@ -71,35 +78,118 @@ async def get_exam(
 async def update_exam(
     exam_id: str,
     request: UpdateExamRequest,
+    http_request: Request,
     current_user: UserProfile = Depends(require_admin),
 ):
     """Perbarui paket ujian (owner atau super_admin)."""
-    return await ExamService.update_exam(exam_id, request, current_user.id, current_user.role.value)
+    result = await ExamService.update_exam(exam_id, request, current_user.id, current_user.role.value)
+    AuditService.log_action(
+        http_request, current_user, action="exam.update", entity_type="exam",
+        entity_id=exam_id, summary=f"Perbarui ujian '{result.title}'",
+    )
+    return result
 
 
 @router.delete("/api/exams/{exam_id}", response_model=ExamMessageResponse)
 async def delete_exam(
     exam_id: str,
+    http_request: Request,
     current_user: UserProfile = Depends(require_admin),
 ):
-    """Hapus paket ujian beserta komposisi & peserta (owner atau super_admin)."""
+    """Hapus (soft-delete) paket ujian (owner atau super_admin)."""
     await ExamService.delete_exam(exam_id, current_user.id, current_user.role.value)
+    AuditService.log_action(
+        http_request, current_user, action="exam.delete", entity_type="exam",
+        entity_id=exam_id, summary="Hapus ujian (soft-delete)",
+    )
     return ExamMessageResponse(message="Paket ujian berhasil dihapus.")
 
 
 @router.post("/api/exams/{exam_id}/publish", response_model=ExamDetailResponse)
 async def publish_exam(
     exam_id: str,
+    http_request: Request,
     current_user: UserProfile = Depends(require_admin),
 ):
     """Tayangkan paket ujian (validasi stok/jadwal/peserta + safety net 5 menit)."""
-    return await ExamService.publish_exam(exam_id, current_user.id, current_user.role.value)
+    result = await ExamService.publish_exam(exam_id, current_user.id, current_user.role.value)
+    AuditService.log_action(
+        http_request, current_user, action="exam.publish", entity_type="exam",
+        entity_id=exam_id, summary=f"Tayangkan ujian '{result.title}'",
+    )
+    return result
 
 
 @router.post("/api/exams/{exam_id}/unpublish", response_model=ExamDetailResponse)
 async def unpublish_exam(
     exam_id: str,
+    http_request: Request,
     current_user: UserProfile = Depends(require_admin),
 ):
     """Kembalikan paket ujian ke status Draf."""
-    return await ExamService.unpublish_exam(exam_id, current_user.id, current_user.role.value)
+    result = await ExamService.unpublish_exam(exam_id, current_user.id, current_user.role.value)
+    AuditService.log_action(
+        http_request, current_user, action="exam.unpublish", entity_type="exam",
+        entity_id=exam_id, summary="Kembalikan ke Draf",
+    )
+    return result
+
+
+@router.post("/api/exams/{exam_id}/close", response_model=ExamDetailResponse)
+async def close_exam(
+    exam_id: str,
+    http_request: Request,
+    current_user: UserProfile = Depends(require_admin),
+):
+    """Tutup ujian Tayang → status 'closed' (read-only)."""
+    result = await ExamService.close_exam(exam_id, current_user.id, current_user.role.value)
+    AuditService.log_action(
+        http_request, current_user, action="exam.close", entity_type="exam",
+        entity_id=exam_id, summary=f"Tutup ujian '{result.title}'",
+    )
+    return result
+
+
+@router.post("/api/exams/{exam_id}/archive", response_model=ExamDetailResponse)
+async def archive_exam(
+    exam_id: str,
+    http_request: Request,
+    current_user: UserProfile = Depends(require_admin),
+):
+    """Arsipkan ujian → status 'archived' (tersembunyi dari daftar aktif)."""
+    result = await ExamService.archive_exam(exam_id, current_user.id, current_user.role.value)
+    AuditService.log_action(
+        http_request, current_user, action="exam.archive", entity_type="exam",
+        entity_id=exam_id, summary=f"Arsipkan ujian '{result.title}'",
+    )
+    return result
+
+
+@router.post("/api/exams/{exam_id}/unarchive", response_model=ExamDetailResponse)
+async def unarchive_exam(
+    exam_id: str,
+    http_request: Request,
+    current_user: UserProfile = Depends(require_admin),
+):
+    """Keluarkan ujian dari arsip."""
+    result = await ExamService.unarchive_exam(exam_id, current_user.id, current_user.role.value)
+    AuditService.log_action(
+        http_request, current_user, action="exam.unarchive", entity_type="exam",
+        entity_id=exam_id, summary="Keluarkan dari arsip",
+    )
+    return result
+
+
+@router.post("/api/exams/{exam_id}/duplicate", response_model=ExamDetailResponse, status_code=201)
+async def duplicate_exam(
+    exam_id: str,
+    http_request: Request,
+    current_user: UserProfile = Depends(require_admin),
+):
+    """Duplikat ujian jadi Draf baru (tanpa jadwal/snapshot/percobaan)."""
+    result = await ExamService.duplicate_exam(exam_id, current_user.id, current_user.role.value)
+    AuditService.log_action(
+        http_request, current_user, action="exam.duplicate", entity_type="exam",
+        entity_id=result.id, summary=f"Duplikat dari {exam_id} → '{result.title}'",
+    )
+    return result

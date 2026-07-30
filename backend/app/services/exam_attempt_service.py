@@ -45,6 +45,7 @@ class ExamAttemptService:
 
         exams = (
             supabase.table("exams").select("*").in_("id", exam_ids).eq("status", "published")
+            .is_("deleted_at", "null")
             .order("created_at", desc=True).execute().data or []
         )
         if not exams:
@@ -115,7 +116,7 @@ class ExamAttemptService:
         if not ep.data:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Anda tidak terdaftar sebagai peserta ujian ini.")
 
-        er = supabase.table("exams").select("*").eq("id", exam_id).execute().data
+        er = supabase.table("exams").select("*").eq("id", exam_id).is_("deleted_at", "null").execute().data
         exam = er[0] if er else None
         if not exam or exam.get("status") != "published":
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ujian tidak tersedia.")
@@ -125,8 +126,6 @@ class ExamAttemptService:
         ends = _parse_dt(exam.get("ends_at"))
         if starts and now < starts:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ujian belum dimulai.")
-        if ends and now > ends:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ujian sudah berakhir.")
 
         existing = (
             supabase.table("exam_attempts").select("*").eq("exam_id", exam_id).eq("user_id", user_id)
@@ -134,6 +133,11 @@ class ExamAttemptService:
         )
         attempt = next((a for a in existing if a["status"] == "in_progress"), None)
         if not attempt:
+            # Percobaan BARU tak boleh dimulai setelah jendela ujian berakhir.
+            # (Percobaan yang SUDAH berjalan tetap boleh dilanjutkan agar bisa submit;
+            #  deadline-nya di-clamp ke ends_at di bawah → sisa waktu 0.)
+            if ends and now > ends:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ujian sudah berakhir.")
             submitted = next((a for a in existing if a["status"] == "submitted"), None)
             if submitted and not exam.get("allow_retake"):
                 raise HTTPException(status.HTTP_400_BAD_REQUEST, "Anda sudah menyelesaikan ujian ini.")
@@ -162,6 +166,9 @@ class ExamAttemptService:
 
         started = _parse_dt(attempt["started_at"]) or now
         deadline = started + timedelta(minutes=exam["duration_minutes"])
+        # ends_at = dinding keras: jendela ujian menutup untuk semua, termasuk yang sedang jalan.
+        if ends and ends < deadline:
+            deadline = ends
         remaining = max(0, int((deadline - now).total_seconds()))
 
         return StartAttemptResponse(

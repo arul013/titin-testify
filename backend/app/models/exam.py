@@ -5,10 +5,19 @@ Learning Nexus CBT — Pydantic Models for Exam Builder (Manajemen Ujian)
 from pydantic import BaseModel, Field, model_validator, field_validator
 from typing import Optional
 from datetime import datetime
+from enum import Enum
 
-from app.models.question import QuestionSection, ContentStatus
+from app.models.question import QuestionSection
 
 _VALID_EXAM_MODE = {"full", "custom"}
+
+
+class ExamStatus(str, Enum):
+    """Siklus hidup ujian (khusus exam, terpisah dari ContentStatus soal)."""
+    DRAFT = "draft"
+    PUBLISHED = "published"
+    CLOSED = "closed"        # ujian selesai/ditutup — read-only, tak bisa dibuka ulang
+    ARCHIVED = "archived"    # diarsipkan — tersembunyi dari daftar aktif
 
 
 # ─── Nested input models ─────────────────────────────────────────
@@ -49,7 +58,7 @@ class CreateExamRequest(BaseModel):
     scoring_scheme_id: Optional[str] = Field(None, description="Skema penilaian yang dipakai")
     passing_value: Optional[float] = Field(None, ge=0, description="Nilai kelulusan dalam skala skema (opsional)")
     allow_retake: bool = False
-    status: ContentStatus = Field(default=ContentStatus.DRAFT)
+    status: ExamStatus = Field(default=ExamStatus.DRAFT)
     starts_at: Optional[datetime] = None
     ends_at: Optional[datetime] = None
     sections: list[ExamSectionInput] = Field(default_factory=list)
@@ -85,12 +94,14 @@ class UpdateExamRequest(BaseModel):
     scoring_scheme_id: Optional[str] = None
     passing_value: Optional[float] = Field(None, ge=0)
     allow_retake: Optional[bool] = None
-    status: Optional[ContentStatus] = None
+    status: Optional[ExamStatus] = None
     starts_at: Optional[datetime] = None
     ends_at: Optional[datetime] = None
     sections: Optional[list[ExamSectionInput]] = None
     participant_ids: Optional[list[str]] = None
     pool_units: Optional[list[ExamPoolUnitInput]] = None
+    # Optimistic concurrency: versi yang dilihat klien. Bila diisi & beda dg server → 409.
+    version: Optional[int] = None
 
 
 # ─── Response models ─────────────────────────────────────────────
@@ -125,12 +136,14 @@ class ExamResponse(BaseModel):
     scoring_scheme_id: Optional[str] = None
     passing_value: Optional[float] = None
     allow_retake: bool = False
-    status: ContentStatus
+    status: ExamStatus
+    version: int = 1
     starts_at: Optional[datetime] = None
     ends_at: Optional[datetime] = None
     creator_name: Optional[str] = None
     sections: list[ExamSectionResponse] = []
     participants_count: int = 0
+    attempts_count: int = 0
     total_target: int = 0
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

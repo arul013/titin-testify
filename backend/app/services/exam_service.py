@@ -47,6 +47,95 @@ class ExamService:
             )
 
     @staticmethod
+    def _parse_dt(v):
+        """Parse timestamp DB (str/datetime) → datetime aware (UTC)."""
+        if v is None:
+            return None
+        if isinstance(v, datetime):
+            return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
+        try:
+            dt = datetime.fromisoformat(str(v).replace("Z", "+00:00"))
+            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _has_attempts(supabase, exam_id: str) -> bool:
+        """True bila ujian sudah pernah dikerjakan (ada percobaan apa pun)."""
+        r = (
+            supabase.table("exam_attempts").select("id", count=CountMethod.exact)
+            .eq("exam_id", exam_id).execute()
+        )
+        return (r.count or 0) > 0
+
+    @staticmethod
+    def _fetch_owned(supabase, exam_id: str, user_id: str, user_role: str, columns: str = "created_by, status"):
+        """Ambil satu ujian aktif (belum di-soft-delete) + cek kepemilikan."""
+        res = (
+            supabase.table("exams").select(columns)
+            .eq("id", exam_id).is_("deleted_at", "null").single().execute()
+        )
+        if not res.data:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Paket ujian tidak ditemukan.")
+        ExamService._assert_owner(res.data["created_by"], user_id, user_role)
+        return res.data
+
+    @staticmethod
+    def _guard_locked_update(supabase, exam_id: str, existing: dict, request: UpdateExamRequest) -> None:
+        """Ujian sudah ada percobaan: hanya boleh perpanjang `ends_at`, tambah peserta,
+        edit judul/deskripsi/show_review. Field lain terkunci (integritas ujian berjalan)."""
+        locked = {
+            "durasi": request.duration_minutes,
+            "jenis tes": request.test_type,
+            "mode ujian": request.exam_mode,
+            "skema penilaian": request.scoring_scheme_id,
+            "nilai kelulusan": request.passing_value,
+            "izin ulang": request.allow_retake,
+            "waktu mulai": request.starts_at,
+            "komposisi": request.sections,
+            "sumber soal": request.pool_units,
+            "status": request.status,
+        }
+        violated = [label for label, val in locked.items() if val is not None]
+        if violated:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "Ujian sudah dikerjakan peserta; tak bisa mengubah: "
+                + ", ".join(violated)
+                + ". Kamu hanya bisa memperpanjang waktu & menambah peserta, "
+                "atau Duplikat untuk ujian baru.",
+            )
+
+        # ends_at: hanya boleh diperpanjang (tak mundur ke masa lalu / tak lebih awal dari sebelumnya)
+        if request.ends_at is not None:
+            now = datetime.now(timezone.utc)
+            new_ends = ExamService._parse_dt(request.ends_at)
+            if new_ends and new_ends < now:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    "Waktu selesai tak boleh dimundurkan ke masa lalu saat ujian sudah dikerjakan.",
+                )
+            old_ends = ExamService._parse_dt(existing.get("ends_at"))
+            if old_ends and new_ends and new_ends < old_ends:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    "Saat sudah ada percobaan, waktu selesai hanya boleh diperpanjang.",
+                )
+
+        # participant_ids: hanya boleh menambah (tak boleh menghapus yang sudah terdaftar)
+        if request.participant_ids is not None:
+            cur = (
+                supabase.table("exam_participants").select("user_id")
+                .eq("exam_id", exam_id).execute().data or []
+            )
+            removed = {c["user_id"] for c in cur} - set(request.participant_ids)
+            if removed:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    "Peserta yang sudah terdaftar tak boleh dihapus saat ujian sudah dikerjakan.",
+                )
+
+    @staticmethod
     def _validate_participants(supabase, participant_ids: list[str]) -> list[str]:
         """Pastikan semua id adalah akun peserta yang valid. Kembalikan list unik."""
         ids = list(dict.fromkeys(participant_ids))  # dedupe, jaga urutan
@@ -143,7 +232,7 @@ class ExamService:
 
         query = supabase.table("exams").select(
             "*, profiles!exams_created_by_fkey(full_name)", count=CountMethod.exact
-        )
+        ).is_("deleted_at", "null")
         if user_role != "super_admin":
             query = query.eq("created_by", user_id)
         if status_filter:
@@ -172,7 +261,7 @@ class ExamService:
 
         res = supabase.table("exams").select(
             "*, profiles!exams_created_by_fkey(full_name)"
-        ).eq("id", exam_id).single().execute()
+        ).eq("id", exam_id).is_("deleted_at", "null").single().execute()
         if not res.data:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Paket ujian tidak ditemukan.")
 
@@ -215,10 +304,29 @@ class ExamService:
     ) -> ExamDetailResponse:
         supabase = get_supabase_admin()
 
-        existing = supabase.table("exams").select("created_by").eq("id", exam_id).single().execute()
-        if not existing.data:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Paket ujian tidak ditemukan.")
-        ExamService._assert_owner(existing.data["created_by"], user_id, user_role)
+        existing = ExamService._fetch_owned(
+            supabase, exam_id, user_id, user_role,
+            columns="created_by, version, status, ends_at",
+        )
+
+        # Optimistic concurrency: tolak bila versi klien tertinggal (ada yang mengubah lebih dulu).
+        current_version = existing.get("version") or 1
+        if request.version is not None and request.version != current_version:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "Ujian telah diubah oleh sesi lain. Muat ulang halaman lalu coba lagi.",
+            )
+
+        # ── Guard siklus hidup ──
+        if existing["status"] in ("closed", "archived"):
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "Ujian sudah ditutup/diarsipkan sehingga tak bisa diubah. "
+                "Duplikat untuk membuat ujian baru.",
+            )
+        # Ujian yang sudah dikerjakan → hanya boleh perpanjang waktu + tambah peserta.
+        if ExamService._has_attempts(supabase, exam_id):
+            ExamService._guard_locked_update(supabase, exam_id, existing, request)
 
         # Scalar fields (hanya yang diisi; pola sama seperti QuestionService)
         update_data = {}
@@ -240,8 +348,10 @@ class ExamService:
             if value is not None:
                 update_data[key] = value
 
-        if update_data:
-            supabase.table("exams").update(update_data).eq("id", exam_id).execute()
+        # Selalu naikkan versi & catat aktor tiap update (optimistic locking + jejak).
+        update_data["version"] = current_version + 1
+        update_data["updated_by"] = user_id
+        supabase.table("exams").update(update_data).eq("id", exam_id).execute()
 
         # List fields: bila diisi → replace keseluruhan
         if request.sections is not None:
@@ -280,11 +390,15 @@ class ExamService:
     @staticmethod
     async def delete_exam(exam_id: str, user_id: str, user_role: str) -> None:
         supabase = get_supabase_admin()
-        existing = supabase.table("exams").select("created_by").eq("id", exam_id).single().execute()
+        existing = supabase.table("exams").select("created_by").eq("id", exam_id).is_("deleted_at", "null").single().execute()
         if not existing.data:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Paket ujian tidak ditemukan.")
         ExamService._assert_owner(existing.data["created_by"], user_id, user_role)
-        supabase.table("exams").delete().eq("id", exam_id).execute()
+        # Soft-delete: simpan data historis (audit), sembunyikan dari daftar aktif.
+        supabase.table("exams").update({
+            "deleted_at": ExamService._iso(datetime.now(timezone.utc)),
+            "updated_by": user_id,
+        }).eq("id", exam_id).execute()
 
     # ─── Ketersediaan stok & publish ──────────────────────────
 
@@ -532,6 +646,13 @@ class ExamService:
         supabase = get_supabase_admin()
         detail = await ExamService.get_exam(exam_id, user_id, user_role)  # + cek kepemilikan
 
+        if detail.status.value in ("closed", "archived"):
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Ujian sudah ditutup/diarsipkan sehingga tak bisa ditayangkan. "
+                "Duplikat untuk membuat ujian baru.",
+            )
+
         active = [s for s in detail.sections if s.target_count > 0]
         if not active:
             raise HTTPException(status.HTTP_400_BAD_REQUEST,
@@ -600,14 +721,95 @@ class ExamService:
 
     @staticmethod
     async def unpublish_exam(exam_id: str, user_id: str, user_role: str) -> ExamDetailResponse:
-        """Kembalikan paket ujian ke status 'draft'."""
+        """Kembalikan paket ujian ke status 'draft' (hanya bila belum ada percobaan)."""
         supabase = get_supabase_admin()
-        existing = supabase.table("exams").select("created_by").eq("id", exam_id).single().execute()
-        if not existing.data:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Paket ujian tidak ditemukan.")
-        ExamService._assert_owner(existing.data["created_by"], user_id, user_role)
-        supabase.table("exams").update({"status": "draft"}).eq("id", exam_id).execute()
+        existing = ExamService._fetch_owned(supabase, exam_id, user_id, user_role)
+        if existing["status"] in ("closed", "archived"):
+            raise HTTPException(status.HTTP_409_CONFLICT,
+                                "Ujian sudah ditutup/diarsipkan. Duplikat untuk membuat ujian baru.")
+        if ExamService._has_attempts(supabase, exam_id):
+            raise HTTPException(status.HTTP_409_CONFLICT,
+                                "Ujian sudah dikerjakan peserta sehingga tak bisa dikembalikan ke Draf. "
+                                "Duplikat untuk membuat ujian baru.")
+        supabase.table("exams").update({"status": "draft", "updated_by": user_id}).eq("id", exam_id).execute()
         return await ExamService.get_exam(exam_id, user_id, user_role)
+
+    # ─── Transisi siklus hidup: close / archive / duplicate ───
+
+    @staticmethod
+    async def close_exam(exam_id: str, user_id: str, user_role: str) -> ExamDetailResponse:
+        """Tutup ujian Tayang → 'closed' (read-only, tak bisa dibuka ulang)."""
+        supabase = get_supabase_admin()
+        existing = ExamService._fetch_owned(supabase, exam_id, user_id, user_role)
+        if existing["status"] != "published":
+            raise HTTPException(status.HTTP_409_CONFLICT,
+                                "Hanya ujian Tayang yang bisa ditutup.")
+        supabase.table("exams").update({"status": "closed", "updated_by": user_id}).eq("id", exam_id).execute()
+        return await ExamService.get_exam(exam_id, user_id, user_role)
+
+    @staticmethod
+    async def archive_exam(exam_id: str, user_id: str, user_role: str) -> ExamDetailResponse:
+        """Arsipkan ujian (dari draft/published/closed) → 'archived'."""
+        supabase = get_supabase_admin()
+        existing = ExamService._fetch_owned(supabase, exam_id, user_id, user_role)
+        if existing["status"] == "archived":
+            raise HTTPException(status.HTTP_409_CONFLICT, "Ujian sudah diarsipkan.")
+        supabase.table("exams").update({"status": "archived", "updated_by": user_id}).eq("id", exam_id).execute()
+        return await ExamService.get_exam(exam_id, user_id, user_role)
+
+    @staticmethod
+    async def unarchive_exam(exam_id: str, user_id: str, user_role: str) -> ExamDetailResponse:
+        """Keluarkan dari arsip. Kembali ke 'closed' bila sudah ada percobaan, selain itu 'draft'."""
+        supabase = get_supabase_admin()
+        existing = ExamService._fetch_owned(supabase, exam_id, user_id, user_role)
+        if existing["status"] != "archived":
+            raise HTTPException(status.HTTP_409_CONFLICT, "Ujian tidak sedang diarsipkan.")
+        target = "closed" if ExamService._has_attempts(supabase, exam_id) else "draft"
+        supabase.table("exams").update({"status": target, "updated_by": user_id}).eq("id", exam_id).execute()
+        return await ExamService.get_exam(exam_id, user_id, user_role)
+
+    @staticmethod
+    async def duplicate_exam(exam_id: str, user_id: str, user_role: str) -> ExamDetailResponse:
+        """Kloning ujian jadi Draf baru (tanpa jadwal/snapshot/percobaan)."""
+        supabase = get_supabase_admin()
+        src = await ExamService.get_exam(exam_id, user_id, user_role)  # + cek kepemilikan
+
+        title = (src.title + " (Salinan)")[:200]
+        new = supabase.table("exams").insert({
+            "created_by": user_id,
+            "title": title,
+            "description": src.description,
+            "duration_minutes": src.duration_minutes,
+            "test_type": src.test_type,
+            "exam_mode": src.exam_mode,
+            "show_review": src.show_review,
+            "scoring_scheme_id": src.scoring_scheme_id,
+            "passing_value": src.passing_value,
+            "allow_retake": src.allow_retake,
+            "status": "draft",       # selalu mulai sebagai Draf
+            "starts_at": None,       # jadwal dikosongkan (ujian baru)
+            "ends_at": None,
+        }).execute()
+        if not new.data:
+            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Gagal menduplikat ujian.")
+        new_id = new.data[0]["id"]
+
+        if src.sections:
+            supabase.table("exam_sections").insert([
+                {"exam_id": new_id, "section": s.section.value, "target_count": s.target_count, "weight": s.weight}
+                for s in src.sections
+            ]).execute()
+        if src.participants:
+            supabase.table("exam_participants").insert([
+                {"exam_id": new_id, "user_id": p.user_id} for p in src.participants
+            ]).execute()
+        if src.pool_units:
+            supabase.table("exam_pool_units").insert([
+                {"exam_id": new_id, "passage_id": u.passage_id, "question_id": u.question_id}
+                for u in src.pool_units
+            ]).execute()
+
+        return await ExamService.get_exam(new_id, user_id, user_role)
 
     # ─── Response builders ────────────────────────────────────
 
@@ -624,6 +826,10 @@ class ExamService:
 
         participants_count = (
             supabase.table("exam_participants").select("id", count=CountMethod.exact)
+            .eq("exam_id", e["id"]).execute().count or 0
+        )
+        attempts_count = (
+            supabase.table("exam_attempts").select("id", count=CountMethod.exact)
             .eq("exam_id", e["id"]).execute().count or 0
         )
 
@@ -644,11 +850,13 @@ class ExamService:
             passing_value=e.get("passing_value"),
             allow_retake=e.get("allow_retake", False),
             status=e["status"],
+            version=e.get("version", 1),
             starts_at=e.get("starts_at"),
             ends_at=e.get("ends_at"),
             creator_name=creator_name,
             sections=sections,
             participants_count=participants_count,
+            attempts_count=attempts_count,
             total_target=sum(s.target_count for s in sections),
             created_at=e.get("created_at"),
             updated_at=e.get("updated_at"),

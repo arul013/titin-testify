@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Modal } from './modal';
-import { Button } from './button';
+import { Button, type ButtonVariant } from './button';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -11,7 +11,7 @@ interface ConfirmDialogProps {
   icon?: React.ReactNode;
   confirmLabel: string;
   confirmIcon?: React.ReactNode;
-  confirmVariant?: 'primary' | 'danger';
+  confirmVariant?: ButtonVariant;
   confirmClassName?: string;
   loading?: boolean;
   onConfirm: () => void;

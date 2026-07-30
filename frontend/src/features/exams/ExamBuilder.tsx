@@ -180,6 +180,8 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
     })),
     pool_units: poolUnits,
     participant_ids: participantIds,
+    // Optimistic concurrency: server tolak 409 bila versi ini tertinggal.
+    ...(isEditing && initial ? { version: initial.version } : {}),
   });
 
   const validate = (): boolean => {

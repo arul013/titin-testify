@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Search, ClipboardCheck, Trash2 } from 'lucide-react';
+import { Search, ClipboardCheck, Trash2, Lock, Archive, ArchiveRestore } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Pagination } from '@/components/ui/pagination';
@@ -12,7 +12,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { FAB, type FABAction } from '@/components/ui/FAB';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { useExams, type ExamDetail, type ExamMode } from '@/features/exams/hooks/useExams';
+import { useExams, type Exam, type ExamDetail, type ExamMode } from '@/features/exams/hooks/useExams';
 import { ExamTable } from '@/features/exams/ExamTable';
 import { ExamBuilder } from '@/features/exams/ExamBuilder';
 import { PilihJenisUjianModal } from '@/features/exams/PilihJenisUjianModal';
@@ -38,6 +38,11 @@ export function ManajemenUjianPage() {
 
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [pendingLifecycle, setPendingLifecycle] = useState<{
+    exam: Exam;
+    action: 'close' | 'archive' | 'unarchive';
+  } | null>(null);
+  const [isLifecycleBusy, setIsLifecycleBusy] = useState(false);
 
   const {
     exams,
@@ -50,6 +55,10 @@ export function ManajemenUjianPage() {
     poolPreview,
     publishExam,
     unpublishExam,
+    closeExam,
+    archiveExam,
+    unarchiveExam,
+    duplicateExam,
   } = useExams({
     search: debouncedSearch,
     page,
@@ -149,6 +158,40 @@ export function ManajemenUjianPage() {
     }
   };
 
+  const handleDuplicate = async (exam: Exam) => {
+    try {
+      const dup = await duplicateExam(exam.id);
+      toast.success(`Ujian diduplikat sebagai “${dup.title}”. Silakan atur jadwalnya.`);
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Gagal menduplikat ujian.'));
+    }
+  };
+
+  const LIFECYCLE_FN = {
+    close: closeExam,
+    archive: archiveExam,
+    unarchive: unarchiveExam,
+  } as const;
+  const LIFECYCLE_DONE = {
+    close: 'Ujian ditutup.',
+    archive: 'Ujian diarsipkan.',
+    unarchive: 'Ujian dikeluarkan dari arsip.',
+  } as const;
+
+  const confirmLifecycle = async () => {
+    if (!pendingLifecycle) return;
+    setIsLifecycleBusy(true);
+    try {
+      await LIFECYCLE_FN[pendingLifecycle.action](pendingLifecycle.exam.id);
+      toast.success(LIFECYCLE_DONE[pendingLifecycle.action]);
+      setPendingLifecycle(null);
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Gagal mengubah status ujian.'));
+    } finally {
+      setIsLifecycleBusy(false);
+    }
+  };
+
   const createActions: FABAction[] = [
     {
       icon: <ClipboardCheck className="w-5 h-5" />,
@@ -201,8 +244,12 @@ export function ManajemenUjianPage() {
               isLoading={isLoading}
               currentUserRole={user?.role}
               onEdit={(exam) => openEdit(exam.id)}
-              onDelete={(id) => setPendingDeleteId(id)}
+              onDelete={(exam) => setPendingDeleteId(exam.id)}
               onUnpublish={handleUnpublish}
+              onClose={(exam) => setPendingLifecycle({ exam, action: 'close' })}
+              onArchive={(exam) => setPendingLifecycle({ exam, action: 'archive' })}
+              onUnarchive={(exam) => setPendingLifecycle({ exam, action: 'unarchive' })}
+              onDuplicate={handleDuplicate}
             />
 
             <Pagination
@@ -235,8 +282,48 @@ export function ManajemenUjianPage() {
         onConfirm={confirmDelete}
       >
         <p className="text-sm text-slate-600 leading-relaxed">
-          Paket ujian ini beserta komposisi & daftar pesertanya akan dihapus permanen. Tindakan ini
-          tidak bisa dibatalkan.
+          Paket ujian ini akan dihapus dari daftar. Data (termasuk hasil percobaan) tetap tersimpan
+          untuk keperluan audit, tetapi ujian tak lagi tampil di sini maupun bagi peserta.
+        </p>
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={!!pendingLifecycle}
+        onClose={() => setPendingLifecycle(null)}
+        title={
+          pendingLifecycle?.action === 'close'
+            ? 'Tutup Ujian?'
+            : pendingLifecycle?.action === 'archive'
+              ? 'Arsipkan Ujian?'
+              : 'Keluarkan dari Arsip?'
+        }
+        icon={
+          pendingLifecycle?.action === 'close' ? (
+            <Lock className="w-4 h-4" />
+          ) : pendingLifecycle?.action === 'unarchive' ? (
+            <ArchiveRestore className="w-4 h-4" />
+          ) : (
+            <Archive className="w-4 h-4" />
+          )
+        }
+        confirmLabel={
+          pendingLifecycle?.action === 'close'
+            ? 'Ya, Tutup'
+            : pendingLifecycle?.action === 'archive'
+              ? 'Ya, Arsipkan'
+              : 'Ya, Keluarkan'
+        }
+        confirmVariant={pendingLifecycle?.action === 'unarchive' ? 'primary' : 'warning'}
+        loading={isLifecycleBusy}
+        onConfirm={confirmLifecycle}
+      >
+        <p className="text-sm text-slate-600 leading-relaxed">
+          {pendingLifecycle?.action === 'close' &&
+            'Ujian akan ditutup dan tak bisa dikerjakan lagi. Status jadi read-only — untuk menjalankan ulang, gunakan Duplikat.'}
+          {pendingLifecycle?.action === 'archive' &&
+            'Ujian disembunyikan dari daftar aktif. Kamu bisa mengeluarkannya dari arsip kapan saja.'}
+          {pendingLifecycle?.action === 'unarchive' &&
+            'Ujian dikembalikan ke daftar aktif (ke Draf bila belum pernah dikerjakan, atau Selesai bila sudah).'}
         </p>
       </ConfirmDialog>
     </PageContainer>
