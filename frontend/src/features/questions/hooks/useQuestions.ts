@@ -14,6 +14,8 @@ export interface Question {
   difficulty: string;
   /** F1: tipe soal (default mcq_single). */
   question_type?: string;
+  content_json?: Record<string, unknown> | null;
+  answer_json?: Record<string, unknown> | null;
   question_text: string;
   option_a: string;
   option_b: string;

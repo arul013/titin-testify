@@ -25,7 +25,12 @@ interface QuestionFieldsProps {
 export const QuestionFields: React.FC<QuestionFieldsProps> = ({ form, idPrefix = 'qf' }) => {
   const {
     section, questionText, setQuestionText,
-    questionType, setQuestionType, isTFNG,
+    questionType, setQuestionType, isTFNG, isMulti, isTextAnswer, isShort, isMatching, isOrdering,
+    multiOptions, multiCorrect, updateMultiOption, addMultiOption, removeMultiOption, toggleMultiCorrect,
+    acceptList, updateAccept, addAccept, removeAccept,
+    wordLimit, setWordLimit,
+    matchLeft, matchRight, matchPairs, updateLeft, addLeft, removeLeft, updateRight, addRight, removeRight, setMatchPair,
+    orderItems, orderPos, updateOrderItem, addOrderItem, removeOrderItem, setOrderPosition,
     correctAnswer, setCorrectAnswer,
     explanation, setExplanation,
     imageUrl, setImageUrl, useImage, setUseImage,
@@ -45,7 +50,12 @@ export const QuestionFields: React.FC<QuestionFieldsProps> = ({ form, idPrefix =
         <label className="block text-xs font-bold text-slate-600 mb-1.5">Tipe Soal</label>
         <Select value={questionType} onChange={(e) => setQuestionType(e.target.value)}>
           <option value="mcq_single">Pilihan Ganda (1 jawaban)</option>
+          <option value="mcq_multi">Pilihan Ganda (pilih beberapa)</option>
           <option value="true_false_ng">True / False / Not Given</option>
+          <option value="fill_blank">Isian (Fill in the Blank)</option>
+          <option value="short_answer">Jawaban Singkat (Short Answer)</option>
+          <option value="matching">Menjodohkan (Matching)</option>
+          <option value="ordering">Mengurutkan (Ordering)</option>
         </Select>
       </div>
 
@@ -273,6 +283,191 @@ export const QuestionFields: React.FC<QuestionFieldsProps> = ({ form, idPrefix =
               );
             })}
           </div>
+        </div>
+      ) : isMulti ? (
+        <div id={`${idPrefix}-multiAnswer`} className="scroll-mt-4">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <label className="text-xs font-bold text-slate-600">Pilihan Jawaban (tandai yang benar)</label>
+            <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg shrink-0">
+              Peserta memilih {multiCorrect.length || '—'} jawaban
+            </span>
+          </div>
+          <p className="text-[11px] text-slate-400 mb-2">
+            Centang di kiri opsi untuk menandai jawaban benar. Jumlah &ldquo;pilih N&rdquo; otomatis = banyaknya yang ditandai benar.
+          </p>
+          <div className="flex flex-col gap-2">
+            {multiOptions.map((opt, i) => {
+              const isCorrect = multiCorrect.includes(i);
+              return (
+                <div
+                  key={i}
+                  className={`flex items-center gap-2.5 rounded-xl border p-2.5 transition-colors ${
+                    isCorrect ? 'border-emerald-300 bg-emerald-50/40' : 'border-slate-100'
+                  }`}
+                >
+                  <Checkbox checked={isCorrect} onChange={() => toggleMultiCorrect(i)} />
+                  <span className="w-5 shrink-0 text-center text-xs font-bold text-slate-400">
+                    {'ABCDEFGH'[i]}
+                  </span>
+                  <Input
+                    value={opt}
+                    onChange={(e) => updateMultiOption(i, e.target.value)}
+                    placeholder={`Opsi ${'ABCDEFGH'[i]}`}
+                    className="flex-1"
+                  />
+                  {multiOptions.length > 2 && (
+                    <button
+                      type="button"
+                      onClick={() => removeMultiOption(i)}
+                      title="Hapus opsi"
+                      className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50/40 hover:text-red-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {multiOptions.length < 8 && (
+            <button
+              type="button"
+              onClick={addMultiOption}
+              className="mt-2 text-xs font-bold text-indigo-600 hover:underline"
+            >
+              + Tambah opsi
+            </button>
+          )}
+          {errors.multiOptions && <p className="mt-1.5 text-xs text-red-500">{errors.multiOptions}</p>}
+          {errors.multiCorrect && <p className="mt-1.5 text-xs text-red-500">{errors.multiCorrect}</p>}
+        </div>
+      ) : isTextAnswer ? (
+        <div id={`${idPrefix}-accept`} className="scroll-mt-4">
+          {isShort && (
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-slate-600 mb-1.5">Batas kata (opsional)</label>
+              <Input
+                value={wordLimit}
+                onChange={(e) => setWordLimit(e.target.value)}
+                placeholder="Mis. NO MORE THAN THREE WORDS"
+              />
+              <p className="mt-1 text-[10px] text-slate-400">Ditampilkan ke peserta sebagai petunjuk (tak dinilai otomatis).</p>
+            </div>
+          )}
+          <label className="block text-xs font-bold text-slate-600 mb-1.5">Jawaban yang diterima</label>
+          <p className="text-[11px] text-slate-400 mb-2">
+            Tulis semua variasi yang dianggap benar (mis. &ldquo;colour&rdquo;, &ldquo;color&rdquo;). Pencocokan tak peka huruf besar/kecil.
+          </p>
+          <div className="flex flex-col gap-2">
+            {acceptList.map((a, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <Input
+                  value={a}
+                  onChange={(e) => updateAccept(i, e.target.value)}
+                  placeholder={`Jawaban ${i + 1}`}
+                  className="flex-1"
+                />
+                {acceptList.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeAccept(i)}
+                    title="Hapus"
+                    className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50/40 hover:text-red-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={addAccept}
+            className="mt-2 text-xs font-bold text-indigo-600 hover:underline"
+          >
+            + Tambah variasi jawaban
+          </button>
+          {errors.accept && <p className="mt-1.5 text-xs text-red-500">{errors.accept}</p>}
+        </div>
+      ) : isMatching ? (
+        <div id={`${idPrefix}-matchAnswer`} className="scroll-mt-4 flex flex-col gap-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1.5">Opsi Kanan (pilihan)</label>
+            <div className="flex flex-col gap-2">
+              {matchRight.map((r, j) => (
+                <div key={j} className="flex items-center gap-2">
+                  <span className="w-5 shrink-0 text-center text-xs font-bold text-slate-400">{'ABCDEFGH'[j]}</span>
+                  <Input value={r} onChange={(e) => updateRight(j, e.target.value)} placeholder={`Opsi ${'ABCDEFGH'[j]}`} className="flex-1" />
+                  {matchRight.length > 2 && (
+                    <button type="button" onClick={() => removeRight(j)} title="Hapus" className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50/40 hover:text-red-600">
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {matchRight.length < 8 && (
+              <button type="button" onClick={addRight} className="mt-2 text-xs font-bold text-indigo-600 hover:underline">+ Tambah opsi</button>
+            )}
+            {errors.matchRight && <p className="mt-1.5 text-xs text-red-500">{errors.matchRight}</p>}
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1.5">Item Kiri (jodohkan ke opsi benar)</label>
+            <div className="flex flex-col gap-2">
+              {matchLeft.map((l, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="w-5 shrink-0 text-center text-xs font-bold text-slate-400">{i + 1}</span>
+                  <Input value={l} onChange={(e) => updateLeft(i, e.target.value)} placeholder={`Item ${i + 1}`} className="flex-1" />
+                  <Select value={matchPairs[String(i)] ?? ''} onChange={(e) => setMatchPair(i, e.target.value)} className="w-24 shrink-0">
+                    <option value="">Kunci</option>
+                    {matchRight.map((_, j) => (
+                      <option key={j} value={'abcdefgh'[j]}>{'ABCDEFGH'[j]}</option>
+                    ))}
+                  </Select>
+                  {matchLeft.length > 2 && (
+                    <button type="button" onClick={() => removeLeft(i)} title="Hapus" className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50/40 hover:text-red-600">
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {matchLeft.length < 10 && (
+              <button type="button" onClick={addLeft} className="mt-2 text-xs font-bold text-indigo-600 hover:underline">+ Tambah item</button>
+            )}
+            {errors.matchLeft && <p className="mt-1.5 text-xs text-red-500">{errors.matchLeft}</p>}
+            {errors.matchPairs && <p className="mt-1.5 text-xs text-red-500">{errors.matchPairs}</p>}
+          </div>
+        </div>
+      ) : isOrdering ? (
+        <div id={`${idPrefix}-orderAnswer`} className="scroll-mt-4">
+          <label className="block text-xs font-bold text-slate-600 mb-1.5">Langkah & Urutan Benar</label>
+          <p className="text-[11px] text-slate-400 mb-2">
+            Masukkan tiap langkah lalu tetapkan nomor urutan benarnya (1..N, tanpa duplikat). Peserta akan mengurutkannya.
+          </p>
+          <div className="flex flex-col gap-2">
+            {orderItems.map((it, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <Input value={it} onChange={(e) => updateOrderItem(i, e.target.value)} placeholder={`Langkah ${i + 1}`} className="flex-1" />
+                <Select value={orderPos[String(i)] ?? ''} onChange={(e) => setOrderPosition(i, e.target.value)} className="w-20 shrink-0">
+                  <option value="">#</option>
+                  {orderItems.map((_, p) => (
+                    <option key={p} value={String(p + 1)}>{p + 1}</option>
+                  ))}
+                </Select>
+                {orderItems.length > 2 && (
+                  <button type="button" onClick={() => removeOrderItem(i)} title="Hapus" className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50/40 hover:text-red-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          {orderItems.length < 10 && (
+            <button type="button" onClick={addOrderItem} className="mt-2 text-xs font-bold text-indigo-600 hover:underline">+ Tambah langkah</button>
+          )}
+          {errors.orderItems && <p className="mt-1.5 text-xs text-red-500">{errors.orderItems}</p>}
+          {errors.orderPos && <p className="mt-1.5 text-xs text-red-500">{errors.orderPos}</p>}
         </div>
       ) : (
         <div>

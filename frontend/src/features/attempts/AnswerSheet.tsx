@@ -4,6 +4,8 @@ import React from 'react';
 import { Flag, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { renderExamText } from '@/features/questions/examText';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { cn } from '@/src/lib/cn';
 import type { QuestionPayload } from './api';
 
@@ -23,6 +25,13 @@ interface AnswerSheetProps {
   /** mcq_multi: himpunan opsi terpilih + toggle. */
   multiSelected?: string[];
   onMultiToggle?: (key: string) => void;
+  /** fill_blank/short_answer: jawaban teks. */
+  textValue?: string;
+  onTextChange?: (v: string) => void;
+  onTextBlur?: () => void;
+  /** matching: pasangan leftIdx→rightKey + ubah. */
+  pairs?: Record<string, string>;
+  onPairChange?: (leftIdx: number, rightKey: string) => void;
   flagged: boolean;
   onToggleFlag: () => void;
   palette: PaletteItem[];
@@ -41,6 +50,11 @@ export const AnswerSheet: React.FC<AnswerSheetProps> = ({
   onSelect,
   multiSelected = [],
   onMultiToggle,
+  textValue = '',
+  onTextChange,
+  onTextBlur,
+  pairs = {},
+  onPairChange,
   flagged,
   onToggleFlag,
   palette,
@@ -52,7 +66,15 @@ export const AnswerSheet: React.FC<AnswerSheetProps> = ({
   const total = palette.length;
   const isTFNG = q.question_type === 'true_false_ng';
   const isMulti = q.question_type === 'mcq_multi';
-  const letterMode = !isTFNG && !isMulti && (q.section === 'written_expression' || !!q.options_image_url);
+  const isTextAnswer = q.question_type === 'fill_blank' || q.question_type === 'short_answer';
+  const isMatching = q.question_type === 'matching';
+  const isOrdering = q.question_type === 'ordering';
+  const wordLimit = q.content_json?.word_limit as string | undefined;
+  const matchLeft = (q.content_json?.left as string[] | undefined) ?? [];
+  const matchRight = (q.content_json?.right as string[] | undefined) ?? [];
+  const orderItems = (q.content_json?.items as string[] | undefined) ?? [];
+  const letterMode =
+    !isTFNG && !isMulti && !isTextAnswer && !isMatching && !isOrdering && (q.section === 'written_expression' || !!q.options_image_url);
 
   // mcq_multi: opsi dari content_json.options (jumlah variabel) + batas "pilih N".
   const multiOptions = ((q.content_json?.options as string[] | undefined) ?? []).map((text, i) => ({
@@ -107,7 +129,59 @@ export const AnswerSheet: React.FC<AnswerSheetProps> = ({
         />
       )}
 
-      {isMulti ? (
+      {isOrdering ? (
+        <div className="flex flex-col gap-2.5">
+          <p className="text-xs font-semibold text-slate-500">Tentukan nomor urutan tiap langkah:</p>
+          {orderItems.map((itemText, i) => (
+            <div key={i} className="flex items-center gap-3 rounded-2xl border border-slate-200 p-3">
+              <span className="flex-1 text-sm font-medium text-slate-700">
+                {itemText ? renderExamText(itemText) : '—'}
+              </span>
+              <Select
+                value={pairs[String(i)] ?? ''}
+                onChange={(e) => onPairChange?.(i, e.target.value)}
+                className="w-20 shrink-0"
+              >
+                <option value="">#</option>
+                {orderItems.map((_, p) => (
+                  <option key={p} value={String(p + 1)}>{p + 1}</option>
+                ))}
+              </Select>
+            </div>
+          ))}
+        </div>
+      ) : isMatching ? (
+        <div className="flex flex-col gap-2.5">
+          {matchLeft.map((leftText, i) => (
+            <div key={i} className="flex flex-col gap-1.5 rounded-2xl border border-slate-200 p-3">
+              <span className="text-sm font-medium text-slate-700">
+                {i + 1}. {leftText ? renderExamText(leftText) : '—'}
+              </span>
+              <Select value={pairs[String(i)] ?? ''} onChange={(e) => onPairChange?.(i, e.target.value)}>
+                <option value="">— pilih —</option>
+                {matchRight.map((rt, j) => (
+                  <option key={j} value={MULTI_KEYS[j]}>
+                    {MULTI_KEYS[j].toUpperCase()}. {rt}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          ))}
+        </div>
+      ) : isTextAnswer ? (
+        <div className="flex flex-col gap-1.5">
+          <p className="text-xs font-semibold text-slate-500">
+            Ketik jawaban:
+            {wordLimit && <span className="ml-1 font-bold text-brand uppercase">({wordLimit})</span>}
+          </p>
+          <Input
+            value={textValue}
+            onChange={(e) => onTextChange?.(e.target.value)}
+            onBlur={() => onTextBlur?.()}
+            placeholder="Tulis jawabanmu…"
+          />
+        </div>
+      ) : isMulti ? (
         <div className="flex flex-col gap-2.5">
           {chooseN > 0 && (
             <p className="-mb-1 text-xs font-bold text-brand">

@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 import { getErrorMessage } from '@/lib/errors';
 import type { Question } from './hooks/useQuestions';
 
+const MULTI_KEYS = 'abcdefgh';
+
 export interface UseQuestionFormArgs {
   initialData?: Question | null;
   passageId?: string | null;
@@ -19,6 +21,99 @@ export function useQuestionForm({ initialData, passageId, defaultSection }: UseQ
   const [section, setSection] = useState(initialData?.section || defaultSection || 'listening');
   const [questionType, setQuestionType] = useState(initialData?.question_type || 'mcq_single');
   const [difficulty, setDifficulty] = useState(initialData?.difficulty || 'medium');
+
+  // mcq_multi: opsi jumlah-variabel + himpunan benar (disimpan sebagai INDEX; keys a/b/… saat build).
+  const _initOpts = (initialData?.content_json?.options as string[] | undefined);
+  const _initCorrect = ((initialData?.answer_json?.correct as string[] | undefined) ?? [])
+    .map((k) => MULTI_KEYS.indexOf(k))
+    .filter((i) => i >= 0);
+  const [multiOptions, setMultiOptions] = useState<string[]>(
+    _initOpts && _initOpts.length ? _initOpts : ['', '', '', ''],
+  );
+  const [multiCorrect, setMultiCorrect] = useState<number[]>(_initCorrect);
+  const updateMultiOption = (i: number, text: string) =>
+    setMultiOptions((p) => p.map((o, idx) => (idx === i ? text : o)));
+  const addMultiOption = () => setMultiOptions((p) => (p.length < 8 ? [...p, ''] : p));
+  const removeMultiOption = (i: number) => {
+    setMultiOptions((p) => p.filter((_, idx) => idx !== i));
+    setMultiCorrect((c) => c.filter((idx) => idx !== i).map((idx) => (idx > i ? idx - 1 : idx)));
+  };
+  const toggleMultiCorrect = (i: number) =>
+    setMultiCorrect((c) => (c.includes(i) ? c.filter((x) => x !== i) : [...c, i]));
+
+  // fill_blank: daftar jawaban yang diterima (cocokkan teks peserta, case-insensitive).
+  const _initAccept = (initialData?.answer_json?.accept as string[] | undefined) ?? [''];
+  const [acceptList, setAcceptList] = useState<string[]>(_initAccept.length ? _initAccept : ['']);
+  const updateAccept = (i: number, v: string) =>
+    setAcceptList((p) => p.map((x, idx) => (idx === i ? v : x)));
+  const addAccept = () => setAcceptList((p) => [...p, '']);
+  const removeAccept = (i: number) => setAcceptList((p) => p.filter((_, idx) => idx !== i));
+  // short_answer: batas kata opsional (mis. "NO MORE THAN THREE WORDS").
+  const [wordLimit, setWordLimit] = useState<string>(
+    (initialData?.content_json?.word_limit as string | undefined) ?? '',
+  );
+
+  // matching: item kiri, opsi kanan (key a/b/… by index), pasangan benar (leftIdx→rightKey).
+  const _initLeft = (initialData?.content_json?.left as string[] | undefined);
+  const _initRight = (initialData?.content_json?.right as string[] | undefined);
+  const [matchLeft, setMatchLeft] = useState<string[]>(_initLeft?.length ? _initLeft : ['', '']);
+  const [matchRight, setMatchRight] = useState<string[]>(_initRight?.length ? _initRight : ['', '']);
+  const [matchPairs, setMatchPairs] = useState<Record<string, string>>(
+    (initialData?.answer_json?.pairs as Record<string, string> | undefined) ?? {},
+  );
+  const updateLeft = (i: number, v: string) => setMatchLeft((p) => p.map((x, idx) => (idx === i ? v : x)));
+  const addLeft = () => setMatchLeft((p) => (p.length < 10 ? [...p, ''] : p));
+  const removeLeft = (i: number) => {
+    setMatchLeft((p) => p.filter((_, idx) => idx !== i));
+    setMatchPairs((pr) => {
+      const next: Record<string, string> = {};
+      Object.entries(pr).forEach(([k, v]) => {
+        const ki = Number(k);
+        if (ki === i) return;
+        next[String(ki > i ? ki - 1 : ki)] = v;
+      });
+      return next;
+    });
+  };
+  const updateRight = (j: number, v: string) => setMatchRight((p) => p.map((x, idx) => (idx === j ? v : x)));
+  const addRight = () => setMatchRight((p) => (p.length < 8 ? [...p, ''] : p));
+  const removeRight = (j: number) => {
+    setMatchRight((p) => p.filter((_, idx) => idx !== j));
+    setMatchPairs((pr) => {
+      const next: Record<string, string> = {};
+      Object.entries(pr).forEach(([k, v]) => {
+        const vi = MULTI_KEYS.indexOf(v);
+        if (vi === j) return; // menunjuk opsi yang dihapus → kosongkan
+        next[k] = vi > j ? MULTI_KEYS[vi - 1] : v;
+      });
+      return next;
+    });
+  };
+  const setMatchPair = (leftIdx: number, rightKey: string) =>
+    setMatchPairs((pr) => ({ ...pr, [String(leftIdx)]: rightKey }));
+
+  // ordering: daftar langkah + posisi benar (itemIdx→nomor 1-based).
+  const _initItems = (initialData?.content_json?.items as string[] | undefined);
+  const [orderItems, setOrderItems] = useState<string[]>(_initItems?.length ? _initItems : ['', '']);
+  const [orderPos, setOrderPos] = useState<Record<string, string>>(
+    (initialData?.answer_json?.positions as Record<string, string> | undefined) ?? {},
+  );
+  const updateOrderItem = (i: number, v: string) => setOrderItems((p) => p.map((x, idx) => (idx === i ? v : x)));
+  const addOrderItem = () => setOrderItems((p) => (p.length < 10 ? [...p, ''] : p));
+  const removeOrderItem = (i: number) => {
+    setOrderItems((p) => p.filter((_, idx) => idx !== i));
+    setOrderPos((pr) => {
+      const next: Record<string, string> = {};
+      Object.entries(pr).forEach(([k, v]) => {
+        const ki = Number(k);
+        if (ki === i) return;
+        next[String(ki > i ? ki - 1 : ki)] = v;
+      });
+      return next;
+    });
+  };
+  const setOrderPosition = (i: number, pos: string) =>
+    setOrderPos((pr) => ({ ...pr, [String(i)]: pos }));
   const [questionText, setQuestionText] = useState(initialData?.question_text || '');
   const [optionA, setOptionA] = useState(initialData?.option_a || '');
   const [optionB, setOptionB] = useState(initialData?.option_b || '');
@@ -45,12 +140,19 @@ export function useQuestionForm({ initialData, passageId, defaultSection }: UseQ
 
   // Bentuk editor menyesuaikan tipe soal.
   const isTFNG = questionType === 'true_false_ng';   // True/False/Not Given (opsi tetap a/b/c)
+  const isMulti = questionType === 'mcq_multi';       // pilih N (opsi jumlah-variabel)
+  const isFill = questionType === 'fill_blank';       // isian teks
+  const isShort = questionType === 'short_answer';    // jawaban singkat (teks + batas kata)
+  const isTextAnswer = isFill || isShort;             // jawaban teks bebas (cocokkan daftar diterima)
+  const isMatching = questionType === 'matching';     // pasangkan kiri↔kanan
+  const isOrdering = questionType === 'ordering';      // urutkan langkah
+  const isFixedType = isTFNG || isMulti || isTextAnswer || isMatching || isOrdering;
   const isListeningStandalone = section === 'listening' && !passageId;
   const isListening = section === 'listening';
-  const isWE = !isTFNG && section === 'written_expression';
+  const isWE = !isFixedType && section === 'written_expression';
   const showImageOption = section === 'reading' || section === 'structure';
-  const allowImageAnswers = !isTFNG && (section === 'listening' || section === 'reading');
-  const effectiveFormat = isTFNG ? 'tfng' : isWE ? 'we' : allowImageAnswers ? answerFormat : 'text';
+  const allowImageAnswers = !isFixedType && (section === 'listening' || section === 'reading');
+  const effectiveFormat = isTFNG ? 'tfng' : isMulti ? 'multi' : isTextAnswer ? 'textans' : isMatching ? 'matching' : isOrdering ? 'ordering' : isWE ? 'we' : allowImageAnswers ? answerFormat : 'text';
 
   const clearError = (key: string) =>
     setErrors((prev) => {
@@ -71,6 +173,29 @@ export function useQuestionForm({ initialData, passageId, defaultSection }: UseQ
       }
     } else if (isTFNG) {
       if (!questionText.trim()) e.questionText = 'Pernyataan (statement) wajib diisi.';
+    } else if (isMulti) {
+      if (!questionText.trim()) e.questionText = 'Pertanyaan wajib diisi.';
+      if (multiOptions.filter((o) => o.trim()).length < 2) e.multiOptions = 'Isi minimal 2 opsi.';
+      else if (multiOptions.some((o) => !o.trim())) e.multiOptions = 'Semua opsi harus terisi (atau hapus yang kosong).';
+      if (multiCorrect.length < 1) e.multiCorrect = 'Tandai minimal satu jawaban benar.';
+    } else if (isTextAnswer) {
+      if (!questionText.trim()) e.questionText = 'Pertanyaan/kalimat wajib diisi.';
+      if (acceptList.filter((a) => a.trim()).length < 1) e.accept = 'Isi minimal satu jawaban yang diterima.';
+    } else if (isMatching) {
+      if (matchLeft.filter((x) => x.trim()).length < 2) e.matchLeft = 'Isi minimal 2 item kiri.';
+      else if (matchLeft.some((x) => !x.trim())) e.matchLeft = 'Semua item kiri harus terisi.';
+      if (matchRight.filter((x) => x.trim()).length < 2) e.matchRight = 'Isi minimal 2 opsi kanan.';
+      else if (matchRight.some((x) => !x.trim())) e.matchRight = 'Semua opsi kanan harus terisi.';
+      if (matchLeft.some((_, i) => !matchPairs[String(i)])) e.matchPairs = 'Tentukan pasangan benar untuk semua item kiri.';
+    } else if (isOrdering) {
+      if (orderItems.filter((x) => x.trim()).length < 2) e.orderItems = 'Isi minimal 2 langkah.';
+      else if (orderItems.some((x) => !x.trim())) e.orderItems = 'Semua langkah harus terisi.';
+      const posVals = orderItems.map((_, i) => orderPos[String(i)]);
+      if (posVals.some((v) => !v)) e.orderPos = 'Tentukan nomor urutan untuk semua langkah.';
+      else {
+        const nums = posVals.map(Number).sort((a, b) => a - b);
+        if (!nums.every((n, idx) => n === idx + 1)) e.orderPos = 'Nomor urutan harus 1..N tanpa duplikat.';
+      }
     } else if (!isListening && !questionText.trim()) {
       e.questionText = 'Pertanyaan wajib diisi.';
     }
@@ -114,6 +239,8 @@ export function useQuestionForm({ initialData, passageId, defaultSection }: UseQ
     JSON.stringify([
       section, questionType, difficulty, questionText, optionA, optionB, optionC, optionD,
       correctAnswer, explanation, status, imageUrl, useImage, answerFormat, optionsImageUrl, audioUrl,
+      multiOptions, multiCorrect, acceptList, wordLimit, matchLeft, matchRight, matchPairs,
+      orderItems, orderPos,
     ]);
   const [initialSnapshot, setInitialSnapshot] = useState(snapshot);
   const dirty = snapshot() !== initialSnapshot;
@@ -176,19 +303,40 @@ export function useQuestionForm({ initialData, passageId, defaultSection }: UseQ
   };
 
   /** Payload untuk create/update (dikirim ke backend). */
-  // T/F/NG memakai opsi tetap (True/False/Not Given) → tak menyimpan teks opsi.
-  const noOptionText = isWE || isTFNG;
+  // Tipe khusus tak memakai kolom teks opsi lama (a–d).
+  const noOptionText = isWE || isFixedType;
+  // mcq_multi: opsi + jumlah-pilih di content_json (publik); kunci di answer_json (rahasia).
+  const contentJson = isMulti
+    ? { options: multiOptions, choose: multiCorrect.length }
+    : isMatching
+      ? { left: matchLeft, right: matchRight }
+      : isOrdering
+        ? { items: orderItems }
+        : isShort && wordLimit.trim()
+          ? { word_limit: wordLimit.trim() }
+          : null;
+  const answerJson = isMulti
+    ? { correct: multiCorrect.map((i) => MULTI_KEYS[i]) }
+    : isTextAnswer
+      ? { accept: acceptList.map((s) => s.trim()).filter(Boolean) }
+      : isMatching
+        ? { pairs: matchPairs }
+        : isOrdering
+          ? { positions: orderPos }
+          : null;
   const buildPayload = (): Record<string, unknown> => ({
     passage_id: passageId || null,
     section,
     difficulty,
     question_type: questionType,
+    content_json: contentJson,
+    answer_json: answerJson,
     question_text: questionText,
     option_a: noOptionText ? '' : optionA,
     option_b: noOptionText ? '' : optionB,
     option_c: noOptionText ? '' : optionC,
     option_d: noOptionText ? '' : optionD,
-    correct_answer: correctAnswer,
+    correct_answer: isMulti ? null : correctAnswer,
     explanation: explanation || null,
     image_url: showImageOption ? imageUrl || null : null,
     options_image_url: effectiveFormat === 'image' ? optionsImageUrl || null : null,
@@ -205,6 +353,8 @@ export function useQuestionForm({ initialData, passageId, defaultSection }: UseQ
     section,
     difficulty,
     question_type: questionType,
+    content_json: contentJson,
+    answer_json: answerJson,
     question_text: questionText,
     option_a: noOptionText ? '' : optionA,
     option_b: noOptionText ? '' : optionB,
@@ -226,7 +376,14 @@ export function useQuestionForm({ initialData, passageId, defaultSection }: UseQ
   return {
     // values + setters
     section, setSection,
-    questionType, setQuestionType, isTFNG,
+    questionType, setQuestionType, isTFNG, isMulti, isFill, isShort, isTextAnswer, isMatching, isOrdering,
+    multiOptions, multiCorrect,
+    updateMultiOption, addMultiOption, removeMultiOption, toggleMultiCorrect,
+    acceptList, updateAccept, addAccept, removeAccept,
+    wordLimit, setWordLimit,
+    matchLeft, matchRight, matchPairs,
+    updateLeft, addLeft, removeLeft, updateRight, addRight, removeRight, setMatchPair,
+    orderItems, orderPos, updateOrderItem, addOrderItem, removeOrderItem, setOrderPosition,
     difficulty, setDifficulty,
     questionText, setQuestionText,
     optionA, optionB, optionC, optionD,

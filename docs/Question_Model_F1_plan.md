@@ -26,7 +26,11 @@ Extensible **by data** (`question_type` enum + JSONB), bukan tabel-per-tipe. Tip
   - **F1.1.1 — `mcq_multi`** (pertama yang butuh `answer_json` + `content_json.options` variabel + set-scoring):
     - **F1.1.1a — backend plumbing ✅** (2026-07-31, belum commit): `answer_json` di AttemptQuestion/SaveAnswer/Review; `_grade()` dispatch per-tipe (mcq_multi=set match); save/start/submit/review wired. Skor mcq_multi jalan di backend.
     - **F1.1.1b — frontend main/tinjau ✅** (2026-07-31, belum commit): api.ts answer_json; ExamRunner+AnswerSheet multi-select (content_json.options variabel, batas choose-N); AttemptReviewPanel render mcq_multi. Konvensi keys 'a','b',… ; choose di content_json (publik), correct di answer_json (rahasia).
-    - **F1.1.1c — builder authoring mcq_multi** (berikutnya): useQuestionForm (multiOptions/multiCorrect/chooseN) + QuestionFields editor opsi variabel + QuestionView preview. Tanpa ini belum bisa dibuat via UI.
+    - **F1.1.1c — builder authoring mcq_multi ✅** (2026-07-31, belum commit): useQuestionForm (multiOptions/multiCorrect, choose auto=jml benar) + QuestionFields editor opsi variabel (tambah/hapus/tandai-benar) + QuestionView preview. **F1.1.1 LENGKAP end-to-end.**
+  - **F1.1.2 — `fill_blank`/completion ✅** (2026-07-31, belum commit): isian teks (answer_json={accept}/{text}), `_grade` normalisasi case-insensitive; runner Input+autosave debounce; review+preview+builder editor accept. End-to-end.
+  - **F1.1.3 — `short_answer` ✅** (2026-07-31, belum commit): reuse pola fill_blank (`isTextAnswer`) + batas kata (content_json.word_limit, hint di runner). `_grade` cabang sama.
+  - **F1.1.4 — `matching` ✅** (2026-07-31, belum commit): content_json={left,right}, answer_json={pairs}; runner Select per item; review pasangan; builder editor kiri/kanan+kunci. End-to-end.
+  - **F1.1.5 — `ordering` ✅** (2026-07-31, belum commit): content_json={items}, answer_json={positions}; runner Select nomor; review+builder+preview. **F1.1 LENGKAP — 6 tipe auto-scored end-to-end.**
 - **F1.2 — Grading manual** (essay): peran grader + antrean + rubrik + agregasi skor.
 - **F1.3 — Speaking** (rekam audio peserta → R2 + grading).
 - **F1.4 — Skala per jenis tes** (band IELTS / skala iBT) + timing per-bagian di runner.

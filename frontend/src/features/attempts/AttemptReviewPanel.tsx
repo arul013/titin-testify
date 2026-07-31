@@ -81,9 +81,28 @@ const MULTI_KEYS = 'abcdefgh';
 function ReviewCard({ q, number }: { q: ReviewQuestion; number: number }) {
   const isTFNG = q.payload.question_type === 'true_false_ng';
   const isMulti = q.payload.question_type === 'mcq_multi';
+  const isFill = q.payload.question_type === 'fill_blank' || q.payload.question_type === 'short_answer';
+  const isMatching = q.payload.question_type === 'matching';
+  const isOrdering = q.payload.question_type === 'ordering';
   const letterMode =
-    !isTFNG && !isMulti && (q.section === 'written_expression' || !!q.payload.options_image_url);
+    !isTFNG && !isMulti && !isFill && !isMatching && !isOrdering && (q.section === 'written_expression' || !!q.payload.options_image_url);
   const optKeys = isTFNG ? (['a', 'b', 'c'] as const) : KEYS;
+
+  // fill_blank/short_answer: jawaban teks peserta vs daftar jawaban diterima
+  const fillText = (q.answer_json?.text as string | undefined) ?? '';
+  const fillAccept = (q.answer_key_json?.accept as string[] | undefined) ?? [];
+
+  // matching: pasangan peserta vs kunci
+  const matchLeft = (q.payload.content_json?.left as string[] | undefined) ?? [];
+  const matchRight = (q.payload.content_json?.right as string[] | undefined) ?? [];
+  const gotPairs = (q.answer_json?.pairs as Record<string, string> | undefined) ?? {};
+  const keyPairs = (q.answer_key_json?.pairs as Record<string, string> | undefined) ?? {};
+  const rightText = (k: string) => matchRight[MULTI_KEYS.indexOf(k)];
+
+  // ordering: item + posisi peserta vs benar
+  const orderItems = (q.payload.content_json?.items as string[] | undefined) ?? [];
+  const gotPos = (q.answer_json?.positions as Record<string, string> | undefined) ?? {};
+  const keyPos = (q.answer_key_json?.positions as Record<string, string> | undefined) ?? {};
 
   // mcq_multi: himpunan pilihan peserta vs kunci (keys 'a','b',…)
   const pickedSet = ((q.answer_json?.selected as string[] | undefined) ?? []).map(String);
@@ -91,7 +110,15 @@ function ReviewCard({ q, number }: { q: ReviewQuestion; number: number }) {
   const multiOptions = ((q.payload.content_json?.options as string[] | undefined) ?? []).map(
     (text, i) => ({ key: MULTI_KEYS[i], label: MULTI_KEYS[i].toUpperCase(), text }),
   );
-  const answered = isMulti ? pickedSet.length > 0 : q.selected_answer != null;
+  const answered = isMulti
+    ? pickedSet.length > 0
+    : isFill
+      ? !!fillText.trim()
+      : isMatching
+        ? Object.keys(gotPairs).length > 0
+        : isOrdering
+          ? Object.keys(gotPos).length > 0
+          : q.selected_answer != null;
 
   const optVal = (k: string) =>
     isTFNG
@@ -147,7 +174,79 @@ function ReviewCard({ q, number }: { q: ReviewQuestion; number: number }) {
           />
         )}
 
-        {isMulti ? (
+        {isOrdering ? (
+          <div className="flex flex-col gap-2">
+            {orderItems.map((itemText, i) => {
+              const got = gotPos[String(i)];
+              const correct = keyPos[String(i)];
+              const ok = !!got && String(got) === String(correct);
+              return (
+                <div
+                  key={i}
+                  className={`flex items-center gap-2 rounded-2xl border-2 p-3 text-sm ${ok ? 'border-emerald-300 bg-emerald-50' : 'border-rose-300 bg-rose-50'}`}
+                >
+                  <span className="flex-1 font-medium text-slate-700">
+                    {itemText ? renderExamText(itemText) : '—'}
+                  </span>
+                  <span className="shrink-0 text-xs text-slate-500">
+                    Kamu:{' '}
+                    <b className={ok ? 'text-emerald-600' : 'text-rose-600'}>{got ?? '—'}</b>
+                    {!ok && <> · Benar: <b className="text-emerald-600">{correct ?? '—'}</b></>}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ) : isMatching ? (
+          <div className="flex flex-col gap-2">
+            {matchLeft.map((leftText, i) => {
+              const gotKey = gotPairs[String(i)];
+              const correctKey = keyPairs[String(i)];
+              const ok = !!gotKey && gotKey === correctKey;
+              return (
+                <div
+                  key={i}
+                  className={`rounded-2xl border-2 p-3 ${ok ? 'border-emerald-300 bg-emerald-50' : 'border-rose-300 bg-rose-50'}`}
+                >
+                  <p className="text-sm font-medium text-slate-700">
+                    {i + 1}. {leftText ? renderExamText(leftText) : '—'}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Jawabanmu:{' '}
+                    <span className={ok ? 'font-bold text-emerald-600' : 'font-bold text-rose-600'}>
+                      {gotKey ? `${gotKey.toUpperCase()}. ${rightText(gotKey) ?? ''}` : '—'}
+                    </span>
+                    {!ok && (
+                      <>
+                        {' · '}Kunci:{' '}
+                        <span className="font-bold text-emerald-600">
+                          {correctKey ? `${correctKey.toUpperCase()}. ${rightText(correctKey) ?? ''}` : '—'}
+                        </span>
+                      </>
+                    )}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        ) : isFill ? (
+          <div className="flex flex-col gap-2">
+            <div
+              className={`rounded-2xl border-2 p-3.5 text-[15px] ${
+                q.is_correct ? 'border-emerald-300 bg-emerald-50' : answered ? 'border-rose-300 bg-rose-50' : 'border-slate-200 bg-white'
+              }`}
+            >
+              <span className="text-xs font-bold text-slate-400 uppercase">Jawabanmu</span>
+              <p className={`font-semibold ${q.is_correct ? 'text-emerald-700' : answered ? 'text-rose-600' : 'text-slate-400 italic'}`}>
+                {fillText.trim() || 'Tidak dijawab'}
+              </p>
+            </div>
+            <p className="text-xs text-slate-500">
+              Jawaban diterima:{' '}
+              <span className="font-bold text-emerald-600">{fillAccept.join(' · ') || '—'}</span>
+            </p>
+          </div>
+        ) : isMulti ? (
           <div className="flex flex-col gap-2.5">
             {multiOptions.map((opt) => {
               const isCorrect = correctSet.includes(opt.key);

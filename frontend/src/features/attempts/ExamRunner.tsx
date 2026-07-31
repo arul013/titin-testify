@@ -29,6 +29,9 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, string | null>>({});
   const [multi, setMulti] = useState<Record<string, string[]>>({}); // mcq_multi: himpunan opsi terpilih
+  const [text, setText] = useState<Record<string, string>>({}); // fill_blank/short_answer: jawaban teks
+  const textTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const [pairs, setPairs] = useState<Record<string, Record<string, string>>>({}); // matching: leftIdx→rightKey
   const [flags, setFlags] = useState<Set<string>>(new Set());
   const [current, setCurrent] = useState(0);
   const [endAt, setEndAt] = useState<number | null>(null);
@@ -48,13 +51,22 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
         setData(res);
         const init: Record<string, string | null> = {};
         const initMulti: Record<string, string[]> = {};
+        const initText: Record<string, string> = {};
+        const initPairs: Record<string, Record<string, string>> = {};
         res.questions.forEach((q) => {
           init[q.exam_question_id] = q.selected_answer;
-          const sel = (q.answer_json as { selected?: string[] } | null)?.selected;
-          if (Array.isArray(sel)) initMulti[q.exam_question_id] = sel;
+          const aj = q.answer_json as
+            | { selected?: string[]; text?: string; pairs?: Record<string, string>; positions?: Record<string, string> }
+            | null;
+          if (Array.isArray(aj?.selected)) initMulti[q.exam_question_id] = aj.selected;
+          if (typeof aj?.text === 'string') initText[q.exam_question_id] = aj.text;
+          if (aj?.pairs && typeof aj.pairs === 'object') initPairs[q.exam_question_id] = aj.pairs;
+          if (aj?.positions && typeof aj.positions === 'object') initPairs[q.exam_question_id] = aj.positions;
         });
         setAnswers(init);
         setMulti(initMulti);
+        setText(initText);
+        setPairs(initPairs);
         setEndAt(Date.now() + res.remaining_seconds * 1000);
         setRemaining(res.remaining_seconds);
         try {
@@ -147,6 +159,36 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
       .catch((e) => console.warn('autosave gagal', e));
   };
 
+  // fill_blank: ketik jawaban (autosave debounce 400ms; flush saat blur / pindah soal).
+  const saveText = (eqId: string, value: string) =>
+    void attemptsApi.saveAnswer(attemptId!, eqId, null, { text: value }).catch((e) => console.warn('autosave gagal', e));
+  const handleTextChange = (value: string) => {
+    if (!q || !attemptId || submittedRef.current) return;
+    const eqId = q.exam_question_id;
+    setText((prev) => ({ ...prev, [eqId]: value }));
+    if (textTimers.current[eqId]) clearTimeout(textTimers.current[eqId]);
+    textTimers.current[eqId] = setTimeout(() => saveText(eqId, value), 400);
+  };
+  const flushText = () => {
+    if (!q || !attemptId || submittedRef.current) return;
+    const eqId = q.exam_question_id;
+    if (textTimers.current[eqId]) {
+      clearTimeout(textTimers.current[eqId]);
+      delete textTimers.current[eqId];
+      saveText(eqId, text[eqId] ?? '');
+    }
+  };
+
+  // matching: item kiri(index) → opsi kanan(key). ordering: item(index) → posisi.
+  const handlePairChange = (leftIdx: number, rightKey: string) => {
+    if (!q || !attemptId || submittedRef.current) return;
+    const eqId = q.exam_question_id;
+    const nextPairs = { ...(pairs[eqId] ?? {}), [String(leftIdx)]: rightKey };
+    setPairs((prev) => ({ ...prev, [eqId]: nextPairs }));
+    const body = q.payload.question_type === 'ordering' ? { positions: nextPairs } : { pairs: nextPairs };
+    void attemptsApi.saveAnswer(attemptId, eqId, null, body).catch((e) => console.warn('autosave gagal', e));
+  };
+
   const toggleFlag = () => {
     if (!q) return;
     const eqId = q.exam_question_id;
@@ -193,10 +235,13 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
     );
   }
 
-  const isAnswered = (x: (typeof questions)[number]) =>
-    x.payload.question_type === 'mcq_multi'
-      ? (multi[x.exam_question_id]?.length ?? 0) > 0
-      : !!answers[x.exam_question_id];
+  const isAnswered = (x: (typeof questions)[number]) => {
+    const t = x.payload.question_type;
+    if (t === 'mcq_multi') return (multi[x.exam_question_id]?.length ?? 0) > 0;
+    if (t === 'fill_blank' || t === 'short_answer') return !!text[x.exam_question_id]?.trim();
+    if (t === 'matching' || t === 'ordering') return Object.keys(pairs[x.exam_question_id] ?? {}).length > 0;
+    return !!answers[x.exam_question_id];
+  };
   const answeredCount = questions.filter(isAnswered).length;
   const unanswered = questions.length - answeredCount;
   const palette: PaletteItem[] = questions.map((x) => ({
@@ -237,7 +282,7 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
           </span>
           <Button
             variant="primary"
-            onClick={() => setShowConfirm(true)}
+            onClick={() => { flushText(); setShowConfirm(true); }}
             className="font-bold flex items-center gap-2"
           >
             <Send className="w-4 h-4" />
@@ -262,13 +307,18 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
             onSelect={handleSelect}
             multiSelected={multi[q.exam_question_id] ?? []}
             onMultiToggle={handleMultiToggle}
+            textValue={text[q.exam_question_id] ?? ''}
+            onTextChange={handleTextChange}
+            onTextBlur={flushText}
+            pairs={pairs[q.exam_question_id] ?? {}}
+            onPairChange={handlePairChange}
             flagged={flags.has(q.exam_question_id)}
             onToggleFlag={toggleFlag}
             palette={palette}
             currentIndex={current}
-            onJump={setCurrent}
-            onPrev={() => setCurrent((i) => Math.max(0, i - 1))}
-            onNext={() => setCurrent((i) => Math.min(questions.length - 1, i + 1))}
+            onJump={(i) => { flushText(); setCurrent(i); }}
+            onPrev={() => { flushText(); setCurrent((i) => Math.max(0, i - 1)); }}
+            onNext={() => { flushText(); setCurrent((i) => Math.min(questions.length - 1, i + 1)); }}
           />
         </aside>
       </div>

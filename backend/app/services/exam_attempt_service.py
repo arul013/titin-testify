@@ -43,6 +43,30 @@ def _grade(qtype: str | None, correct_answer, answer_key_json, selected_answer, 
         if not key:
             return False
         return {str(x) for x in (got or [])} == {str(x) for x in key}
+    if qtype in ("fill_blank", "short_answer"):
+        accepted = answer_key_json.get("accept") if isinstance(answer_key_json, dict) else None
+        got = answer_json.get("text") if isinstance(answer_json, dict) else None
+        if not accepted or not got:
+            return False
+
+        def _norm(s):  # rapikan spasi + case-insensitive (standar completion)
+            return " ".join(str(s).strip().lower().split())
+
+        return _norm(got) in {_norm(a) for a in accepted}
+    if qtype == "matching":
+        key = answer_key_json.get("pairs") if isinstance(answer_key_json, dict) else None
+        got = answer_json.get("pairs") if isinstance(answer_json, dict) else None
+        if not key:
+            return False
+        got = got or {}
+        return all(str(got.get(str(k), "")) == str(v) for k, v in key.items())
+    if qtype == "ordering":
+        key = answer_key_json.get("positions") if isinstance(answer_key_json, dict) else None
+        got = answer_json.get("positions") if isinstance(answer_json, dict) else None
+        if not key:
+            return False
+        got = got or {}
+        return all(str(got.get(str(k), "")) == str(v) for k, v in key.items())
     return selected_answer is not None and selected_answer == correct_answer
 
 

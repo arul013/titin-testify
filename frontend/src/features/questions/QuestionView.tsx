@@ -58,7 +58,11 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
       : 'flex flex-col gap-6';
 
   const isTFNG = question.question_type === 'true_false_ng';
-  const isWE = !isTFNG && question.section === 'written_expression';
+  const isMulti = question.question_type === 'mcq_multi';
+  const isFill = question.question_type === 'fill_blank' || question.question_type === 'short_answer';
+  const isMatching = question.question_type === 'matching';
+  const isOrdering = question.question_type === 'ordering';
+  const isWE = !isTFNG && !isMulti && !isFill && !isMatching && !isOrdering && question.section === 'written_expression';
   const isListening = question.section === 'listening';
 
   // Audio soal berdiri sendiri (Listening standalone) — bila tak ada materi bersama.
@@ -218,6 +222,81 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
                     }`}
                   >
                     {['A', 'B', 'C', 'D'][i]}
+                  </div>
+                );
+              })}
+            </div>
+          ) : isOrdering ? (
+            /* ordering: langkah dalam urutan benar */
+            <div className="flex flex-col gap-2">
+              {((question.content_json?.items as string[] | undefined) ?? [])
+                .map((text, i) => ({
+                  text,
+                  pos: Number(((question.answer_json?.positions as Record<string, string> | undefined) ?? {})[String(i)] ?? 0),
+                }))
+                .sort((a, b) => a.pos - b.pos)
+                .map((it, idx) => (
+                  <div key={idx} className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/40 p-3 text-sm">
+                    <span className="shrink-0 font-bold text-emerald-700">{it.pos || '—'}.</span>
+                    <span className="flex-1 font-medium text-slate-700">
+                      {it.text ? renderExamText(it.text) : '—'}
+                    </span>
+                  </div>
+                ))}
+            </div>
+          ) : isMatching ? (
+            /* matching: item kiri → opsi kanan yang benar */
+            <div className="flex flex-col gap-2">
+              {((question.content_json?.left as string[] | undefined) ?? []).map((leftText, i) => {
+                const key = ((question.answer_json?.pairs as Record<string, string> | undefined) ?? {})[String(i)];
+                const right = (question.content_json?.right as string[] | undefined) ?? [];
+                const rt = key ? right['abcdefgh'.indexOf(key)] : undefined;
+                return (
+                  <div key={i} className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/40 p-3 text-sm">
+                    <span className="flex-1 font-medium text-slate-700">
+                      {i + 1}. {leftText ? renderExamText(leftText) : '—'}
+                    </span>
+                    <span className="shrink-0 font-bold text-emerald-700">
+                      → {key ? `${key.toUpperCase()}. ${rt ?? ''}` : '—'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : isFill ? (
+            /* fill_blank: tampilkan daftar jawaban yang diterima */
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3.5">
+              <span className="text-xs font-bold uppercase text-emerald-700">Jawaban diterima</span>
+              <p className="mt-0.5 text-sm font-semibold text-emerald-800">
+                {((question.answer_json?.accept as string[] | undefined) ?? []).join(' · ') || '—'}
+              </p>
+            </div>
+          ) : isMulti ? (
+            /* mcq_multi: opsi jumlah-variabel dari content_json, tandai himpunan benar */
+            <div className="flex flex-col gap-3">
+              {((question.content_json?.options as string[] | undefined) ?? []).map((text, i) => {
+                const key = 'abcdefgh'[i];
+                const isCorrect = ((question.answer_json?.correct as string[] | undefined) ?? []).includes(key);
+                return (
+                  <div
+                    key={i}
+                    className={`flex items-center gap-3.5 border p-3.5 rounded-xl text-sm font-medium transition-all ${
+                      isCorrect
+                        ? 'border-emerald-200 bg-emerald-50/40 text-emerald-800 shadow-sm shadow-emerald-50'
+                        : 'border-slate-100 text-slate-600 bg-slate-50/30'
+                    }`}
+                  >
+                    <span
+                      className={`flex shrink-0 items-center justify-center font-bold text-xs h-7 w-7 rounded-lg border ${
+                        isCorrect ? 'border-emerald-300 bg-emerald-500 text-white' : 'border-slate-200 bg-white text-slate-500'
+                      }`}
+                    >
+                      {'ABCDEFGH'[i]}
+                    </span>
+                    <span className="flex-1 leading-normal">
+                      {text ? renderExamText(text) : <span className="text-slate-300 italic">—</span>}
+                    </span>
+                    {isCorrect && <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600 shrink-0" />}
                   </div>
                 );
               })}
