@@ -84,13 +84,17 @@ function ReviewCard({ q, number }: { q: ReviewQuestion; number: number }) {
   const isFill = q.payload.question_type === 'fill_blank' || q.payload.question_type === 'short_answer';
   const isMatching = q.payload.question_type === 'matching';
   const isOrdering = q.payload.question_type === 'ordering';
+  const isEssay = q.payload.question_type === 'essay';
   const letterMode =
-    !isTFNG && !isMulti && !isFill && !isMatching && !isOrdering && (q.section === 'written_expression' || !!q.payload.options_image_url);
+    !isTFNG && !isMulti && !isFill && !isMatching && !isOrdering && !isEssay && (q.section === 'written_expression' || !!q.payload.options_image_url);
   const optKeys = isTFNG ? (['a', 'b', 'c'] as const) : KEYS;
 
   // fill_blank/short_answer: jawaban teks peserta vs daftar jawaban diterima
   const fillText = (q.answer_json?.text as string | undefined) ?? '';
   const fillAccept = (q.answer_key_json?.accept as string[] | undefined) ?? [];
+
+  // essay: jawaban teks peserta (dinilai manual)
+  const essayText = (q.answer_json?.text as string | undefined) ?? '';
 
   // matching: pasangan peserta vs kunci
   const matchLeft = (q.payload.content_json?.left as string[] | undefined) ?? [];
@@ -114,11 +118,13 @@ function ReviewCard({ q, number }: { q: ReviewQuestion; number: number }) {
     ? pickedSet.length > 0
     : isFill
       ? !!fillText.trim()
-      : isMatching
-        ? Object.keys(gotPairs).length > 0
-        : isOrdering
-          ? Object.keys(gotPos).length > 0
-          : q.selected_answer != null;
+      : isEssay
+        ? !!essayText.trim()
+        : isMatching
+          ? Object.keys(gotPairs).length > 0
+          : isOrdering
+            ? Object.keys(gotPos).length > 0
+            : q.selected_answer != null;
 
   const optVal = (k: string) =>
     isTFNG
@@ -139,7 +145,13 @@ function ReviewCard({ q, number }: { q: ReviewQuestion; number: number }) {
             {sectionLabel(q.section)}
           </span>
         </div>
-        {q.is_correct ? (
+        {isEssay ? (
+          <Badge variant="info">
+            <span className="flex items-center gap-1">
+              <Lightbulb className="h-3.5 w-3.5" /> Dinilai Manual
+            </span>
+          </Badge>
+        ) : q.is_correct ? (
           <Badge variant="success">
             <span className="flex items-center gap-1">
               <CheckCircle2 className="h-3.5 w-3.5" /> Benar
@@ -228,6 +240,19 @@ function ReviewCard({ q, number }: { q: ReviewQuestion; number: number }) {
                 </div>
               );
             })}
+          </div>
+        ) : isEssay ? (
+          <div className="flex flex-col gap-2">
+            <div className="rounded-2xl border-2 border-slate-200 bg-white p-3.5">
+              <span className="text-xs font-bold text-slate-400 uppercase">Jawaban esaimu</span>
+              <p className={`mt-1 text-[15px] whitespace-pre-wrap leading-relaxed ${answered ? 'text-slate-700' : 'text-slate-400 italic'}`}>
+                {essayText.trim() || 'Tidak dijawab'}
+              </p>
+            </div>
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-indigo-700">
+              <Lightbulb className="h-3.5 w-3.5" />
+              Jawaban esai dinilai manual oleh penilai berdasarkan rubrik.
+            </p>
           </div>
         ) : isFill ? (
           <div className="flex flex-col gap-2">

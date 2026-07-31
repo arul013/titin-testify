@@ -238,7 +238,7 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
   const isAnswered = (x: (typeof questions)[number]) => {
     const t = x.payload.question_type;
     if (t === 'mcq_multi') return (multi[x.exam_question_id]?.length ?? 0) > 0;
-    if (t === 'fill_blank' || t === 'short_answer') return !!text[x.exam_question_id]?.trim();
+    if (t === 'fill_blank' || t === 'short_answer' || t === 'essay') return !!text[x.exam_question_id]?.trim();
     if (t === 'matching' || t === 'ordering') return Object.keys(pairs[x.exam_question_id] ?? {}).length > 0;
     return !!answers[x.exam_question_id];
   };

@@ -640,9 +640,32 @@ class ExamService:
                         "answer_json": q.get("answer_json"),
                         "scoring_mode": q.get("scoring_mode") or "auto",
                         "max_score": q.get("max_score", 1),
+                        # F1.2: rubrik dibekukan (diisi setelah loop untuk item manual).
+                        "rubric_json": None,
+                        "_rubric_id": q.get("rubric_id"),  # sementara → dihapus sebelum insert
                         "payload": ExamService._question_payload(q, passage),
                     })
                     count += 1
+
+        # F1.2: bekukan rubrik untuk item manual (satu query untuk semua rubric_id).
+        rubric_ids = {r["_rubric_id"] for r in rows if r.get("scoring_mode") == "manual" and r.get("_rubric_id")}
+        rubric_map: dict = {}
+        if rubric_ids:
+            rres = (
+                supabase.table("rubrics").select("id, name, criteria, max_total")
+                .in_("id", list(rubric_ids)).execute().data or []
+            )
+            rubric_map = {r["id"]: r for r in rres}
+        for r in rows:
+            rid = r.pop("_rubric_id", None)
+            if r.get("scoring_mode") == "manual" and rid and rid in rubric_map:
+                rb = rubric_map[rid]
+                r["rubric_json"] = {
+                    "rubric_id": rid,
+                    "name": rb.get("name"),
+                    "criteria": rb.get("criteria") or [],
+                    "max_total": rb.get("max_total"),
+                }
 
         # Bangun ulang snapshot (aman: hanya bila belum ada percobaan — dijaga di publish_exam).
         supabase.table("exam_questions").delete().eq("exam_id", exam_id).execute()

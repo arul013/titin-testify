@@ -62,7 +62,8 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
   const isFill = question.question_type === 'fill_blank' || question.question_type === 'short_answer';
   const isMatching = question.question_type === 'matching';
   const isOrdering = question.question_type === 'ordering';
-  const isWE = !isTFNG && !isMulti && !isFill && !isMatching && !isOrdering && question.section === 'written_expression';
+  const isEssay = question.question_type === 'essay';
+  const isWE = !isTFNG && !isMulti && !isFill && !isMatching && !isOrdering && !isEssay && question.section === 'written_expression';
   const isListening = question.section === 'listening';
 
   // Audio soal berdiri sendiri (Listening standalone) — bila tak ada materi bersama.
@@ -300,6 +301,22 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
                   </div>
                 );
               })}
+            </div>
+          ) : isEssay ? (
+            /* essay: dinilai manual — tampilkan area jawaban + catatan rubrik */
+            <div className="flex flex-col gap-2.5">
+              {(question.content_json?.word_limit as string | undefined) && (
+                <p className="text-xs font-bold text-brand uppercase">
+                  {question.content_json?.word_limit as string}
+                </p>
+              )}
+              <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-4 text-sm text-slate-400 italic min-h-24 flex items-center">
+                Peserta mengetik jawaban esai di sini…
+              </div>
+              <div className="flex items-center gap-2 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200/60 rounded-lg px-3 py-2 w-fit">
+                <BookOpen className="w-3.5 h-3.5" />
+                Dinilai manual oleh penilai berdasarkan rubrik
+              </div>
             </div>
           ) : isTFNG ? (
             /* True/False/Not Given: opsi tetap, tandai jawaban benar */

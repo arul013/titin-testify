@@ -7,8 +7,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ToggleGroup } from '@/components/ui/toggle-group';
 import { FileUploader } from '@/components/ui/file-uploader';
 import { UnderlineEditor } from './UnderlineEditor';
-import { X, BookOpen, HelpCircle, Image as ImageIcon, Music, ChevronDown } from 'lucide-react';
+import { X, BookOpen, HelpCircle, Image as ImageIcon, Music, ChevronDown, ClipboardCheck } from 'lucide-react';
 import { toast } from 'sonner';
+import { useRubrics } from '@/features/scoring/useRubrics';
 import type { QuestionForm } from './useQuestionForm';
 
 interface QuestionFieldsProps {
@@ -25,7 +26,8 @@ interface QuestionFieldsProps {
 export const QuestionFields: React.FC<QuestionFieldsProps> = ({ form, idPrefix = 'qf' }) => {
   const {
     section, questionText, setQuestionText,
-    questionType, setQuestionType, isTFNG, isMulti, isTextAnswer, isShort, isMatching, isOrdering,
+    questionType, setQuestionType, isTFNG, isMulti, isTextAnswer, isShort, isMatching, isOrdering, isEssay,
+    rubricId, setRubricId, setEssayMaxScore,
     multiOptions, multiCorrect, updateMultiOption, addMultiOption, removeMultiOption, toggleMultiCorrect,
     acceptList, updateAccept, addAccept, removeAccept,
     wordLimit, setWordLimit,
@@ -43,6 +45,9 @@ export const QuestionFields: React.FC<QuestionFieldsProps> = ({ form, idPrefix =
     isListening, isListeningStandalone, isWE, showImageOption, allowImageAnswers, effectiveFormat,
   } = form;
 
+  // Pustaka rubrik untuk soal esai (dinilai manual).
+  const { rubrics } = useRubrics();
+
   return (
     <>
       {/* Tipe soal (F1) — menentukan bentuk editor jawaban */}
@@ -56,6 +61,7 @@ export const QuestionFields: React.FC<QuestionFieldsProps> = ({ form, idPrefix =
           <option value="short_answer">Jawaban Singkat (Short Answer)</option>
           <option value="matching">Menjodohkan (Matching)</option>
           <option value="ordering">Mengurutkan (Ordering)</option>
+          <option value="essay">Esai / Writing (dinilai manual)</option>
         </Select>
       </div>
 
@@ -468,6 +474,51 @@ export const QuestionFields: React.FC<QuestionFieldsProps> = ({ form, idPrefix =
           )}
           {errors.orderItems && <p className="mt-1.5 text-xs text-red-500">{errors.orderItems}</p>}
           {errors.orderPos && <p className="mt-1.5 text-xs text-red-500">{errors.orderPos}</p>}
+        </div>
+      ) : isEssay ? (
+        <div id={`${idPrefix}-rubric`} className="scroll-mt-4 flex flex-col gap-4">
+          <div className="rounded-2xl border border-indigo-100 bg-indigo-50/40 p-3.5 flex items-start gap-2.5">
+            <ClipboardCheck className="w-4 h-4 text-indigo-600 mt-0.5 shrink-0" />
+            <p className="text-[11px] text-indigo-700 leading-relaxed">
+              Soal esai <strong>dinilai manual</strong> memakai rubrik. Peserta mengetik jawaban panjang;
+              skor diberi penilai (admin) berdasarkan kriteria rubrik yang dipilih.
+            </p>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1.5">Rubrik penilaian</label>
+            <Select
+              value={rubricId}
+              onChange={(e) => {
+                const id = e.target.value;
+                setRubricId(id);
+                const r = rubrics.find((x) => x.id === id);
+                setEssayMaxScore(r ? r.max_total : 1);
+                clearError('rubric');
+              }}
+            >
+              <option value="">— pilih rubrik —</option>
+              {rubrics.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name} (maks {r.max_total})
+                </option>
+              ))}
+            </Select>
+            {rubrics.length === 0 && (
+              <p className="mt-1 text-[10px] text-slate-400">
+                Belum ada rubrik. Buat dulu di menu Skema Penilaian → Rubrik Penilaian.
+              </p>
+            )}
+            {errors.rubric && <p className="mt-1.5 text-xs text-red-500">{errors.rubric}</p>}
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1.5">Panduan panjang jawaban (opsional)</label>
+            <Input
+              value={wordLimit}
+              onChange={(e) => setWordLimit(e.target.value)}
+              placeholder="Mis. Tulis ±250 kata"
+            />
+            <p className="mt-1 text-[10px] text-slate-400">Ditampilkan ke peserta sebagai petunjuk (tak membatasi otomatis).</p>
+          </div>
         </div>
       ) : (
         <div>

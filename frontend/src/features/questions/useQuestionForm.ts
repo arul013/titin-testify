@@ -48,9 +48,17 @@ export function useQuestionForm({ initialData, passageId, defaultSection }: UseQ
     setAcceptList((p) => p.map((x, idx) => (idx === i ? v : x)));
   const addAccept = () => setAcceptList((p) => [...p, '']);
   const removeAccept = (i: number) => setAcceptList((p) => p.filter((_, idx) => idx !== i));
-  // short_answer: batas kata opsional (mis. "NO MORE THAN THREE WORDS").
+  // short_answer / essay: batas kata opsional (mis. "NO MORE THAN THREE WORDS" / "±250 kata").
   const [wordLimit, setWordLimit] = useState<string>(
     (initialData?.content_json?.word_limit as string | undefined) ?? '',
+  );
+
+  // essay (manual): rubrik penilaian + poin maks (diturunkan dari max_total rubrik).
+  const [rubricId, setRubricId] = useState<string>(initialData?.rubric_id ?? '');
+  const [essayMaxScore, setEssayMaxScore] = useState<number>(
+    typeof initialData?.max_score === 'number' && initialData.scoring_mode === 'manual'
+      ? initialData.max_score
+      : 1,
   );
 
   // matching: item kiri, opsi kanan (key a/b/… by index), pasangan benar (leftIdx→rightKey).
@@ -146,13 +154,14 @@ export function useQuestionForm({ initialData, passageId, defaultSection }: UseQ
   const isTextAnswer = isFill || isShort;             // jawaban teks bebas (cocokkan daftar diterima)
   const isMatching = questionType === 'matching';     // pasangkan kiri↔kanan
   const isOrdering = questionType === 'ordering';      // urutkan langkah
-  const isFixedType = isTFNG || isMulti || isTextAnswer || isMatching || isOrdering;
+  const isEssay = questionType === 'essay';            // esai/writing (dinilai manual via rubrik)
+  const isFixedType = isTFNG || isMulti || isTextAnswer || isMatching || isOrdering || isEssay;
   const isListeningStandalone = section === 'listening' && !passageId;
   const isListening = section === 'listening';
   const isWE = !isFixedType && section === 'written_expression';
   const showImageOption = section === 'reading' || section === 'structure';
   const allowImageAnswers = !isFixedType && (section === 'listening' || section === 'reading');
-  const effectiveFormat = isTFNG ? 'tfng' : isMulti ? 'multi' : isTextAnswer ? 'textans' : isMatching ? 'matching' : isOrdering ? 'ordering' : isWE ? 'we' : allowImageAnswers ? answerFormat : 'text';
+  const effectiveFormat = isTFNG ? 'tfng' : isMulti ? 'multi' : isTextAnswer ? 'textans' : isMatching ? 'matching' : isOrdering ? 'ordering' : isEssay ? 'essay' : isWE ? 'we' : allowImageAnswers ? answerFormat : 'text';
 
   const clearError = (key: string) =>
     setErrors((prev) => {
@@ -187,6 +196,9 @@ export function useQuestionForm({ initialData, passageId, defaultSection }: UseQ
       if (matchRight.filter((x) => x.trim()).length < 2) e.matchRight = 'Isi minimal 2 opsi kanan.';
       else if (matchRight.some((x) => !x.trim())) e.matchRight = 'Semua opsi kanan harus terisi.';
       if (matchLeft.some((_, i) => !matchPairs[String(i)])) e.matchPairs = 'Tentukan pasangan benar untuk semua item kiri.';
+    } else if (isEssay) {
+      if (!questionText.trim()) e.questionText = 'Perintah/soal esai wajib diisi.';
+      if (!rubricId) e.rubric = 'Pilih rubrik penilaian untuk soal esai.';
     } else if (isOrdering) {
       if (orderItems.filter((x) => x.trim()).length < 2) e.orderItems = 'Isi minimal 2 langkah.';
       else if (orderItems.some((x) => !x.trim())) e.orderItems = 'Semua langkah harus terisi.';
@@ -240,7 +252,7 @@ export function useQuestionForm({ initialData, passageId, defaultSection }: UseQ
       section, questionType, difficulty, questionText, optionA, optionB, optionC, optionD,
       correctAnswer, explanation, status, imageUrl, useImage, answerFormat, optionsImageUrl, audioUrl,
       multiOptions, multiCorrect, acceptList, wordLimit, matchLeft, matchRight, matchPairs,
-      orderItems, orderPos,
+      orderItems, orderPos, rubricId, essayMaxScore,
     ]);
   const [initialSnapshot, setInitialSnapshot] = useState(snapshot);
   const dirty = snapshot() !== initialSnapshot;
@@ -312,7 +324,7 @@ export function useQuestionForm({ initialData, passageId, defaultSection }: UseQ
       ? { left: matchLeft, right: matchRight }
       : isOrdering
         ? { items: orderItems }
-        : isShort && wordLimit.trim()
+        : (isShort || isEssay) && wordLimit.trim()
           ? { word_limit: wordLimit.trim() }
           : null;
   const answerJson = isMulti
@@ -331,6 +343,10 @@ export function useQuestionForm({ initialData, passageId, defaultSection }: UseQ
     question_type: questionType,
     content_json: contentJson,
     answer_json: answerJson,
+    // F1.2: essay dinilai manual (poin = max_total rubrik); tipe lain auto (1 poin).
+    scoring_mode: isEssay ? 'manual' : 'auto',
+    rubric_id: isEssay ? rubricId || null : null,
+    max_score: isEssay ? essayMaxScore : 1,
     question_text: questionText,
     option_a: noOptionText ? '' : optionA,
     option_b: noOptionText ? '' : optionB,
@@ -376,7 +392,8 @@ export function useQuestionForm({ initialData, passageId, defaultSection }: UseQ
   return {
     // values + setters
     section, setSection,
-    questionType, setQuestionType, isTFNG, isMulti, isFill, isShort, isTextAnswer, isMatching, isOrdering,
+    questionType, setQuestionType, isTFNG, isMulti, isFill, isShort, isTextAnswer, isMatching, isOrdering, isEssay,
+    rubricId, setRubricId, essayMaxScore, setEssayMaxScore,
     multiOptions, multiCorrect,
     updateMultiOption, addMultiOption, removeMultiOption, toggleMultiCorrect,
     acceptList, updateAccept, addAccept, removeAccept,

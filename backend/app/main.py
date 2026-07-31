@@ -2,14 +2,17 @@
 Learning Nexus CBT — FastAPI Application Entry Point
 """
 
+from typing import cast
+
 from fastapi import FastAPI
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from starlette.types import ExceptionHandler
 
 from app.config import get_settings
 from app.middleware.cors import setup_cors
 from app.middleware.rate_limit import limiter
-from app.routes import auth, users, questions, upload, exams, scoring_schemes, exam_attempts, test_types, scoring
+from app.routes import auth, users, questions, upload, exams, scoring_schemes, exam_attempts, test_types, scoring, rubrics
 
 settings = get_settings()
 
@@ -22,8 +25,9 @@ app = FastAPI(
 )
 
 # Rate limiting (per-IP, Redis-ready). Handler mengubah RateLimitExceeded → 429.
+# cast: signature slowapi (RateLimitExceeded) beda dgn tipe Starlette (Exception) — aman saat run.
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, cast(ExceptionHandler, _rate_limit_exceeded_handler))
 
 # Setup middleware
 setup_cors(app)
@@ -35,6 +39,7 @@ app.include_router(questions.router)
 app.include_router(upload.router)
 app.include_router(exams.router)
 app.include_router(scoring_schemes.router)
+app.include_router(rubrics.router)
 app.include_router(exam_attempts.router)
 app.include_router(test_types.router)
 app.include_router(scoring.router)

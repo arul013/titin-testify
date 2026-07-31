@@ -16,6 +16,10 @@ export interface Question {
   question_type?: string;
   content_json?: Record<string, unknown> | null;
   answer_json?: Record<string, unknown> | null;
+  /** F1.2: penilaian manual (essay/speaking). */
+  scoring_mode?: string;
+  rubric_id?: string | null;
+  max_score?: number;
   question_text: string;
   option_a: string;
   option_b: string;

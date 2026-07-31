@@ -4,7 +4,7 @@ import React from 'react';
 import { Flag, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { renderExamText } from '@/features/questions/examText';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Input, Textarea } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/src/lib/cn';
 import type { QuestionPayload } from './api';
@@ -69,12 +69,13 @@ export const AnswerSheet: React.FC<AnswerSheetProps> = ({
   const isTextAnswer = q.question_type === 'fill_blank' || q.question_type === 'short_answer';
   const isMatching = q.question_type === 'matching';
   const isOrdering = q.question_type === 'ordering';
+  const isEssay = q.question_type === 'essay';
   const wordLimit = q.content_json?.word_limit as string | undefined;
   const matchLeft = (q.content_json?.left as string[] | undefined) ?? [];
   const matchRight = (q.content_json?.right as string[] | undefined) ?? [];
   const orderItems = (q.content_json?.items as string[] | undefined) ?? [];
   const letterMode =
-    !isTFNG && !isMulti && !isTextAnswer && !isMatching && !isOrdering && (q.section === 'written_expression' || !!q.options_image_url);
+    !isTFNG && !isMulti && !isTextAnswer && !isMatching && !isOrdering && !isEssay && (q.section === 'written_expression' || !!q.options_image_url);
 
   // mcq_multi: opsi dari content_json.options (jumlah variabel) + batas "pilih N".
   const multiOptions = ((q.content_json?.options as string[] | undefined) ?? []).map((text, i) => ({
@@ -167,6 +168,21 @@ export const AnswerSheet: React.FC<AnswerSheetProps> = ({
               </Select>
             </div>
           ))}
+        </div>
+      ) : isEssay ? (
+        <div className="flex flex-col gap-1.5">
+          <p className="text-xs font-semibold text-slate-500">
+            Tulis jawaban esaimu:
+            {wordLimit && <span className="ml-1 font-bold text-brand uppercase">({wordLimit})</span>}
+          </p>
+          <Textarea
+            value={textValue}
+            onChange={(e) => onTextChange?.(e.target.value)}
+            onBlur={() => onTextBlur?.()}
+            rows={12}
+            placeholder="Ketik jawaban esaimu di sini…"
+          />
+          <p className="text-[11px] text-slate-400">Jawaban esai dinilai manual oleh penilai setelah ujian.</p>
         </div>
       ) : isTextAnswer ? (
         <div className="flex flex-col gap-1.5">

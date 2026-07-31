@@ -35,8 +35,11 @@ def _grade(qtype: str | None, correct_answer, answer_key_json, selected_answer, 
     """Nilai satu jawaban auto-scored per tipe soal (True = benar penuh).
 
     - mcq_multi: himpunan pilihan peserta HARUS sama persis dengan kunci ({correct:[…]}).
+    - essay/speaking: dinilai MANUAL — bukan auto (selalu False di sini; skor diisi penilai).
     - default (mcq_single/true_false_ng/…): single-choice, selected == correct_answer.
     """
+    if qtype in ("essay", "speaking"):
+        return False
     if qtype == "mcq_multi":
         key = answer_key_json.get("correct") if isinstance(answer_key_json, dict) else None
         got = answer_json.get("selected") if isinstance(answer_json, dict) else None

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Gauge, GraduationCap, ChevronRight, Clock, Layers } from 'lucide-react';
+import { Gauge, GraduationCap, ChevronRight, Clock, Layers, ClipboardCheck } from 'lucide-react';
 import { PageContainer } from '@/components/ui/page-container';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
@@ -95,6 +95,29 @@ export function SkemaRooms() {
         />
       }
     >
+      {/* Alat penilaian lintas jenis tes */}
+      <section className="flex flex-col gap-3">
+        <h2 className="text-xs font-extrabold text-slate-500 uppercase tracking-wide">Alat Penilaian</h2>
+        <Card
+          variant="interactive"
+          onClick={() => router.push('/skema-penilaian/rubrik')}
+          className="group p-5 rounded-2xl cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
+        >
+          <div className="flex items-start gap-3.5">
+            <span className="shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center bg-linear-to-br from-brand-start to-brand-end text-white shadow-sm shadow-brand/20">
+              <ClipboardCheck className="w-5 h-5" />
+            </span>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-extrabold text-base text-slate-800">Rubrik Penilaian</h3>
+              <p className="text-xs mt-0.5 text-slate-500">
+                Kelola pustaka rubrik untuk penilaian manual esai/writing (dipakai ulang lintas soal).
+              </p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-brand transition-colors shrink-0 mt-0.5" />
+          </div>
+        </Card>
+      </section>
+
       {isLoading ? (
         <div className={gridClass}>
           {[0, 1, 2].map((i) => (
