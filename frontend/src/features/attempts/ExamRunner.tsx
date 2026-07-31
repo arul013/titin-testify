@@ -2,12 +2,12 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Clock, Send, Loader2, AlertTriangle, ArrowLeft, ListChecks } from 'lucide-react';
+import { Clock, Send, Loader2, AlertTriangle, ArrowLeft, ListChecks, ArrowRightCircle, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { cn } from '@/src/lib/cn';
 import { SECTION_LABELS, type ExamSectionId } from '@/features/exams/hooks/useExams';
-import { attemptsApi, type StartAttemptResponse } from './api';
+import { attemptsApi, type StartAttemptResponse, type SectionTiming } from './api';
 import { SoalPanel } from './SoalPanel';
 import { AnswerSheet, type PaletteItem } from './AnswerSheet';
 
@@ -29,7 +29,7 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, string | null>>({});
   const [multi, setMulti] = useState<Record<string, string[]>>({}); // mcq_multi: himpunan opsi terpilih
-  const [text, setText] = useState<Record<string, string>>({}); // fill_blank/short_answer: jawaban teks
+  const [text, setText] = useState<Record<string, string>>({}); // fill_blank/short_answer/essay: jawaban teks
   const textTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const [pairs, setPairs] = useState<Record<string, Record<string, string>>>({}); // matching: leftIdx→rightKey
   const [flags, setFlags] = useState<Set<string>>(new Set());
@@ -38,6 +38,13 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
   const [remaining, setRemaining] = useState(0);
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // F1.4b: timing per-bagian (mode berurutan). Null → 1 timer global (perilaku lama).
+  const [sectionTiming, setSectionTiming] = useState<SectionTiming | null>(null);
+  const [sectionEndAt, setSectionEndAt] = useState<number | null>(null);
+  const [sectionRemaining, setSectionRemaining] = useState(0);
+  const [showAdvanceConfirm, setShowAdvanceConfirm] = useState(false);
+  const [advancing, setAdvancing] = useState(false);
 
   const submittedRef = useRef(false);
 
@@ -69,6 +76,11 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
         setPairs(initPairs);
         setEndAt(Date.now() + res.remaining_seconds * 1000);
         setRemaining(res.remaining_seconds);
+        if (res.section_timing) {
+          setSectionTiming(res.section_timing);
+          setSectionEndAt(Date.now() + res.section_timing.current_remaining_seconds * 1000);
+          setSectionRemaining(res.section_timing.current_remaining_seconds);
+        }
         try {
           const raw = localStorage.getItem(flagsKey(res.attempt_id));
           if (raw) setFlags(new Set(JSON.parse(raw) as string[]));
@@ -106,7 +118,51 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
     }
   }, [attemptId, router]);
 
-  // ── Timer countdown + auto-submit ──
+  const perSection = !!sectionTiming;
+  const order = sectionTiming?.order ?? [];
+  const activeSection = sectionTiming?.current_section ?? null;
+  const sectionIndex = activeSection ? order.indexOf(activeSection) : -1;
+  const isLastSection = perSection && order.length > 0 && activeSection === order[order.length - 1];
+
+  const allQuestions = data?.questions ?? [];
+  const questions = perSection ? allQuestions.filter((x) => x.section === activeSection) : allQuestions;
+  const q = questions[current];
+
+  // ── Maju ke bagian berikutnya (kunci bagian aktif) ──
+  const doAdvance = useCallback(
+    async (section: string) => {
+      if (!attemptId || submittedRef.current) return;
+      // flush teks tertunda bagian ini
+      Object.keys(textTimers.current).forEach((eqId) => {
+        clearTimeout(textTimers.current[eqId]);
+        delete textTimers.current[eqId];
+      });
+      setAdvancing(true);
+      try {
+        const res = await attemptsApi.advance(attemptId, section);
+        setSectionTiming(res);
+        setCurrent(0);
+        if (!res.finished) {
+          setSectionEndAt(Date.now() + res.current_remaining_seconds * 1000);
+          setSectionRemaining(res.current_remaining_seconds);
+        }
+      } catch (err) {
+        console.warn('advance gagal', err);
+      } finally {
+        setAdvancing(false);
+      }
+    },
+    [attemptId],
+  );
+
+  // Semua bagian selesai (waktu habis) → kumpulkan otomatis (defer keluar dari body efek).
+  useEffect(() => {
+    if (!sectionTiming?.finished) return;
+    const t = setTimeout(() => void doSubmit(), 0);
+    return () => clearTimeout(t);
+  }, [sectionTiming, doSubmit]);
+
+  // ── Timer global (dinding keras / mode tanpa per-bagian) ──
   useEffect(() => {
     if (endAt === null) return;
     const tick = () => {
@@ -121,6 +177,21 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
     return () => clearInterval(id);
   }, [endAt, doSubmit]);
 
+  // ── Timer per-bagian ──
+  useEffect(() => {
+    if (!perSection || sectionEndAt === null) return;
+    const tick = () => {
+      const left = Math.round((sectionEndAt - Date.now()) / 1000);
+      setSectionRemaining(left);
+      if (left <= 0) {
+        clearInterval(id);
+        if (activeSection) void doAdvance(activeSection); // habis → kunci & lanjut (bagian terakhir → finished → submit)
+      }
+    };
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [perSection, sectionEndAt, activeSection, doAdvance]);
+
   const persistFlags = (next: Set<string>) => {
     if (!attemptId) return;
     try {
@@ -129,9 +200,6 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
       /* ignore */
     }
   };
-
-  const questions = data?.questions ?? [];
-  const q = questions[current];
 
   const handleSelect = (key: string) => {
     if (!q || !attemptId || submittedRef.current) return;
@@ -159,7 +227,7 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
       .catch((e) => console.warn('autosave gagal', e));
   };
 
-  // fill_blank: ketik jawaban (autosave debounce 400ms; flush saat blur / pindah soal).
+  // fill_blank/essay: ketik jawaban (autosave debounce 400ms; flush saat blur / pindah soal).
   const saveText = (eqId: string, value: string) =>
     void attemptsApi.saveAnswer(attemptId!, eqId, null, { text: value }).catch((e) => console.warn('autosave gagal', e));
   const handleTextChange = (value: string) => {
@@ -249,10 +317,15 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
     flagged: flags.has(x.exam_question_id),
   }));
 
+  const shownRemaining = perSection ? sectionRemaining : remaining;
   const timerColor =
-    remaining <= 60 ? 'text-red-600 bg-red-50 border-red-200' :
-    remaining <= 300 ? 'text-amber-600 bg-amber-50 border-amber-200' :
+    shownRemaining <= 60 ? 'text-red-600 bg-red-50 border-red-200' :
+    shownRemaining <= 300 ? 'text-amber-600 bg-amber-50 border-amber-200' :
     'text-slate-700 bg-slate-50 border-slate-200';
+
+  const activeLabel = activeSection
+    ? SECTION_LABELS[activeSection as ExamSectionId] ?? activeSection
+    : SECTION_LABELS[q.section as ExamSectionId] ?? q.section;
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-100 flex flex-col">
@@ -261,7 +334,15 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
         <div className="min-w-0">
           <h1 className="font-extrabold text-slate-800 text-sm md:text-base truncate">{data.title}</h1>
           <p className="text-xs text-brand font-bold uppercase tracking-wide">
-            {SECTION_LABELS[q.section as ExamSectionId] ?? q.section} · Soal {current + 1}/{questions.length}
+            {perSection ? (
+              <>
+                {activeLabel} · Bagian {sectionIndex + 1}/{order.length} · Soal {current + 1}/{questions.length}
+              </>
+            ) : (
+              <>
+                {activeLabel} · Soal {current + 1}/{questions.length}
+              </>
+            )}
           </p>
         </div>
 
@@ -272,7 +353,8 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
           )}
         >
           <Clock className="w-5 h-5" />
-          {fmtClock(remaining)}
+          {fmtClock(shownRemaining)}
+          {perSection && <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-wide opacity-70">bagian</span>}
         </div>
 
         <div className="flex items-center gap-3">
@@ -280,16 +362,54 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
             <ListChecks className="w-4 h-4 text-brand" />
             {answeredCount}/{questions.length} terjawab
           </span>
-          <Button
-            variant="primary"
-            onClick={() => { flushText(); setShowConfirm(true); }}
-            className="font-bold flex items-center gap-2"
-          >
-            <Send className="w-4 h-4" />
-            Kumpulkan
-          </Button>
+          {perSection && !isLastSection ? (
+            <Button
+              variant="primary"
+              onClick={() => { flushText(); setShowAdvanceConfirm(true); }}
+              loading={advancing}
+              className="font-bold flex items-center gap-2"
+            >
+              <ArrowRightCircle className="w-4 h-4" />
+              Selesai & Lanjut
+            </Button>
+          ) : (
+            <Button
+              variant="primary"
+              onClick={() => { flushText(); setShowConfirm(true); }}
+              className="font-bold flex items-center gap-2"
+            >
+              <Send className="w-4 h-4" />
+              Kumpulkan
+            </Button>
+          )}
         </div>
       </header>
+
+      {/* Bilah bagian (mode per-bagian) */}
+      {perSection && (
+        <div className="shrink-0 bg-white/70 border-b border-slate-200 px-4 md:px-6 py-2 flex items-center gap-2 overflow-x-auto">
+          {order.map((s, i) => {
+            const done = sectionTiming?.done_sections.includes(s);
+            const isActive = s === activeSection;
+            return (
+              <span
+                key={s}
+                className={cn(
+                  'inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full border whitespace-nowrap',
+                  isActive
+                    ? 'border-brand bg-brand/10 text-brand'
+                    : done
+                      ? 'border-slate-200 bg-slate-50 text-slate-400'
+                      : 'border-slate-100 bg-white text-slate-400',
+                )}
+              >
+                {done && <Lock className="w-3 h-3" />}
+                {i + 1}. {SECTION_LABELS[s as ExamSectionId] ?? s}
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       {/* ── Body: kiri Soal · kanan Lembar Jawaban ── */}
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_minmax(360px,440px)]">
@@ -323,6 +443,36 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
         </aside>
       </div>
 
+      {/* ── Konfirmasi lanjut bagian (mode per-bagian) ── */}
+      <ConfirmDialog
+        open={showAdvanceConfirm}
+        onClose={() => setShowAdvanceConfirm(false)}
+        title="Selesai & Lanjut ke Bagian Berikutnya?"
+        icon={<ArrowRightCircle className="w-5 h-5 text-brand" />}
+        confirmLabel="Ya, Lanjut"
+        confirmIcon={<ArrowRightCircle className="w-4 h-4" />}
+        loading={advancing}
+        onConfirm={() => {
+          setShowAdvanceConfirm(false);
+          if (activeSection) void doAdvance(activeSection);
+        }}
+      >
+        <div className="text-sm text-slate-600 leading-relaxed">
+          {unanswered > 0 ? (
+            <p>
+              Masih ada <span className="font-bold text-amber-600">{unanswered} soal belum dijawab</span> di
+              bagian ini. Setelah lanjut, bagian ini <span className="font-bold">terkunci</span> dan tidak
+              bisa dibuka lagi. Sisa waktu bagian ini <span className="font-bold">hangus</span>.
+            </p>
+          ) : (
+            <p>
+              Bagian ini akan <span className="font-bold">terkunci</span> dan tidak bisa dibuka lagi. Sisa
+              waktunya hangus, lalu timer bagian berikutnya dimulai.
+            </p>
+          )}
+        </div>
+      </ConfirmDialog>
+
       {/* ── Konfirmasi kumpulkan ── */}
       <ConfirmDialog
         open={showConfirm}
@@ -340,11 +490,14 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
         <div className="text-sm text-slate-600 leading-relaxed">
           {unanswered > 0 ? (
             <p>
-              Masih ada <span className="font-bold text-amber-600">{unanswered} soal belum dijawab</span>.
-              Setelah dikumpulkan, jawaban tidak dapat diubah lagi.
+              Masih ada <span className="font-bold text-amber-600">{unanswered} soal belum dijawab</span>
+              {perSection ? ' di bagian ini' : ''}. Setelah dikumpulkan, jawaban tidak dapat diubah lagi.
             </p>
           ) : (
-            <p>Semua soal sudah terjawab. Setelah dikumpulkan, jawaban tidak dapat diubah lagi.</p>
+            <p>
+              {perSection ? 'Bagian terakhir selesai. ' : 'Semua soal sudah terjawab. '}
+              Setelah dikumpulkan, jawaban tidak dapat diubah lagi.
+            </p>
           )}
         </div>
       </ConfirmDialog>

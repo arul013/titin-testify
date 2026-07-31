@@ -40,6 +40,16 @@ class AttemptQuestion(BaseModel):
     answer_json: Optional[dict[str, Any]] = None  # jawaban kompleks (mcq_multi/matching/…)
 
 
+class SectionTiming(BaseModel):
+    """F1.4b: state timing per-bagian (mode berurutan, gaya iBT)."""
+    order: list[str] = []                       # urutan bagian
+    limits: dict[str, int] = {}                 # section → batas menit
+    current_section: Optional[str] = None       # bagian aktif (None bila selesai)
+    current_remaining_seconds: int = 0          # sisa waktu bagian aktif
+    done_sections: list[str] = []               # bagian yang sudah terkunci
+    finished: bool = False                      # semua bagian habis → runner submit
+
+
 class StartAttemptResponse(BaseModel):
     attempt_id: str
     exam_id: str
@@ -50,6 +60,12 @@ class StartAttemptResponse(BaseModel):
     remaining_seconds: int
     allow_retake: bool = False
     questions: list[AttemptQuestion] = []
+    # F1.4b: bila diisi → ujian mode per-bagian; runner pakai timer per-bagian.
+    section_timing: Optional[SectionTiming] = None
+
+
+class AdvanceSectionRequest(BaseModel):
+    section: str = Field(..., description="Kode bagian yang sedang aktif (dikunci saat maju)")
 
 
 class SaveAnswerRequest(BaseModel):

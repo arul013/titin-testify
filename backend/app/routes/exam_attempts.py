@@ -11,6 +11,8 @@ from app.models.exam_attempt import (
     AttemptResultResponse,
     AttemptReviewResponse,
     SimpleMessage,
+    SectionTiming,
+    AdvanceSectionRequest,
 )
 from app.models.user import UserProfile
 from app.services.exam_attempt_service import ExamAttemptService
@@ -40,6 +42,16 @@ async def save_answer(
     """Autosave satu jawaban."""
     await ExamAttemptService.save_answer(attempt_id, current_user.id, request)
     return SimpleMessage()
+
+
+@router.post("/api/attempts/{attempt_id}/advance", response_model=SectionTiming)
+async def advance_section(
+    attempt_id: str,
+    request: AdvanceSectionRequest,
+    current_user: UserProfile = Depends(get_current_user),
+):
+    """F1.4b: kunci bagian aktif & mulai bagian berikutnya (mode per-bagian)."""
+    return await ExamAttemptService.advance_section(attempt_id, current_user.id, request.section)
 
 
 @router.post("/api/attempts/{attempt_id}/submit", response_model=AttemptResultResponse)

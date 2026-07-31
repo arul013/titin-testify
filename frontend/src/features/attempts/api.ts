@@ -64,6 +64,16 @@ export interface AttemptQuestion {
   answer_json?: Record<string, unknown> | null;
 }
 
+/** F1.4b: timing per-bagian (mode berurutan). */
+export interface SectionTiming {
+  order: string[];
+  limits: Record<string, number>;
+  current_section: string | null;
+  current_remaining_seconds: number;
+  done_sections: string[];
+  finished: boolean;
+}
+
 export interface StartAttemptResponse {
   attempt_id: string;
   exam_id: string;
@@ -74,6 +84,8 @@ export interface StartAttemptResponse {
   remaining_seconds: number;
   allow_retake: boolean;
   questions: AttemptQuestion[];
+  /** F1.4b: bila ada → ujian mode per-bagian; runner pakai timer per-bagian. */
+  section_timing?: SectionTiming | null;
 }
 
 export interface SectionResult {
@@ -160,6 +172,13 @@ export const attemptsApi = {
 
   submit: (attemptId: string) =>
     api.request<AttemptResult>(`/api/attempts/${attemptId}/submit`, { method: 'POST' }),
+
+  /** F1.4b: kunci bagian aktif & maju ke bagian berikutnya. */
+  advance: (attemptId: string, section: string) =>
+    api.request<SectionTiming>(`/api/attempts/${attemptId}/advance`, {
+      method: 'POST',
+      body: JSON.stringify({ section }),
+    }),
 
   result: (attemptId: string) =>
     api.request<AttemptResult>(`/api/attempts/${attemptId}/result`),

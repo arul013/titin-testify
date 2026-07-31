@@ -15,6 +15,7 @@ from app.models.exam_attempt import (
     AttemptResultResponse,
     AttemptReviewQuestion,
     AttemptReviewResponse,
+    SectionTiming,
 )
 from app.services.scoring_engine import compute_exam_score, is_official_itp
 
@@ -71,6 +72,94 @@ def _grade(qtype: str | None, correct_answer, answer_key_json, selected_answer, 
         got = got or {}
         return all(str(got.get(str(k), "")) == str(v) for k, v in key.items())
     return selected_answer is not None and selected_answer == correct_answer
+
+
+# ─── F1.4b: timing per-bagian (mode berurutan, gaya iBT) ──────────
+SECTION_ORDER = ["listening", "structure", "written_expression", "reading"]
+
+
+def _section_timing_config(supabase, exam_id: str):
+    """(order, limits) bila SEMUA bagian bersoal punya batas waktu → mode per-bagian.
+    None bila ada bagian tanpa batas (→ pakai timer global biasa)."""
+    eqs = (
+        supabase.table("exam_questions").select("section, position")
+        .eq("exam_id", exam_id).order("position").execute().data or []
+    )
+    order: list[str] = []
+    seen: set = set()
+    for e in eqs:  # urutan presentasi = urutan posisi snapshot
+        s = e["section"]
+        if s not in seen:
+            seen.add(s)
+            order.append(s)
+    if not order:
+        return None
+    lim_rows = (
+        supabase.table("exam_sections").select("section, time_limit_minutes")
+        .eq("exam_id", exam_id).execute().data or []
+    )
+    limmap = {r["section"]: r.get("time_limit_minutes") for r in lim_rows}
+    limits: dict[str, int] = {}
+    for s in order:
+        tl = limmap.get(s)
+        if tl is None:
+            return None  # ada bagian bersoal tanpa batas → bukan mode per-bagian
+        limits[s] = int(tl)
+    return order, limits
+
+
+def _init_section_state(order: list[str], limits: dict[str, int], now: datetime) -> dict:
+    first = order[0]
+    sections = {s: {"status": "pending"} for s in order}
+    sections[first] = {
+        "started_at": now.isoformat(),
+        "deadline": (now + timedelta(minutes=limits[first])).isoformat(),
+        "status": "active",
+    }
+    return {"mode": "per_section", "order": order, "limits": limits, "current": 0, "sections": sections}
+
+
+def _advance_expired(state: dict, now: datetime) -> bool:
+    """Auto-advance berantai bila deadline bagian aktif lewat. Deterministik:
+    bagian berikutnya mulai dari deadline sebelumnya (tanpa bonus waktu). Return True bila berubah."""
+    order = state["order"]
+    limits = state["limits"]
+    sections = state["sections"]
+    changed = False
+    while state["current"] < len(order):
+        cur = order[state["current"]]
+        deadline = _parse_dt(sections.get(cur, {}).get("deadline"))
+        if deadline is None or now < deadline:
+            break
+        sections[cur]["status"] = "done"
+        state["current"] += 1
+        changed = True
+        if state["current"] < len(order):
+            nxt = order[state["current"]]
+            sections[nxt] = {
+                "started_at": deadline.isoformat(),
+                "deadline": (deadline + timedelta(minutes=limits[nxt])).isoformat(),
+                "status": "active",
+            }
+    return changed
+
+
+def _section_timing_view(state: dict, now: datetime) -> SectionTiming:
+    order = state["order"]
+    sections = state["sections"]
+    idx = state["current"]
+    finished = idx >= len(order)
+    current_section = None
+    remaining = 0
+    if not finished:
+        current_section = order[idx]
+        deadline = _parse_dt(sections.get(current_section, {}).get("deadline"))
+        remaining = max(0, int((deadline - now).total_seconds())) if deadline else 0
+    done = [s for s in order if sections.get(s, {}).get("status") == "done"]
+    return SectionTiming(
+        order=order, limits=state["limits"], current_section=current_section,
+        current_remaining_seconds=remaining, done_sections=done, finished=finished,
+    )
 
 
 class ExamAttemptService:
@@ -216,6 +305,19 @@ class ExamAttemptService:
             deadline = ends
         remaining = max(0, int((deadline - now).total_seconds()))
 
+        # F1.4b: mode per-bagian (bila semua bagian bersoal punya batas waktu).
+        section_timing = None
+        cfg = _section_timing_config(supabase, exam_id)
+        if cfg:
+            order, limits = cfg
+            state = attempt.get("section_state")
+            if not state or state.get("mode") != "per_section":
+                state = _init_section_state(order, limits, now)
+                supabase.table("exam_attempts").update({"section_state": state}).eq("id", attempt["id"]).execute()
+            elif _advance_expired(state, now):
+                supabase.table("exam_attempts").update({"section_state": state}).eq("id", attempt["id"]).execute()
+            section_timing = _section_timing_view(state, now)
+
         return StartAttemptResponse(
             attempt_id=attempt["id"],
             exam_id=exam_id,
@@ -226,6 +328,7 @@ class ExamAttemptService:
             remaining_seconds=remaining,
             allow_retake=bool(exam.get("allow_retake")),
             questions=questions,
+            section_timing=section_timing,
         )
 
     @staticmethod
@@ -251,11 +354,25 @@ class ExamAttemptService:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "Pilihan jawaban tidak valid.")
 
         eq = (
-            supabase.table("exam_questions").select("id")
+            supabase.table("exam_questions").select("id, section")
             .eq("id", request.exam_question_id).eq("exam_id", attempt["exam_id"]).execute().data
         )
         if not eq:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "Soal tidak valid untuk ujian ini.")
+
+        # F1.4b: tolak jawaban untuk bagian yang sudah terkunci (mode per-bagian).
+        state = attempt.get("section_state")
+        if state and state.get("mode") == "per_section":
+            now = datetime.now(timezone.utc)
+            if _advance_expired(state, now):
+                supabase.table("exam_attempts").update({"section_state": state}).eq("id", attempt_id).execute()
+            order = state["order"]
+            active = order[state["current"]] if state["current"] < len(order) else None
+            if eq[0]["section"] != active:
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN,
+                    "Bagian ini sudah terkunci — waktu bagiannya telah berakhir.",
+                )
 
         # Simpan single-choice (selected_answer) ATAU jawaban kompleks (answer_json).
         payload = {"selected_answer": sel, "answer_json": request.answer_json}
@@ -269,6 +386,36 @@ class ExamAttemptService:
             supabase.table("exam_attempt_answers").insert({
                 "attempt_id": attempt_id, "exam_question_id": request.exam_question_id, **payload,
             }).execute()
+
+    # ─── F1.4b: maju ke bagian berikutnya (kunci bagian aktif) ─
+    @staticmethod
+    async def advance_section(attempt_id: str, user_id: str, section: str) -> SectionTiming:
+        supabase = get_supabase_admin()
+        attempt = ExamAttemptService._load_owned_attempt(supabase, attempt_id, user_id)
+        if attempt["status"] != "in_progress":
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Percobaan tidak sedang berjalan.")
+        state = attempt.get("section_state")
+        if not state or state.get("mode") != "per_section":
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ujian ini tidak memakai timing per-bagian.")
+
+        now = datetime.now(timezone.utc)
+        _advance_expired(state, now)  # rapikan dulu bila bagian aktif sudah lewat waktu
+
+        order = state["order"]
+        idx = state["current"]
+        # Hanya maju bila bagian yang diminta memang bagian aktif (cegah lompat ganda).
+        if idx < len(order) and order[idx] == section:
+            state["sections"][order[idx]]["status"] = "done"
+            state["current"] += 1
+            if state["current"] < len(order):
+                nxt = order[state["current"]]
+                state["sections"][nxt] = {
+                    "started_at": now.isoformat(),
+                    "deadline": (now + timedelta(minutes=state["limits"][nxt])).isoformat(),
+                    "status": "active",
+                }
+        supabase.table("exam_attempts").update({"section_state": state}).eq("id", attempt_id).execute()
+        return _section_timing_view(state, now)
 
     # ─── Submit + nilai ───────────────────────────────────────
     @staticmethod
