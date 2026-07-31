@@ -82,6 +82,8 @@ class AttemptResultResponse(BaseModel):
     submitted_at: Optional[datetime] = None
     # Pembahasan tersedia? (exam.show_review) → frontend tampilkan tombol pembahasan.
     show_review: bool = False
+    # F1.2: status penilaian manual (not_required | pending | complete).
+    grading_status: str = "not_required"
 
 
 class SimpleMessage(BaseModel):

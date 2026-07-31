@@ -100,6 +100,8 @@ export interface AttemptResult {
   submitted_at: string | null;
   /** Pembahasan & kunci tersedia (exam.show_review) → tampilkan tombol pembahasan. */
   show_review: boolean;
+  /** F1.2: status penilaian manual (not_required | pending | complete). */
+  grading_status?: string;
 }
 
 /** Satu soal pada pembahasan (setelah submit, bila show_review). */

@@ -280,7 +280,8 @@ class ExamAttemptService:
         exam = supabase.table("exams").select("*").eq("id", attempt["exam_id"]).execute().data[0]
 
         eqs = (
-            supabase.table("exam_questions").select("id, section, correct_answer, question_type, answer_json")
+            supabase.table("exam_questions")
+            .select("id, section, correct_answer, question_type, answer_json, scoring_mode, max_score")
             .eq("exam_id", attempt["exam_id"]).execute().data or []
         )
         arows = (
@@ -291,8 +292,17 @@ class ExamAttemptService:
         ansj_by_eq = {a["exam_question_id"]: a.get("answer_json") for a in arows}
         q_by_id = {q["id"]: q for q in eqs}
 
+        def _is_manual(q: dict) -> bool:
+            return (q.get("scoring_mode") or "auto") == "manual"
+
+        # F1.2: ujian dengan item manual (essay/speaking) → skor final ditahan sampai dinilai.
+        has_manual = any(_is_manual(q) for q in eqs)
+
+        # Correct-count HANYA untuk item auto (item manual dinilai terpisah oleh penilai).
         per: dict = {}
         for q in eqs:
+            if _is_manual(q):
+                continue
             is_c = _grade(
                 q.get("question_type"), q.get("correct_answer"), q.get("answer_json"),
                 sel_by_eq.get(q["id"]), ansj_by_eq.get(q["id"]),
@@ -302,14 +312,23 @@ class ExamAttemptService:
             if is_c:
                 d["correct"] += 1
 
-        # Tandai is_correct pada baris jawaban yang ada
+        # Tandai is_correct + awarded_score/max_score pada baris jawaban.
+        # Item auto: awarded = max bila benar, else 0. Item manual: awarded null (menunggu penilai).
         for a in arows:
             q = q_by_id.get(a["exam_question_id"])
-            is_c = bool(q) and _grade(
-                q.get("question_type"), q.get("correct_answer"), q.get("answer_json"),
-                a.get("selected_answer"), a.get("answer_json"),
-            )
-            supabase.table("exam_attempt_answers").update({"is_correct": is_c}).eq("id", a["id"]).execute()
+            mx = float(q.get("max_score") or 1) if q else 1.0
+            if q and _is_manual(q):
+                supabase.table("exam_attempt_answers").update(
+                    {"is_correct": None, "awarded_score": None, "max_score": mx}
+                ).eq("id", a["id"]).execute()
+            else:
+                is_c = bool(q) and _grade(
+                    q.get("question_type"), q.get("correct_answer"), q.get("answer_json"),
+                    a.get("selected_answer"), a.get("answer_json"),
+                )
+                supabase.table("exam_attempt_answers").update(
+                    {"is_correct": is_c, "awarded_score": mx if is_c else 0, "max_score": mx}
+                ).eq("id", a["id"]).execute()
 
         passing = exam.get("passing_value")
         # Skor otomatis berdasarkan jenis tes + mode (TOEFL ITP resmi / Nilai 0–100).
@@ -326,6 +345,9 @@ class ExamAttemptService:
         total_c = comp["total_correct"]
         per_section = [SectionResult(**g) for g in comp["groups"]]
 
+        # F1.2: ada item manual → menunggu penilaian; else tak perlu.
+        grading_status = "pending" if has_manual else "not_required"
+
         now = datetime.now(timezone.utc)
         supabase.table("exam_attempts").update({
             "status": "submitted",
@@ -335,6 +357,7 @@ class ExamAttemptService:
             "total_questions": total_q,
             "total_correct": total_c,
             "score_detail": {"scale_unit": scale_unit, "per_section": [ps.model_dump() for ps in per_section]},
+            "grading_status": grading_status,
         }).eq("id", attempt_id).execute()
 
         return AttemptResultResponse(
@@ -343,6 +366,7 @@ class ExamAttemptService:
             total_questions=total_q, total_correct=total_c, passing_value=passing,
             per_section=per_section, submitted_at=now,
             show_review=bool(exam.get("show_review")),
+            grading_status=grading_status,
         )
 
     # ─── Hasil ────────────────────────────────────────────────
@@ -363,6 +387,7 @@ class ExamAttemptService:
             per_section=per_section,
             submitted_at=_parse_dt(attempt.get("submitted_at")),
             show_review=bool(exam.get("show_review")),
+            grading_status=attempt.get("grading_status") or "not_required",
         )
 
     # ─── Review / Pembahasan ──────────────────────────────────
