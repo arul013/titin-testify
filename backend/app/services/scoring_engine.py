@@ -47,9 +47,26 @@ def _lookup(table: dict[int, int], count: int) -> int:
     return table[max(lo, min(hi, count))]
 
 
+def resolve_scale(test_type: str, exam_mode: str) -> str:
+    """Skala skor untuk (jenis tes, mode) — TITIK EKSTENSI TUNGGAL untuk skala baru (F1.4).
+
+    Sekarang:
+      - ITP lengkap (itp, full)  → 'toefl_itp' (tabel resmi 217–677)
+      - selain itu               → 'nilai' (0–100 / poin Σawarded/Σmax)
+
+    Menyusul (saat tabel di scoring_tables terisi & jenis tes aktif):
+      - IELTS → 'ielts_band'  (per-bagian band; overall = rata-rata 4, bulat 0.5)
+      - iBT   → 'toefl_ibt'   (per-bagian 0–30; total 0–120)
+    Bagian rubrik (Writing/Speaking) menyumbang band/skala langsung dari awarded_score.
+    """
+    if test_type == "itp" and exam_mode == "full":
+        return "toefl_itp"
+    return "nilai"
+
+
 def is_official_itp(test_type: str, exam_mode: str) -> bool:
     """True bila ujian ini memakai skor TOEFL ITP resmi."""
-    return test_type == "itp" and exam_mode == "full"
+    return resolve_scale(test_type, exam_mode) == "toefl_itp"
 
 
 def score_toefl_itp(listening: int, structure_we: int, reading: int) -> dict:
@@ -83,8 +100,14 @@ def compute_exam_score(
     def _passed(score: float) -> bool | None:
         return (score >= passing_value) if passing_value is not None else None
 
+    scale = resolve_scale(test_type, exam_mode)
+    # Skala baru menyusul di sini (F1.4a lanjutan) saat tabel di scoring_tables terisi
+    # & jenis tes aktif: `scale == "ielts_band"` / `"toefl_ibt"` → agregasi band per-bagian
+    # (bagian auto via tabel/aproksimasi, bagian rubrik via awarded_score). Sampai itu,
+    # jenis tes tsb jatuh ke jalur 'nilai' di bawah.
+
     # ── Tes Lengkap ITP → skor resmi ──
-    if is_official_itp(test_type, exam_mode):
+    if scale == "toefl_itp":
         l_row = by.get("listening", {"total": 0, "correct": 0})
         s_row = by.get("structure", {"total": 0, "correct": 0})
         we_row = by.get("written_expression", {"total": 0, "correct": 0})
