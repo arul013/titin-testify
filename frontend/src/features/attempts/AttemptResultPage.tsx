@@ -10,6 +10,7 @@ import {
   Trophy,
   BookOpen,
   ChevronDown,
+  Hourglass,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -45,7 +46,9 @@ export function AttemptResultPage() {
   // Unit di sebelah angka skor: Nilai/skor tanpa satuan; hanya '%' untuk skema lama.
   const unit = result?.scale_unit === 'percent' ? '%' : '';
   const scoreLabel = isItp ? 'Skor TOEFL' : 'Nilai';
-  const passed = result?.passed;
+  // F1.2: skor ditahan sampai esai selesai dinilai.
+  const pending = result?.grading_status === 'pending';
+  const passed = pending ? null : result?.passed;
 
   return (
     <div className="flex flex-col gap-6 py-2 max-w-4xl">
@@ -99,26 +102,38 @@ export function AttemptResultPage() {
                   </div>
                 )}
               </div>
-              <div className="text-center md:text-right">
-                <p className="text-white/70 text-[11px] font-bold uppercase tracking-wider mb-0.5">
-                  {scoreLabel}
-                </p>
-                <div className="flex items-baseline gap-1 justify-center md:justify-end">
-                  <span className="text-5xl md:text-6xl font-extrabold tabular-nums">
-                    {result.score != null ? Math.round(result.score) : '—'}
-                  </span>
-                  <span className="text-2xl font-bold text-white/80">{unit}</span>
-                </div>
-                <p className="text-white/80 text-sm mt-1">
-                  {result.total_correct} dari {result.total_questions} benar
-                </p>
-                {result.passing_value != null && (
-                  <p className="text-white/70 text-xs mt-0.5">
-                    Nilai kelulusan: {result.passing_value}
-                    {unit}
+              {pending ? (
+                <div className="text-center md:text-right">
+                  <div className="inline-flex items-center gap-2 bg-white/20 rounded-2xl px-4 py-3">
+                    <Hourglass className="w-6 h-6" />
+                    <span className="text-lg md:text-xl font-extrabold">Menunggu Penilaian</span>
+                  </div>
+                  <p className="text-white/80 text-sm mt-2 max-w-xs md:ml-auto">
+                    Jawaban esai sedang dinilai. Nilai final muncul setelah penilaian selesai.
                   </p>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="text-center md:text-right">
+                  <p className="text-white/70 text-[11px] font-bold uppercase tracking-wider mb-0.5">
+                    {scoreLabel}
+                  </p>
+                  <div className="flex items-baseline gap-1 justify-center md:justify-end">
+                    <span className="text-5xl md:text-6xl font-extrabold tabular-nums">
+                      {result.score != null ? Math.round(result.score) : '—'}
+                    </span>
+                    <span className="text-2xl font-bold text-white/80">{unit}</span>
+                  </div>
+                  <p className="text-white/80 text-sm mt-1">
+                    {result.total_correct} dari {result.total_questions} benar
+                  </p>
+                  {result.passing_value != null && (
+                    <p className="text-white/70 text-xs mt-0.5">
+                      Nilai kelulusan: {result.passing_value}
+                      {unit}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

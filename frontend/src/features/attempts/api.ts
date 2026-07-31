@@ -20,6 +20,8 @@ export interface MyExamItem {
   score: number | null;
   passed: boolean | null;
   scale_unit: string;
+  /** F1.2: status penilaian manual (not_required | pending | complete). */
+  grading_status?: string;
   can_start: boolean;
 }
 
@@ -116,6 +118,12 @@ export interface ReviewQuestion {
   answer_key_json?: Record<string, unknown> | null;  // kunci kompleks (mis. {correct:[…]})
   is_correct: boolean;
   explanation: string | null;
+  // F1.2: penilaian manual (essay) — terisi setelah grading complete.
+  scoring_mode?: string | null;
+  awarded_score?: number | null;
+  max_score?: number | null;
+  rubric_scores?: { scores?: { name: string; max_score: number; score: number }[] } | null;
+  feedback?: string | null;
 }
 
 export interface AttemptReview {

@@ -24,6 +24,7 @@ import {
   Gauge,
   Layers,
   History,
+  SquarePen,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -81,6 +82,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       name: "Manajemen Ujian",
       href: "/manajemen-ujian",
       icon: <ClipboardCheck className="w-4 h-4" />,
+      show: isAdmin,
+    },
+    {
+      name: "Penilaian",
+      href: "/penilaian",
+      icon: <SquarePen className="w-4 h-4" />,
       show: isAdmin,
     },
     {

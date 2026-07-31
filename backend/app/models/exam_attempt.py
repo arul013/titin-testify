@@ -22,6 +22,8 @@ class MyExamItem(BaseModel):
     score: Optional[float] = None
     passed: Optional[bool] = None
     scale_unit: str = "percent"
+    # F1.2: status penilaian manual (not_required | pending | complete).
+    grading_status: str = "not_required"
     can_start: bool = False
 
 
@@ -102,6 +104,12 @@ class AttemptReviewQuestion(BaseModel):
     answer_key_json: Optional[dict[str, Any]] = None  # kunci kompleks (mis. {correct:[…]})
     is_correct: bool = False
     explanation: Optional[str] = None
+    # F1.2: penilaian manual (essay) — terisi setelah grading complete.
+    scoring_mode: Optional[str] = None
+    awarded_score: Optional[float] = None
+    max_score: Optional[float] = None
+    rubric_scores: Optional[dict[str, Any]] = None
+    feedback: Optional[str] = None
 
 
 class AttemptReviewResponse(BaseModel):

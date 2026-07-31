@@ -12,7 +12,7 @@ from starlette.types import ExceptionHandler
 from app.config import get_settings
 from app.middleware.cors import setup_cors
 from app.middleware.rate_limit import limiter
-from app.routes import auth, users, questions, upload, exams, scoring_schemes, exam_attempts, test_types, scoring, rubrics
+from app.routes import auth, users, questions, upload, exams, scoring_schemes, exam_attempts, test_types, scoring, rubrics, grading
 
 settings = get_settings()
 
@@ -40,6 +40,7 @@ app.include_router(upload.router)
 app.include_router(exams.router)
 app.include_router(scoring_schemes.router)
 app.include_router(rubrics.router)
+app.include_router(grading.router)
 app.include_router(exam_attempts.router)
 app.include_router(test_types.router)
 app.include_router(scoring.router)

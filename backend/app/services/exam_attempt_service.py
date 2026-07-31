@@ -140,6 +140,7 @@ class ExamAttemptService:
                 attempt_id=a["id"] if a else None,
                 score=a.get("score") if a else None,
                 passed=a.get("passed") if a else None,
+                grading_status=(a.get("grading_status") if a else None) or "not_required",
                 scale_unit=(
                     "toefl_itp"
                     if is_official_itp(e.get("test_type", "itp"), e.get("exam_mode", "custom"))
@@ -405,11 +406,12 @@ class ExamAttemptService:
 
         eqs = (
             supabase.table("exam_questions")
-            .select("id, position, section, payload, correct_answer, answer_json, question_type, explanation")
+            .select("id, position, section, payload, correct_answer, answer_json, question_type, explanation, scoring_mode, max_score")
             .eq("exam_id", attempt["exam_id"]).order("position").execute().data or []
         )
         ans = (
-            supabase.table("exam_attempt_answers").select("exam_question_id, selected_answer, answer_json, is_correct")
+            supabase.table("exam_attempt_answers")
+            .select("exam_question_id, selected_answer, answer_json, is_correct, awarded_score, max_score, rubric_scores, feedback")
             .eq("attempt_id", attempt_id).execute().data or []
         )
         sel_by_eq = {a["exam_question_id"]: a for a in ans}
@@ -420,7 +422,9 @@ class ExamAttemptService:
             a = sel_by_eq.get(q["id"])
             selected = a["selected_answer"] if a else None
             ans_json = a.get("answer_json") if a else None
-            is_correct = _grade(
+            manual = (q.get("scoring_mode") or "auto") == "manual"
+            # Item manual (essay): TAK dinilai auto — skor dari grading (awarded_score).
+            is_correct = False if manual else _grade(
                 q.get("question_type"), q.get("correct_answer"), q.get("answer_json"),
                 selected, ans_json,
             )
@@ -437,6 +441,11 @@ class ExamAttemptService:
                 answer_key_json=q.get("answer_json"),
                 is_correct=is_correct,
                 explanation=q.get("explanation"),
+                scoring_mode=q.get("scoring_mode") or "auto",
+                awarded_score=(float(a["awarded_score"]) if a and a.get("awarded_score") is not None else None),
+                max_score=(float(a.get("max_score")) if a and a.get("max_score") is not None else (float(q.get("max_score")) if q.get("max_score") is not None else None)),
+                rubric_scores=(a.get("rubric_scores") if a else None),
+                feedback=(a.get("feedback") if a else None),
             ))
 
         return AttemptReviewResponse(

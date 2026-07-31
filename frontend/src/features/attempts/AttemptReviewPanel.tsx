@@ -146,11 +146,20 @@ function ReviewCard({ q, number }: { q: ReviewQuestion; number: number }) {
           </span>
         </div>
         {isEssay ? (
-          <Badge variant="info">
-            <span className="flex items-center gap-1">
-              <Lightbulb className="h-3.5 w-3.5" /> Dinilai Manual
-            </span>
-          </Badge>
+          q.awarded_score != null ? (
+            <Badge variant="success">
+              <span className="flex items-center gap-1">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Nilai {q.awarded_score}
+                {q.max_score != null && `/${q.max_score}`}
+              </span>
+            </Badge>
+          ) : (
+            <Badge variant="info">
+              <span className="flex items-center gap-1">
+                <Lightbulb className="h-3.5 w-3.5" /> Menunggu Penilaian
+              </span>
+            </Badge>
+          )
         ) : q.is_correct ? (
           <Badge variant="success">
             <span className="flex items-center gap-1">
@@ -242,17 +251,44 @@ function ReviewCard({ q, number }: { q: ReviewQuestion; number: number }) {
             })}
           </div>
         ) : isEssay ? (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2.5">
             <div className="rounded-2xl border-2 border-slate-200 bg-white p-3.5">
               <span className="text-xs font-bold text-slate-400 uppercase">Jawaban esaimu</span>
               <p className={`mt-1 text-[15px] whitespace-pre-wrap leading-relaxed ${answered ? 'text-slate-700' : 'text-slate-400 italic'}`}>
                 {essayText.trim() || 'Tidak dijawab'}
               </p>
             </div>
-            <p className="flex items-center gap-1.5 text-xs font-semibold text-indigo-700">
-              <Lightbulb className="h-3.5 w-3.5" />
-              Jawaban esai dinilai manual oleh penilai berdasarkan rubrik.
-            </p>
+            {q.awarded_score != null ? (
+              <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50/60 p-3.5 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-emerald-700 uppercase">Skor Penilaian</span>
+                  <span className="text-sm font-extrabold text-emerald-700 tabular-nums">
+                    {q.awarded_score}{q.max_score != null && ` / ${q.max_score}`}
+                  </span>
+                </div>
+                {(q.rubric_scores?.scores?.length ?? 0) > 0 && (
+                  <div className="flex flex-col gap-1">
+                    {q.rubric_scores!.scores!.map((s, i) => (
+                      <div key={i} className="flex items-center justify-between text-xs text-slate-600">
+                        <span>{s.name}</span>
+                        <span className="font-bold tabular-nums">{s.score} / {s.max_score}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {q.feedback && (
+                  <div className="mt-1 border-t border-emerald-200/60 pt-2">
+                    <span className="text-[11px] font-bold text-emerald-700 uppercase">Feedback penilai</span>
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed mt-0.5">{q.feedback}</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-indigo-700">
+                <Lightbulb className="h-3.5 w-3.5" />
+                Jawaban esai dinilai manual oleh penilai berdasarkan rubrik.
+              </p>
+            )}
           </div>
         ) : isFill ? (
           <div className="flex flex-col gap-2">

@@ -67,7 +67,8 @@ export function RiwayatPage() {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
           {done.map((e) => {
             const meta = scoreMeta(e);
-            const passed = e.passed;
+            const pending = e.grading_status === 'pending';
+            const passed = pending ? null : e.passed;
             return (
               <Card
                 key={e.exam_id}
@@ -80,7 +81,9 @@ export function RiwayatPage() {
                     <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand/10 text-brand">
                       <ClipboardList className="h-5 w-5" />
                     </span>
-                    {passed != null ? (
+                    {pending ? (
+                      <Badge variant="warning">Menunggu Penilaian</Badge>
+                    ) : passed != null ? (
                       <Badge variant={passed ? 'success' : 'danger'}>
                         {passed ? (
                           <span className="flex items-center gap-1">
@@ -107,12 +110,16 @@ export function RiwayatPage() {
                     <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
                       {meta.label}
                     </p>
-                    <p className="flex items-baseline gap-0.5 text-slate-800">
-                      <span className="text-3xl font-extrabold tabular-nums">
-                        {e.score != null ? Math.round(e.score) : '—'}
-                      </span>
-                      <span className="text-base font-bold text-slate-400">{meta.unit}</span>
-                    </p>
+                    {pending ? (
+                      <p className="text-sm font-extrabold text-amber-600">Menunggu Penilaian</p>
+                    ) : (
+                      <p className="flex items-baseline gap-0.5 text-slate-800">
+                        <span className="text-3xl font-extrabold tabular-nums">
+                          {e.score != null ? Math.round(e.score) : '—'}
+                        </span>
+                        <span className="text-base font-bold text-slate-400">{meta.unit}</span>
+                      </p>
+                    )}
                   </div>
                   <span className="flex items-center gap-1 text-sm font-bold text-brand transition-transform group-hover:translate-x-0.5">
                     Lihat Hasil
