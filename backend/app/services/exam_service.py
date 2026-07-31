@@ -164,6 +164,7 @@ class ExamService:
                     "section": s.section.value,
                     "target_count": s.target_count,
                     "weight": s.weight,
+                    "time_limit_minutes": s.time_limit_minutes,
                 }
                 for s in sections
             ]).execute()
@@ -363,6 +364,7 @@ class ExamService:
                         "section": s.section.value,
                         "target_count": s.target_count,
                         "weight": s.weight,
+                        "time_limit_minutes": s.time_limit_minutes,
                     }
                     for s in request.sections
                 ]).execute()
@@ -828,7 +830,8 @@ class ExamService:
 
         if src.sections:
             supabase.table("exam_sections").insert([
-                {"exam_id": new_id, "section": s.section.value, "target_count": s.target_count, "weight": s.weight}
+                {"exam_id": new_id, "section": s.section.value, "target_count": s.target_count, "weight": s.weight,
+                 "time_limit_minutes": s.time_limit_minutes}
                 for s in src.sections
             ]).execute()
         if src.participants:
@@ -849,10 +852,11 @@ class ExamService:
     def _build_summary(supabase, e: dict) -> ExamResponse:
         """Bangun ExamResponse (dengan sections, total_target, participants_count)."""
         sections_res = supabase.table("exam_sections").select(
-            "section, target_count, weight"
+            "section, target_count, weight, time_limit_minutes"
         ).eq("exam_id", e["id"]).order("section").execute()
         sections = [
-            ExamSectionResponse(section=s["section"], target_count=s["target_count"], weight=s.get("weight"))
+            ExamSectionResponse(section=s["section"], target_count=s["target_count"], weight=s.get("weight"),
+                                time_limit_minutes=s.get("time_limit_minutes"))
             for s in (sections_res.data or [])
         ]
 

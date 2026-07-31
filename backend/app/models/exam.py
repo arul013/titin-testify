@@ -27,6 +27,9 @@ class ExamSectionInput(BaseModel):
     section: QuestionSection = Field(..., description="Bagian ujian (TOEFL)")
     target_count: int = Field(..., ge=1, description="Target jumlah soal untuk section ini")
     weight: Optional[float] = Field(None, gt=0, description="Bobot opsional (default: setara)")
+    # F1.4b: batas waktu per-bagian (menit). Bila diisi di semua bagian → mode ujian
+    # per-bagian berurutan (timer per-bagian, tak bisa mundur). Null → ikut timer global.
+    time_limit_minutes: Optional[int] = Field(None, ge=1, description="Batas waktu bagian (menit); null = ikut durasi global")
 
 
 class ExamPoolUnitInput(BaseModel):
@@ -110,6 +113,7 @@ class ExamSectionResponse(BaseModel):
     section: QuestionSection
     target_count: int
     weight: Optional[float] = None
+    time_limit_minutes: Optional[int] = None
 
 
 class ExamParticipantResponse(BaseModel):

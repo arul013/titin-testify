@@ -30,9 +30,12 @@ Paket `backend/app/services/scoring_tables/` = tempat colok tabel:
 - **F1.4a.2** — Implement `ielts_band`/`toefl_ibt` di `compute_exam_score`: agregasi band per-bagian (auto tabel-atau-linear + manual awarded), overall (rata-rata/jumlah), `provisional` flag. Kirim per-bagian lebih kaya (`correct`/`awarded`/`max`/`manual?`) dari submit + `_recompute`.
 - **F1.4a.3** — Result UI: tampilkan band/scaled per-bagian + overall (generalisasi tampilan `converted` ITP) + badge "skala sementara" saat provisional.
 
-## F1.4b — Timing per-bagian (nanti)
-- Model: `exam_sections.time_limit_minutes` (kolom sudah ada, belum diwire).
-- Enforcement: **kunci per-bagian berurutan** — runner ubah dari navigasi-bebas 1-timer → alur per-bagian, timer per-bagian, auto-advance saat habis, tak bisa mundur ke bagian lampau. Fallback: bila section tak set timer → pakai durasi global.
+## F1.4b — Timing per-bagian
+Keputusan (2026-08-01): **opt-in** (aktif bila SEMUA bagian aktif diisi batas waktu); **kunci per-bagian berurutan**; **gaya iBT** (boleh maju awal, sisa hangus, bagian berikutnya mulai timer sendiri dari nol; auto-advance saat habis; tak bisa mundur). Bila tak ada batas per-bagian → tetap 1 timer global + navigasi bebas (perilaku lama).
+
+- **F1.4b.1 — Authoring ✅** (2026-08-01, belum commit): `ExamSectionInput/Response.time_limit_minutes`; persist di create/update/duplicate/load exam_service. Builder `StepComposition` input "Batas waktu bagian (menit)" per-bagian + banner status mode per-bagian; `ExamBuilder` state `sectionTimes` + payload; `useExams.ExamSection.time_limit_minutes`. Tanpa migrasi (kolom `exam_sections.time_limit_minutes` sudah ada dari 020).
+- **F1.4b.2 — Backend runner** (BUTUH MIGRASI `exam_attempts.section_state` JSONB): `start_attempt` inisialisasi state per-bagian (urutan + started_at/deadline bagian aktif); endpoint `advance` (kunci bagian aktif, mulai berikutnya dari now); auto-advance berantai saat deadline lewat (deterministik, next.started_at = deadline sebelumnya); `save_answer` tolak bagian terkunci/lewat; expose timing bagian aktif di `StartAttemptResponse`.
+- **F1.4b.3 — Frontend runner**: alur per-bagian (hanya soal bagian aktif, timer per-bagian, "Selesai & Lanjut" irreversible, auto-advance, palette per-bagian, tak bisa mundur). Fallback ke perilaku lama bila bukan mode per-bagian.
 
 ## Aturan
 - Jangan commit/push (hak user). Jangan tulis angka konversi tanpa sumber. Skala baru = tambah di `resolve_scale` + modul tabel, TANPA rombak engine.

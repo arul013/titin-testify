@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Info, Lock } from 'lucide-react';
+import { Info, Lock, Clock } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { ExamMode } from '../hooks/useExams';
@@ -19,6 +19,9 @@ interface StepCompositionProps {
   counts: Record<string, number>;
   onToggle: (section: string, enabled: boolean) => void;
   onCountChange: (section: string, count: number) => void;
+  /** F1.4b: batas waktu per-bagian (menit) sebagai string; '' = tanpa batas. */
+  sectionTimes: Record<string, string>;
+  onTimeChange: (section: string, value: string) => void;
 }
 
 export const StepComposition: React.FC<StepCompositionProps> = ({
@@ -27,8 +30,15 @@ export const StepComposition: React.FC<StepCompositionProps> = ({
   counts,
   onToggle,
   onCountChange,
+  sectionTimes,
+  onTimeChange,
 }) => {
   const isFull = mode === 'full';
+
+  // Bagian aktif + berapa yang sudah diberi batas waktu → info mode per-bagian.
+  const activeCodes = skills.filter((s) => isFull || counts[s.code] !== undefined).map((s) => s.code);
+  const timedCount = activeCodes.filter((c) => sectionTimes[c]?.trim()).length;
+  const perSectionMode = activeCodes.length > 0 && timedCount === activeCodes.length;
 
   const total = isFull
     ? skills.reduce((sum, s) => sum + (s.full_test_count || 0), 0)
@@ -66,44 +76,64 @@ export const StepComposition: React.FC<StepCompositionProps> = ({
           return (
             <div
               key={s.code}
-              className={`flex items-center justify-between gap-4 rounded-2xl border p-4 transition-colors ${
+              className={`flex flex-col gap-3 rounded-2xl border p-4 transition-colors ${
                 enabled ? 'border-indigo-200 bg-indigo-50/30' : 'border-slate-100 bg-white'
               }`}
             >
-              {isFull ? (
-                <span className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                  <Lock className="w-3.5 h-3.5 text-slate-400" />
-                  {s.name}
-                  {s.scorable === false && (
-                    <span className="text-[10px] font-bold text-amber-500 uppercase">rubrik</span>
-                  )}
-                </span>
-              ) : (
-                <Checkbox
-                  checked={enabled}
-                  onChange={(v) => onToggle(s.code, v)}
-                  label={s.name}
-                />
-              )}
+              <div className="flex items-center justify-between gap-4">
+                {isFull ? (
+                  <span className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                    <Lock className="w-3.5 h-3.5 text-slate-400" />
+                    {s.name}
+                    {s.scorable === false && (
+                      <span className="text-[10px] font-bold text-amber-500 uppercase">rubrik</span>
+                    )}
+                  </span>
+                ) : (
+                  <Checkbox
+                    checked={enabled}
+                    onChange={(v) => onToggle(s.code, v)}
+                    label={s.name}
+                  />
+                )}
+
+                {enabled && (
+                  <div className="flex items-center gap-2 shrink-0">
+                    {isFull ? (
+                      <span className="w-24 text-center font-extrabold text-indigo-700 tabular-nums">
+                        {count}
+                      </span>
+                    ) : (
+                      <Input
+                        inputMode="numeric"
+                        value={String(count)}
+                        onChange={(e) => {
+                          const d = e.target.value.replace(/[^0-9]/g, '');
+                          onCountChange(s.code, d === '' ? 1 : Math.max(1, Number(d)));
+                        }}
+                        className="w-24 text-center"
+                      />
+                    )}
+                    <span className="text-xs font-medium text-slate-500">soal</span>
+                  </div>
+                )}
+              </div>
 
               {enabled && (
-                <div className="flex items-center gap-2 shrink-0">
-                  {isFull ? (
-                    <span className="w-24 text-center font-extrabold text-indigo-700 tabular-nums">
-                      {count}
-                    </span>
-                  ) : (
+                <div className="flex items-center justify-between gap-2 border-t border-indigo-100/70 pt-2.5">
+                  <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                    <Clock className="w-3.5 h-3.5 text-slate-400" /> Batas waktu bagian
+                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
                     <Input
                       inputMode="numeric"
-                      value={String(count)}
-                      onChange={(e) => {
-                        const d = e.target.value.replace(/[^0-9]/g, '');
-                        onCountChange(s.code, d === '' ? 1 : Math.max(1, Number(d)));
-                      }}
+                      value={sectionTimes[s.code] ?? ''}
+                      onChange={(e) => onTimeChange(s.code, e.target.value)}
+                      placeholder="—"
                       className="w-24 text-center"
                     />
-                  )}
-                  <span className="text-xs font-medium text-slate-500">soal</span>
+                    <span className="text-xs font-medium text-slate-500">menit</span>
+                  </div>
                 </div>
               )}
             </div>
@@ -114,6 +144,36 @@ export const StepComposition: React.FC<StepCompositionProps> = ({
       <div className="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-100 px-4 py-3">
         <span className="text-sm font-bold text-slate-600">Total target</span>
         <span className="text-lg font-extrabold text-indigo-700">{total} soal</span>
+      </div>
+
+      {/* F1.4b: info mode timing per-bagian */}
+      <div
+        className={`flex gap-2 p-3 rounded-xl text-[11px] leading-relaxed border ${
+          perSectionMode
+            ? 'bg-indigo-50/60 border-indigo-100 text-indigo-800'
+            : 'bg-slate-50 border-slate-100 text-slate-500'
+        }`}
+      >
+        <Clock className="w-4 h-4 shrink-0 text-indigo-500" />
+        <span>
+          {perSectionMode ? (
+            <>
+              <strong>Mode per-bagian aktif.</strong> Setiap bagian punya timer sendiri; saat waktu bagian
+              habis peserta otomatis lanjut ke bagian berikutnya dan <strong>tidak bisa kembali</strong>.
+            </>
+          ) : timedCount > 0 ? (
+            <>
+              Isi batas waktu di <strong>semua {activeCodes.length} bagian aktif</strong> untuk mengaktifkan
+              mode per-bagian berurutan ({timedCount}/{activeCodes.length} terisi). Kosongkan semua untuk
+              memakai satu timer global.
+            </>
+          ) : (
+            <>
+              Opsional: isi batas waktu tiap bagian untuk ujian <strong>per-bagian berurutan</strong> (seperti
+              iBT). Bila dikosongkan, ujian memakai satu timer global (durasi di langkah Detail).
+            </>
+          )}
+        </span>
       </div>
 
       <div className="flex gap-2 p-3 bg-amber-50/60 border border-amber-100 rounded-xl text-[11px] text-amber-800 leading-relaxed">

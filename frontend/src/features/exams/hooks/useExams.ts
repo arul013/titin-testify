@@ -27,6 +27,8 @@ export interface ExamSection {
   section: ExamSectionId;
   target_count: number;
   weight: number | null;
+  /** F1.4b: batas waktu bagian (menit); null = ikut timer global. */
+  time_limit_minutes?: number | null;
 }
 
 export interface ExamParticipant {

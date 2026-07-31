@@ -132,6 +132,18 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
     return { ...(initialCounts ?? {}) };
   });
 
+  // F1.4b: batas waktu per-bagian (menit), keyed by skill code. Kosong = ikut timer global.
+  // Bila SEMUA bagian aktif terisi → mode ujian per-bagian berurutan.
+  const [sectionTimes, setSectionTimes] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    initial?.sections?.forEach((s) => {
+      if (s.time_limit_minutes != null) init[s.section] = String(s.time_limit_minutes);
+    });
+    return init;
+  });
+  const setSectionTime = (section: string, value: string) =>
+    setSectionTimes((prev) => ({ ...prev, [section]: value.replace(/[^0-9]/g, '') }));
+
   // Sumber soal (pool units)
   const [poolUnits, setPoolUnits] = useState<ExamPoolUnit[]>(initial?.pool_units ?? []);
 
@@ -182,6 +194,7 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
     sections: activeSkillCodes.map((code) => ({
       section: code,
       target_count: targetByCode[code],
+      time_limit_minutes: sectionTimes[code]?.trim() ? Number(sectionTimes[code]) : null,
     })),
     pool_units: poolUnits,
     participant_ids: participantIds,
@@ -419,6 +432,8 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
               counts={counts}
               onToggle={toggleSection}
               onCountChange={setSectionCount}
+              sectionTimes={sectionTimes}
+              onTimeChange={setSectionTime}
             />
           </div>
         )}
