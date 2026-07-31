@@ -245,7 +245,7 @@ class ExamService:
         query = query.order("created_at", desc=True).range(offset, offset + per_page - 1)
         result = query.execute()
 
-        exams = [ExamService._build_summary(supabase, e) for e in (result.data or [])]
+        exams = ExamService._build_summaries(supabase, result.data or [])
 
         return ExamListResponse(
             exams=exams,
@@ -566,38 +566,64 @@ class ExamService:
             ).execute()
             question_ids = [x["id"] for x in (qr.data or [])]
 
+        # ── Batch prefetch (cegah N+1): materi + soal diambil sekali via in_() ──
+        partial_pairs = [(pid, qids) for pid, qids in partials.items() if pid not in passage_ids and qids]
+        all_pids = list(passage_ids) + [pid for pid, _ in partial_pairs]
+        passage_by_id: dict = {}
+        if all_pids:
+            for p in (supabase.table("question_passages").select("*").in_("id", all_pids).execute().data or []):
+                passage_by_id[p["id"]] = p
+
+        # Soal anak materi UTUH — grup per passage_id (urut sort_order)
+        q_by_passage: dict = {}
+        if passage_ids:
+            for qq in (
+                supabase.table("questions").select("*")
+                .in_("passage_id", passage_ids).eq("status", "published")
+                .order("sort_order").execute().data or []
+            ):
+                q_by_passage.setdefault(qq["passage_id"], []).append(qq)
+
+        # Soal SUBSET — semua qid partial sekali
+        all_partial_qids = [qid for _, qids in partial_pairs for qid in qids]
+        partial_q_by_id: dict = {}
+        if all_partial_qids:
+            for qq in (
+                supabase.table("questions").select("*")
+                .in_("id", all_partial_qids).eq("status", "published").execute().data or []
+            ):
+                partial_q_by_id[qq["id"]] = qq
+
+        # Soal tunggal (standalone) — sekali; jaga urutan question_ids
+        standalone_by_id: dict = {}
+        if question_ids:
+            for qq in (
+                supabase.table("questions").select("*")
+                .in_("id", question_ids).eq("status", "published").execute().data or []
+            ):
+                standalone_by_id[qq["id"]] = qq
+
         units = []
         # Materi UTUH (semua soal anaknya)
         for pid in passage_ids:
-            prow = supabase.table("question_passages").select("*").eq("id", pid).execute().data
-            if not prow:
-                continue
-            qrows = (
-                supabase.table("questions").select("*")
-                .eq("passage_id", pid).eq("status", "published").order("sort_order")
-                .execute().data or []
-            )
-            if qrows:
-                units.append((prow[0], qrows))
+            prow = passage_by_id.get(pid)
+            qrows = q_by_passage.get(pid, [])
+            if prow and qrows:
+                units.append((prow, qrows))
         # Materi SUBSET (hanya soal terpilih) — lewati bila materi juga dipilih utuh
-        for pid, qids in partials.items():
-            if pid in passage_ids or not qids:
-                continue
-            prow = supabase.table("question_passages").select("*").eq("id", pid).execute().data
+        for pid, qids in partial_pairs:
+            prow = passage_by_id.get(pid)
             if not prow:
                 continue
-            qrows = (
-                supabase.table("questions").select("*")
-                .in_("id", qids).eq("status", "published").order("sort_order")
-                .execute().data or []
-            )
+            qrows = [partial_q_by_id[qid] for qid in qids if qid in partial_q_by_id]
+            qrows.sort(key=lambda x: x.get("sort_order") or 0)
             if qrows:
-                units.append((prow[0], qrows))
+                units.append((prow, qrows))
         # Soal tunggal (standalone)
         for qid in question_ids:
-            qrow = supabase.table("questions").select("*").eq("id", qid).eq("status", "published").execute().data
+            qrow = standalone_by_id.get(qid)
             if qrow:
-                units.append((None, [qrow[0]]))
+                units.append((None, [qrow]))
 
         # Default (pool kosong) → ACAK urutan unit agar soal terpilih acak saat publish
         # (dibekukan sekali ke snapshot; tetap sama untuk semua peserta). Pilihan eksplisit
@@ -849,17 +875,57 @@ class ExamService:
     # ─── Response builders ────────────────────────────────────
 
     @staticmethod
-    def _build_summary(supabase, e: dict) -> ExamResponse:
-        """Bangun ExamResponse (dengan sections, total_target, participants_count)."""
-        sections_res = supabase.table("exam_sections").select(
-            "section, target_count, weight, time_limit_minutes"
-        ).eq("exam_id", e["id"]).order("section").execute()
-        sections = [
-            ExamSectionResponse(section=s["section"], target_count=s["target_count"], weight=s.get("weight"),
-                                time_limit_minutes=s.get("time_limit_minutes"))
-            for s in (sections_res.data or [])
+    def _section_resp(s: dict) -> ExamSectionResponse:
+        return ExamSectionResponse(
+            section=s["section"], target_count=s["target_count"],
+            weight=s.get("weight"), time_limit_minutes=s.get("time_limit_minutes"),
+        )
+
+    @staticmethod
+    def _build_summaries(supabase, exam_rows: list[dict]) -> list[ExamResponse]:
+        """Versi BATCH untuk daftar ujian — cegah N+1: 3 query total (bukan 3 per-ujian).
+        Sections + jumlah peserta + jumlah attempt diambil sekali via `in_(exam_ids)`."""
+        if not exam_rows:
+            return []
+        ids = [e["id"] for e in exam_rows]
+
+        sec_by_exam: dict = {}
+        for s in (
+            supabase.table("exam_sections")
+            .select("exam_id, section, target_count, weight, time_limit_minutes")
+            .in_("exam_id", ids).order("section").execute().data or []
+        ):
+            sec_by_exam.setdefault(s["exam_id"], []).append(s)
+
+        part_count: dict = {}
+        for r in (supabase.table("exam_participants").select("exam_id").in_("exam_id", ids).execute().data or []):
+            part_count[r["exam_id"]] = part_count.get(r["exam_id"], 0) + 1
+
+        att_count: dict = {}
+        for r in (supabase.table("exam_attempts").select("exam_id").in_("exam_id", ids).execute().data or []):
+            att_count[r["exam_id"]] = att_count.get(r["exam_id"], 0) + 1
+
+        return [
+            ExamService._exam_response_from(
+                e,
+                [ExamService._section_resp(s) for s in sec_by_exam.get(e["id"], [])],
+                part_count.get(e["id"], 0),
+                att_count.get(e["id"], 0),
+            )
+            for e in exam_rows
         ]
 
+    @staticmethod
+    def _build_summary(supabase, e: dict) -> ExamResponse:
+        """Bangun ExamResponse satu ujian (dipakai jalur detail/create). Untuk DAFTAR pakai `_build_summaries`."""
+        sections = [
+            ExamService._section_resp(s)
+            for s in (
+                supabase.table("exam_sections")
+                .select("section, target_count, weight, time_limit_minutes")
+                .eq("exam_id", e["id"]).order("section").execute().data or []
+            )
+        ]
         participants_count = (
             supabase.table("exam_participants").select("id", count=CountMethod.exact)
             .eq("exam_id", e["id"]).execute().count or 0
@@ -868,7 +934,12 @@ class ExamService:
             supabase.table("exam_attempts").select("id", count=CountMethod.exact)
             .eq("exam_id", e["id"]).execute().count or 0
         )
+        return ExamService._exam_response_from(e, sections, participants_count, attempts_count)
 
+    @staticmethod
+    def _exam_response_from(
+        e: dict, sections: list[ExamSectionResponse], participants_count: int, attempts_count: int
+    ) -> ExamResponse:
         creator_name = None
         if e.get("profiles"):
             creator_name = e["profiles"].get("full_name")

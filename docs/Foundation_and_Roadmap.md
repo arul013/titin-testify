@@ -1,6 +1,8 @@
 # Learning Nexus CBT — Fondasi & Peta Jalan (Master)
 
-Status: **rencana induk, 2026-07-28.** Menyatukan semua rencana: `Exam_Lifecycle_plan.md`, `Peserta_Portal_plan.md`, `Exam_Engine_Phase4_plan.md`, `Exam_Scoring_TOEFL_ITP.md`, `Exam_Test_Types_plan.md`.
+Status: **rencana induk, 2026-07-28 — progres di-update 2026-08-01.** Menyatukan semua rencana: `Exam_Lifecycle_plan.md`, `Peserta_Portal_plan.md`, `Exam_Engine_Phase4_plan.md`, `Exam_Scoring_TOEFL_ITP.md`, `Exam_Test_Types_plan.md`, `Manual_Grading_F1.2_plan.md`, `Scale_Scoring_F1.4_plan.md`.
+
+**Sudah dibangun di luar tabel F/M (fondasi peserta):** jenis tes multi (ITP/iBT/IELTS/TOEIC/Custom), Bank Soal, perakit ujian (Exam Builder), **mesin ujian peserta P4** (snapshot@publish, runner, autosave, timer, skor), **portal peserta P5** (Dashboard/Ujian Saya/Riwayat/Hasil+Pembahasan), Skema Penilaian. Ini basis untuk M2/M7/M8.
 
 ## 0. Tujuan & Prinsip
 Membangun fondasi yang **solid, scalable, aman, mudah diaudit, dan profesional**, sehingga penambahan **jenis tes baru (IELTS, TOEFL iBT, TOEIC, kustom)** dan fitur lanjutan **tidak menuntut rombak fondasi/DB**. Data masih sedikit → ini momen tepat untuk migrasi & refactor fondasi (boleh panjang, boleh tambah kolom/tabel).
@@ -34,7 +36,7 @@ Masalah sekarang: model soal mengasumsikan **pilihan ganda** (`option_a..d`, `co
 - **Upload aman** (audio/gambar ke R2): validasi content-type & ukuran, signed URL, nama file acak, tak percaya ekstensi.
 - **Sanitasi input & anti-XSS**: konten rich-text (passage/pembahasan) dirender aman (`renderExamText` di-audit); escape output.
 - **Rahasia & transport**: env/secrets, HTTPS, CORS ketat, header keamanan.
-- **Integritas ujian**: acak urutan soal/opsi **per-peserta** (karena deterministik → rawan contek), timer server, no-leak kunci (sudah).
+- **Integritas ujian**: timer server, no-leak kunci (sudah). ~~Acak urutan soal/opsi per-peserta~~ — **DICORET (keputusan 2026-08-01)**: tak sesuai tes terstandar (urutan Reading/Listening/Structure bermakna; acak justru merusak logika), manfaat tipis vs kompleksitas snapshot-per-peserta. Anti-cheat difokuskan ke jalur perilaku (M8) + variasi via **pool soal per-peserta**. Bila kelak ada ujian MCQ serempak tatap-muka soal identik, cukup tambah opsi **acak pilihan A–D** per-ujian (bukan urutan soal).
 - **PII & retensi**: klasifikasi data pribadi, kebijakan retensi/hapus.
 
 ### F3 — Auditability & Integritas Data
@@ -55,24 +57,33 @@ Masalah sekarang: model soal mengasumsikan **pilihan ganda** (`option_a..d`, `co
 
 ## 2. Peta Jalan Milestone (fungsional)
 
-**Sudah selesai (2026-07-30, sebagian belum commit):**
-- **F3 (auditability)** ✅ — `audit_events` append-only, soft-delete, optimistic concurrency (migrasi 016).
-- **M1 (lifecycle + guard edit)** ✅ — status closed/archived, guard `update_exam`, clamp `ends_at`, close/archive/duplicate, mode Kelola-terbatas (M1.0+M1.1). Migrasi 017.
-- **F2 (security)** ✅ — authz audit, rate-limit+lockout, upload aman, anti-XSS, **RLS lockdown** (migrasi 018,019). Lihat `Security_Hardening_plan.md`.
+**Progres terkini (update 2026-08-01; semua kode belum di-commit oleh AI — user commit sendiri):**
+- **F3 (auditability)** ✅ infra — `audit_events` append-only, soft-delete, optimistic concurrency (migrasi 016). *Catatan: emit audit di setiap aksi mutasi masih tumbuh seiring fitur (M1 sudah emit).*
+- **M1 (lifecycle + guard edit)** ✅ — status closed/archived, guard `update_exam`, clamp `ends_at`, close/archive/duplicate, mode Kelola-terbatas (migrasi 017).
+- **F2 (security)** ✅ sprint — authz audit, rate-limit+lockout, upload aman, anti-XSS, **RLS lockdown** (migrasi 018,019). Sisa = task pra-domain (CORS ketat, Cloudflare WAF, `RATE_LIMIT_STORAGE_URI=redis`). Lihat `Security_Hardening_plan.md`.
+- **F1 (model soal ekstensibel)** ✅ inti — lihat rincian sub-fase di bawah. Ini juga **merealisasikan M9** (tipe non-MCQ + grading).
+  - **F1.0** skema (`question_type`+`content_json`/`answer_json`+`scoring_mode`+`rubric_id`+`max_score`, tabel `rubrics`) ✅ (migrasi 020).
+  - **F1.1** 6 tipe auto-scored (mcq_single/multi, true_false_ng, fill_blank, short_answer, matching, ordering) — builder+runner+skor ✅.
+  - **F1.2** grading manual: rubrik CRUD + tipe `essay` + antrean/UI penilai + skor poin `Σawarded/Σmax` + gating "Menunggu Penilaian" ✅. Doc `Manual_Grading_F1.2_plan.md`.
+  - **F1.3** speaking (jawaban audio) ⏸️ **DITUNDA** — blocker sertifikat R2.
+  - **F1.4a** skala/band per jenis tes — **fondasi/seam ✅** (`resolve_scale` + registry tabel `scoring_tables/`); logika band IELTS/iBT ⏸️ **DITUNDA** (nunggu tabel konversi + jenis tes aktif). Doc `Scale_Scoring_F1.4_plan.md`.
+  - **F1.4b** timing per-bagian (opt-in, kunci berurutan gaya iBT: authoring + backend otoritatif + runner) ✅ (migrasi 021).
+- **F4 (skalabilitas)** 🟡 **SEBAGIAN** (2026-08-01): **N+1 diberesi** — `list_exams`/`_build_summaries` (3N→3 query batch), `_units_for_section` (freeze: per-pid loop → batch `in_()`), `submit_attempt` (N UPDATE → 1 upsert); **index** kolom hot (migrasi 022, FK join/filter); pagination list utama sudah ada (exams/questions/passages/users). **Sisa F4:** background job (auto-expire/notif/export), observability (request-id/log terstruktur), paginasi roster peserta (opsional).
 
 | Milestone | Isi | Bergantung | Status |
 |---|---|---|---|
-| **M2** | **Monitoring peserta + analitik** (progres real-ish per peserta; ringkasan; statistik per-soal: p-value & daya beda; breakdown; **ekspor CSV/PDF**). | — | **kandidat berikutnya** |
-| **F1** | **Model soal ekstensibel** (`question_type`+JSONB, scoring_type/rubrik, band per jenis tes, timing per-section, media jawaban, grading manual) — fondasi IELTS/iBT. | — | **kandidat berikutnya (dipilih "fondasi dulu")** |
+| **M2** | **Monitoring peserta + analitik** (progres per peserta; ringkasan; statistik per-soal: p-value & daya beda; breakdown; **ekspor CSV/PDF**). | — | **kandidat berikutnya** |
+| **F1** | **Model soal ekstensibel** — fondasi IELTS/iBT. | — | ✅ **inti selesai** (F1.3 + band F1.4a ditunda) |
+| **F4** | **Skalabilitas**: N+1, pagination, background job, observability. | — | 🟡 sebagian (N+1+index+pagination ✅; jobs/observability belum) |
 | **M3** | **Auto-submit/expire job** (finalisasi attempt kedaluwarsa; auto-close saat `ends_at` lewat) + infra job (F4). | F4 | rencana |
-| **M4** | **Duplikat & template ujian**; tandai soal **"dipakai di N ujian"** (cegah/peringatan edit soal live). | — | rencana |
+| **M4** | **Duplikat & template ujian**; tandai soal **"dipakai di N ujian"** (cegah/peringatan edit soal live). | — | rencana (duplikat sudah ada dari M1) |
 | **M5** | **Manajemen peserta**: assign per **grup/kelas** (cohort), **perpanjangan waktu per-peserta** (akomodasi), re-invite. | — | rencana |
 | **M6** | **Notifikasi** (ujian ditugaskan / akan dibuka / pengingat) — in-app + email. | F4 (job) | rencana |
 | **M7** | **Layar pra-ujian** (instruksi, durasi, jumlah soal, **pakta integritas**) + **ketahanan koneksi** (indikator tersimpan, auto-resume) + **aksesibilitas** (ukuran font/kontras). | — | rencana |
-| **M8** | **Anti-cheat**: acak urutan soal/opsi per-peserta, deteksi pindah-tab/blur, fullscreen lock, (opsional) proctoring. | F1, F2 | rencana |
-| **M9** | **Tipe soal non-MCQ + alur grading** (IELTS Writing/Speaking, matching, dst.) — realisasi F1 di UI builder, engine peserta, dan grader. | F1 | rencana |
+| **M8** | **Anti-cheat**: deteksi pindah-tab/blur, fullscreen lock, cegah copy-paste, satu-sesi-aktif, log ke `audit_events`, (opsional) proctoring. (Acak urutan soal/opsi per-peserta DICORET 2026-08-01 — lihat §Security.) | F1, F2 | rencana |
+| **M9** | **Tipe soal non-MCQ + alur grading** (IELTS Writing/Speaking, matching, dst.). | F1 | ✅ **sebagian besar** via F1.1+F1.2 (sisa: speaking F1.3) |
 
-Urutan default: **M1 → (F3/F4 secukupnya) → M2 → M3 → M4 → M5 → M6 → M7 → M8 → M9**. F1/F2 disuntik sebagai **sprint fondasi** di titik yang disepakati (lihat §4).
+Urutan default: **M1 → (F3/F4 secukupnya) → M2 → M3 → M4 → M5 → M6 → M7 → M8 → M9**. F1/F2 sudah disuntik sebagai sprint fondasi. **Kandidat berikutnya: F4 (N+1/pagination), M2 (monitoring), atau M8 (anti-cheat perilaku).**
 
 ---
 

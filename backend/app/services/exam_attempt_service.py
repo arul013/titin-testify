@@ -460,23 +460,31 @@ class ExamAttemptService:
             if is_c:
                 d["correct"] += 1
 
-        # Tandai is_correct + awarded_score/max_score pada baris jawaban.
-        # Item auto: awarded = max bila benar, else 0. Item manual: awarded null (menunggu penilai).
+        # Tandai is_correct + awarded_score/max_score pada baris jawaban — BATCH satu upsert
+        # (cegah N+1: dulu satu UPDATE per jawaban). Item auto: awarded = max bila benar, else 0.
+        # Item manual: awarded null (menunggu penilai).
+        upsert_rows = []
         for a in arows:
             q = q_by_id.get(a["exam_question_id"])
             mx = float(q.get("max_score") or 1) if q else 1.0
             if q and _is_manual(q):
-                supabase.table("exam_attempt_answers").update(
-                    {"is_correct": None, "awarded_score": None, "max_score": mx}
-                ).eq("id", a["id"]).execute()
+                grade_cols = {"is_correct": None, "awarded_score": None, "max_score": mx}
             else:
                 is_c = bool(q) and _grade(
                     q.get("question_type"), q.get("correct_answer"), q.get("answer_json"),
                     a.get("selected_answer"), a.get("answer_json"),
                 )
-                supabase.table("exam_attempt_answers").update(
-                    {"is_correct": is_c, "awarded_score": mx if is_c else 0, "max_score": mx}
-                ).eq("id", a["id"]).execute()
+                grade_cols = {"is_correct": is_c, "awarded_score": mx if is_c else 0, "max_score": mx}
+            upsert_rows.append({
+                "id": a["id"],
+                "attempt_id": attempt_id,
+                "exam_question_id": a["exam_question_id"],
+                "selected_answer": a.get("selected_answer"),
+                "answer_json": a.get("answer_json"),
+                **grade_cols,
+            })
+        if upsert_rows:
+            supabase.table("exam_attempt_answers").upsert(upsert_rows).execute()
 
         passing = exam.get("passing_value")
         # Skor otomatis berdasarkan jenis tes + mode (TOEFL ITP resmi / Nilai 0–100).
