@@ -9,12 +9,18 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.types import ExceptionHandler
 
+import logging
+
 from app.config import get_settings
 from app.middleware.cors import setup_cors
 from app.middleware.rate_limit import limiter
-from app.routes import auth, users, questions, upload, exams, scoring_schemes, exam_attempts, test_types, scoring, rubrics, grading
+from app.middleware.observability import setup_logging, install_request_logging
+from app.routes import auth, users, questions, upload, exams, scoring_schemes, exam_attempts, test_types, scoring, rubrics, grading, internal
 
 settings = get_settings()
+
+# F4 observability: logging terstruktur + request-id (lebih verbose saat debug).
+setup_logging(logging.DEBUG if settings.app_debug else logging.INFO)
 
 app = FastAPI(
     title=settings.app_name,
@@ -23,6 +29,9 @@ app = FastAPI(
     docs_url="/api/docs" if settings.app_debug else None,
     redoc_url="/api/redoc" if settings.app_debug else None,
 )
+
+# Request-id + access log (dipasang sebelum router).
+install_request_logging(app)
 
 # Rate limiting (per-IP, Redis-ready). Handler mengubah RateLimitExceeded → 429.
 # cast: signature slowapi (RateLimitExceeded) beda dgn tipe Starlette (Exception) — aman saat run.
@@ -44,6 +53,7 @@ app.include_router(grading.router)
 app.include_router(exam_attempts.router)
 app.include_router(test_types.router)
 app.include_router(scoring.router)
+app.include_router(internal.router)
 
 
 @app.get("/api/health")

@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     login_max_failures: int = 5          # gagal berturut sebelum terkunci
     login_lockout_minutes: int = 15      # durasi kunci
 
+    # F4 background job — secret untuk endpoint internal (/api/internal/jobs/*).
+    # Kosong = endpoint dinonaktifkan. Prod: set nilai acak panjang; cron eksternal
+    # kirim di header X-Internal-Secret.
+    internal_job_secret: str = ""
+
     class Config:
         env_file = ".env"
         case_sensitive = False

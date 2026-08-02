@@ -2,9 +2,12 @@
 Learning Nexus CBT — Exam Attempt Service (Phase 4: peserta mengerjakan ujian)
 """
 
+import logging
 from datetime import datetime, timezone, timedelta
 from fastapi import HTTPException, status
 from app.database import get_supabase_admin
+
+logger = logging.getLogger("app.jobs")
 from app.models.exam_attempt import (
     MyExamItem,
     MyExamListResponse,
@@ -524,6 +527,50 @@ class ExamAttemptService:
             show_review=bool(exam.get("show_review")),
             grading_status=grading_status,
         )
+
+    # ─── F4/M3: auto-expire attempt kedaluwarsa (dipanggil job internal) ─
+    @staticmethod
+    async def expire_stale_attempts(limit: int = 500) -> dict:
+        """Finalisasi attempt `in_progress` yang deadline-nya lewat (reuse submit).
+        Deadline = started + durasi, di-clamp ke `ends_at`. Idempotent & best-effort per attempt."""
+        supabase = get_supabase_admin()
+        now = datetime.now(timezone.utc)
+        attempts = (
+            supabase.table("exam_attempts").select("id, user_id, exam_id, started_at")
+            .eq("status", "in_progress").limit(limit).execute().data or []
+        )
+        if not attempts:
+            return {"checked": 0, "expired": 0}
+
+        exam_ids = list({a["exam_id"] for a in attempts})
+        exams = {
+            e["id"]: e
+            for e in (
+                supabase.table("exams").select("id, duration_minutes, ends_at")
+                .in_("id", exam_ids).execute().data or []
+            )
+        }
+
+        expired = 0
+        for a in attempts:
+            ex = exams.get(a["exam_id"])
+            if not ex:
+                continue
+            started = _parse_dt(a.get("started_at")) or now
+            deadline = started + timedelta(minutes=ex.get("duration_minutes") or 0)
+            ends = _parse_dt(ex.get("ends_at"))
+            if ends and ends < deadline:
+                deadline = ends
+            if now <= deadline:
+                continue
+            try:
+                await ExamAttemptService.submit_attempt(a["id"], a["user_id"])
+                expired += 1
+            except Exception as e:  # jangan gagalkan batch karena satu attempt
+                logger.warning("auto-expire gagal untuk attempt %s: %s", a["id"], e)
+        if expired:
+            logger.info("auto-expire: %s/%s attempt difinalisasi", expired, len(attempts))
+        return {"checked": len(attempts), "expired": expired}
 
     # ─── Hasil ────────────────────────────────────────────────
     @staticmethod

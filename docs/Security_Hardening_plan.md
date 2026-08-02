@@ -41,6 +41,10 @@ Semua endpoint **sudah** punya guard (`require_admin`/`require_super_admin`/`get
 - [ ] Pastikan security headers (HSTS, dst.) aktif di edge/proxy domain resmi.
 - [ ] **Cloudflare WAF + rate-limit di edge** (lapis volumetrik/DDoS) — melengkapi rate-limit app.
 - [ ] **Set `RATE_LIMIT_STORAGE_URI=redis://…` (Upstash)** di env produksi bila backend multi-instance (dev pakai `memory://`).
+- [ ] **Aktifkan auto-expire attempt (F4/M3)** — 3 langkah mudah:
+  1. Set env **`INTERNAL_JOB_SECRET`** (buat: `openssl rand -hex 32`) di backend prod.
+  2. Tes: `curl -X POST https://<domain>/api/internal/jobs/expire-attempts -H "X-Internal-Secret: <secret>"` → harus balas `{"checked":…,"expired":…}`.
+  3. Jadwalkan tiap 1–5 menit lewat **cron-job.org** (paling mudah: URL + method POST + header `X-Internal-Secret`) atau Supabase `pg_cron`+`pg_net`. *(Endpoint sudah ada; Claude akan pandu saat deploy.)*
 
 ## Aturan
 - Jangan commit/push (hak user). Migrasi (RLS) dijalankan user.

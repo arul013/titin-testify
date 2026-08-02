@@ -68,14 +68,14 @@ Masalah sekarang: model soal mengasumsikan **pilihan ganda** (`option_a..d`, `co
   - **F1.3** speaking (jawaban audio) ⏸️ **DITUNDA** — blocker sertifikat R2.
   - **F1.4a** skala/band per jenis tes — **fondasi/seam ✅** (`resolve_scale` + registry tabel `scoring_tables/`); logika band IELTS/iBT ⏸️ **DITUNDA** (nunggu tabel konversi + jenis tes aktif). Doc `Scale_Scoring_F1.4_plan.md`.
   - **F1.4b** timing per-bagian (opt-in, kunci berurutan gaya iBT: authoring + backend otoritatif + runner) ✅ (migrasi 021).
-- **F4 (skalabilitas)** 🟡 **SEBAGIAN** (2026-08-01): **N+1 diberesi** — `list_exams`/`_build_summaries` (3N→3 query batch), `_units_for_section` (freeze: per-pid loop → batch `in_()`), `submit_attempt` (N UPDATE → 1 upsert); **index** kolom hot (migrasi 022, FK join/filter); pagination list utama sudah ada (exams/questions/passages/users). **Sisa F4:** background job (auto-expire/notif/export), observability (request-id/log terstruktur), paginasi roster peserta (opsional).
+- **F4 (skalabilitas)** ✅ **INTI SELESAI** (2026-08-01): **N+1 diberesi** — `list_exams`/`_build_summaries` (3N→3 query batch), `_units_for_section` (freeze: per-pid loop → batch `in_()`), `submit_attempt` (N UPDATE → 1 upsert); **index** kolom hot (migrasi 022, FK join/filter); pagination list utama sudah ada; **observability** — `middleware/observability.py` (request-id via ContextVar + honor `X-Request-ID`, access log terstruktur, lib chatty diredam); **background job (endpoint internal + cron eksternal)** — `POST /api/internal/jobs/expire-attempts` (dijaga `INTERNAL_JOB_SECRET`, `secrets.compare_digest`) → `expire_stale_attempts` finalisasi attempt `in_progress` yang deadline-nya lewat (reuse submit). **Sisa (opsional/nanti):** jadwalkan cron (task deploy), job notif/export, paginasi roster peserta.
 
 | Milestone | Isi | Bergantung | Status |
 |---|---|---|---|
 | **M2** | **Monitoring peserta + analitik** (progres per peserta; ringkasan; statistik per-soal: p-value & daya beda; breakdown; **ekspor CSV/PDF**). | — | **kandidat berikutnya** |
 | **F1** | **Model soal ekstensibel** — fondasi IELTS/iBT. | — | ✅ **inti selesai** (F1.3 + band F1.4a ditunda) |
-| **F4** | **Skalabilitas**: N+1, pagination, background job, observability. | — | 🟡 sebagian (N+1+index+pagination ✅; jobs/observability belum) |
-| **M3** | **Auto-submit/expire job** (finalisasi attempt kedaluwarsa; auto-close saat `ends_at` lewat) + infra job (F4). | F4 | rencana |
+| **F4** | **Skalabilitas**: N+1, pagination, background job, observability. | — | ✅ inti selesai (jobs/obs/N+1/index ✅; notif/export job nanti) |
+| **M3** | **Auto-submit/expire job** (finalisasi attempt kedaluwarsa; auto-close saat `ends_at` lewat) + infra job (F4). | F4 | 🟡 **endpoint siap** (`/api/internal/jobs/expire-attempts`); tinggal **jadwalkan cron** (deploy) |
 | **M4** | **Duplikat & template ujian**; tandai soal **"dipakai di N ujian"** (cegah/peringatan edit soal live). | — | rencana (duplikat sudah ada dari M1) |
 | **M5** | **Manajemen peserta**: assign per **grup/kelas** (cohort), **perpanjangan waktu per-peserta** (akomodasi), re-invite. | — | rencana |
 | **M6** | **Notifikasi** (ujian ditugaskan / akan dibuka / pengingat) — in-app + email. | F4 (job) | rencana |
