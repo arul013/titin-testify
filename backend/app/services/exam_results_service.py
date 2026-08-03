@@ -148,50 +148,56 @@ class ExamResultsService:
         if not ar:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Percobaan tidak ditemukan.")
         attempt = ar[0]
-        exam = (
+        er = (
             supabase.table("exams").select("id, title, created_by, test_type, exam_mode, passing_value")
-            .eq("id", attempt["exam_id"]).execute().data[0]
+            .eq("id", attempt["exam_id"]).is_("deleted_at", "null").execute().data
         )
+        if not er:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Ujian tidak ditemukan.")
+        exam = er[0]
         _assert_owner(exam, user_id, user_role)
 
-        eqs = (
-            supabase.table("exam_questions")
-            .select("id, position, section, payload, correct_answer, answer_json, question_type, explanation, scoring_mode, max_score")
-            .eq("exam_id", attempt["exam_id"]).order("position").execute().data or []
-        )
-        ans = (
-            supabase.table("exam_attempt_answers")
-            .select("exam_question_id, selected_answer, answer_json, is_correct, awarded_score, max_score, rubric_scores, feedback")
-            .eq("attempt_id", attempt_id).execute().data or []
-        )
-        by = {a["exam_question_id"]: a for a in ans}
-
+        # Rincian jawaban hanya bermakna bila attempt SUDAH dikumpulkan.
+        # Attempt yang masih 'in_progress' → kembalikan metadata + status saja (tanpa rincian).
         questions: list[AttemptReviewQuestion] = []
-        for q in eqs:
-            a = by.get(q["id"])
-            selected = a["selected_answer"] if a else None
-            ans_json = a.get("answer_json") if a else None
-            manual = (q.get("scoring_mode") or "auto") == "manual"
-            is_correct = False if manual else _grade(
-                q.get("question_type"), q.get("correct_answer"), q.get("answer_json"), selected, ans_json,
+        if attempt["status"] == "submitted":
+            eqs = (
+                supabase.table("exam_questions")
+                .select("id, position, section, payload, correct_answer, answer_json, question_type, explanation, scoring_mode, max_score")
+                .eq("exam_id", attempt["exam_id"]).order("position").execute().data or []
             )
-            questions.append(AttemptReviewQuestion(
-                exam_question_id=q["id"],
-                position=q["position"],
-                section=q["section"],
-                payload=q["payload"],
-                correct_answer=q.get("correct_answer"),
-                selected_answer=selected,
-                answer_json=ans_json,
-                answer_key_json=q.get("answer_json"),
-                is_correct=is_correct,
-                explanation=q.get("explanation"),
-                scoring_mode=q.get("scoring_mode") or "auto",
-                awarded_score=(float(a["awarded_score"]) if a and a.get("awarded_score") is not None else None),
-                max_score=(float(a["max_score"]) if a and a.get("max_score") is not None else (float(q["max_score"]) if q.get("max_score") is not None else None)),
-                rubric_scores=(a.get("rubric_scores") if a else None),
-                feedback=(a.get("feedback") if a else None),
-            ))
+            ans = (
+                supabase.table("exam_attempt_answers")
+                .select("exam_question_id, selected_answer, answer_json, is_correct, awarded_score, max_score, rubric_scores, feedback")
+                .eq("attempt_id", attempt_id).execute().data or []
+            )
+            by = {a["exam_question_id"]: a for a in ans}
+
+            for q in eqs:
+                a = by.get(q["id"])
+                selected = a["selected_answer"] if a else None
+                ans_json = a.get("answer_json") if a else None
+                manual = (q.get("scoring_mode") or "auto") == "manual"
+                is_correct = False if manual else _grade(
+                    q.get("question_type"), q.get("correct_answer"), q.get("answer_json"), selected, ans_json,
+                )
+                questions.append(AttemptReviewQuestion(
+                    exam_question_id=q["id"],
+                    position=q["position"],
+                    section=q["section"],
+                    payload=q["payload"],
+                    correct_answer=q.get("correct_answer"),
+                    selected_answer=selected,
+                    answer_json=ans_json,
+                    answer_key_json=q.get("answer_json"),
+                    is_correct=is_correct,
+                    explanation=q.get("explanation"),
+                    scoring_mode=q.get("scoring_mode") or "auto",
+                    awarded_score=(float(a["awarded_score"]) if a and a.get("awarded_score") is not None else None),
+                    max_score=(float(a["max_score"]) if a and a.get("max_score") is not None else (float(q["max_score"]) if q.get("max_score") is not None else None)),
+                    rubric_scores=(a.get("rubric_scores") if a else None),
+                    feedback=(a.get("feedback") if a else None),
+                ))
 
         detail = attempt.get("score_detail") or {}
         per = [SectionResult(**ps) for ps in detail.get("per_section", [])]

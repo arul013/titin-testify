@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ArrowLeft, AlertTriangle, CheckCircle2, XCircle, Hourglass, CalendarClock, User,
+  ArrowLeft, AlertTriangle, CheckCircle2, XCircle, Hourglass, CalendarClock, User, Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -46,6 +46,7 @@ export function AdminAttemptReviewPage({ examId, attemptId }: { examId: string; 
   const isItp = data?.scale_unit === 'toefl_itp';
   const unit = data?.scale_unit === 'percent' ? '%' : '';
   const pending = data?.grading_status === 'pending';
+  const inProgress = data?.status !== 'submitted';
 
   return (
     <div className="flex flex-col gap-6 py-1">
@@ -84,13 +85,16 @@ export function AdminAttemptReviewPage({ examId, attemptId }: { examId: string; 
                   <h1 className="truncate text-xl font-extrabold text-slate-800">{data.participant_name || 'Peserta'}</h1>
                   <p className="truncate text-sm text-slate-400">{data.title}</p>
                   <span className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] text-slate-400">
-                    <CalendarClock className="h-3 w-3" /> Terkumpul {fmtDate(data.submitted_at)}
+                    <CalendarClock className="h-3 w-3" />
+                    {inProgress ? 'Belum dikumpulkan' : `Terkumpul ${fmtDate(data.submitted_at)}`}
                   </span>
                 </div>
               </div>
 
               <div className="flex items-center gap-5 md:flex-col md:items-end md:gap-1.5">
-                {pending ? (
+                {inProgress ? (
+                  <Badge variant="neutral" className="gap-1"><Loader2 className="h-3.5 w-3.5" /> Mengerjakan</Badge>
+                ) : pending ? (
                   <Badge variant="warning" className="gap-1"><Hourglass className="h-3.5 w-3.5" /> Menunggu Penilaian</Badge>
                 ) : data.passed == null ? (
                   <Badge variant="success">Selesai</Badge>
@@ -99,7 +103,7 @@ export function AdminAttemptReviewPage({ examId, attemptId }: { examId: string; 
                 ) : (
                   <Badge variant="danger" className="gap-1"><XCircle className="h-3.5 w-3.5" /> Belum Lulus</Badge>
                 )}
-                {!pending && (
+                {!pending && !inProgress && (
                   <div className="text-right">
                     <span className="text-3xl font-extrabold tabular-nums text-slate-800">
                       {data.score != null ? Math.round(data.score) : '—'}
@@ -135,11 +139,23 @@ export function AdminAttemptReviewPage({ examId, attemptId }: { examId: string; 
             )}
           </Card>
 
-          {/* Pembahasan per-soal (data pra-muat → panel tak fetch ulang) */}
-          <div>
-            <h2 className="mb-4 text-sm font-extrabold uppercase tracking-wide text-slate-500">Rincian Jawaban</h2>
-            <AttemptReviewPanel attemptId={attemptId} data={data} />
-          </div>
+          {/* Rincian jawaban — hanya bila sudah dikumpulkan */}
+          {inProgress ? (
+            <Card className="flex flex-col items-center gap-3 rounded-3xl p-10 text-center">
+              <div className="grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 text-slate-400">
+                <Loader2 className="h-7 w-7 animate-spin" />
+              </div>
+              <h3 className="text-base font-extrabold text-slate-800">Peserta masih mengerjakan</h3>
+              <p className="max-w-md text-sm text-slate-500">
+                Skor dan rincian jawaban akan tersedia di sini setelah peserta mengumpulkan ujiannya.
+              </p>
+            </Card>
+          ) : (
+            <div>
+              <h2 className="mb-4 text-sm font-extrabold uppercase tracking-wide text-slate-500">Rincian Jawaban</h2>
+              <AttemptReviewPanel attemptId={attemptId} data={data} />
+            </div>
+          )}
         </>
       ) : null}
     </div>

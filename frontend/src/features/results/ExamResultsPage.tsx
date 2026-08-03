@@ -203,9 +203,12 @@ function AttemptRow({ a, unit, onOpen }: { a: AdminAttemptRow; unit: string; onO
 
   return (
     <Card
-      variant="interactive"
-      onClick={onOpen}
-      className="group flex cursor-pointer flex-col gap-3 rounded-2xl p-4 transition-shadow hover:shadow-md md:flex-row md:items-center md:gap-4"
+      variant={inProgress ? 'default' : 'interactive'}
+      onClick={inProgress ? undefined : onOpen}
+      className={cn(
+        'group flex flex-col gap-3 rounded-2xl p-4 md:flex-row md:items-center md:gap-4',
+        inProgress ? '' : 'cursor-pointer transition-shadow hover:shadow-md',
+      )}
     >
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2.5">
@@ -246,7 +249,9 @@ function AttemptRow({ a, unit, onOpen }: { a: AdminAttemptRow; unit: string; onO
             <p className="text-sm font-bold text-slate-400">{pending ? 'Menunggu' : '—'}</p>
           )}
         </div>
-        <ChevronRight className="h-5 w-5 shrink-0 text-slate-300 transition-colors group-hover:text-brand" />
+        {!inProgress && (
+          <ChevronRight className="h-5 w-5 shrink-0 text-slate-300 transition-colors group-hover:text-brand" />
+        )}
       </div>
     </Card>
   );
