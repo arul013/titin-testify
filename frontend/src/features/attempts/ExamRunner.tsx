@@ -1,46 +1,78 @@
-'use client';
+"use client";
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Clock, Send, Loader2, AlertTriangle, ArrowLeft, ListChecks, ArrowRightCircle, Lock, ChevronLeft, ChevronRight, Flag } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { cn } from '@/src/lib/cn';
-import { SECTION_LABELS, type ExamSectionId } from '@/features/exams/hooks/useExams';
-import { attemptsApi, type StartAttemptResponse, type SectionTiming } from './api';
-import { SoalPanel } from './SoalPanel';
-import { AnswerSheet, type PaletteItem } from './AnswerSheet';
-import { BookletOptions, optionsFor } from './BookletOptions';
-import { AnswerBubbleSheet, type BubbleItem } from './AnswerBubbleSheet';
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Clock,
+  Send,
+  Loader2,
+  AlertTriangle,
+  ArrowLeft,
+  ListChecks,
+  ArrowRightCircle,
+  Lock,
+  ChevronLeft,
+  ChevronRight,
+  Flag,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { cn } from "@/src/lib/cn";
+import {
+  SECTION_LABELS,
+  type ExamSectionId,
+} from "@/features/exams/hooks/useExams";
+import {
+  attemptsApi,
+  type StartAttemptResponse,
+  type SectionTiming,
+} from "./api";
+import { SoalPanel } from "./SoalPanel";
+import { AnswerSheet, type PaletteItem } from "./AnswerSheet";
+import { BookletOptions, optionsFor } from "./BookletOptions";
+import { AnswerBubbleSheet, type BubbleItem } from "./AnswerBubbleSheet";
 
 // Tipe single-choice (pakai selected_answer a/b/c/d) → layout lembar-jawaban OMR.
-const SINGLE_CHOICE = new Set(['mcq_single', 'true_false_ng']);
+const SINGLE_CHOICE = new Set(["mcq_single", "true_false_ng"]);
 const isSingleChoice = (t?: string) => !t || SINGLE_CHOICE.has(t);
 
 // Section TOEFL ITP: Structure + Written Expression = SATU "Section 2".
 const SEC_GROUP_LABEL: Record<string, string> = {
-  listening: 'Listening Comprehension',
-  structure_we: 'Structure & Written Expression',
-  reading: 'Reading Comprehension',
+  listening: "Listening Comprehension",
+  structure_we: "Structure & Written Expression",
+  reading: "Reading Comprehension",
 };
-const groupKey = (s: string) => (s === 'structure' || s === 'written_expression' ? 'structure_we' : s);
-const groupLabel = (s: string) => SEC_GROUP_LABEL[groupKey(s)] ?? SECTION_LABELS[s as ExamSectionId] ?? s;
+const groupKey = (s: string) =>
+  s === "structure" || s === "written_expression" ? "structure_we" : s;
+const groupLabel = (s: string) =>
+  SEC_GROUP_LABEL[groupKey(s)] ?? SECTION_LABELS[s as ExamSectionId] ?? s;
 
 // Tanda-tangan materi → kelompokkan soal yang berbagi passage yang sama (reading "Questions X–Y").
-const passageSig = (x: { payload: { passage?: { content?: string | null; audio_url?: string | null; image_url?: string | null } | null } }) => {
+// Pakai ID passage (andal); fallback ke isi bacaan untuk snapshot lama tanpa id.
+const passageSig = (x: {
+  payload: {
+    passage?: {
+      id?: string | null;
+      content?: string | null;
+      audio_url?: string | null;
+      image_url?: string | null;
+    } | null;
+  };
+}) => {
   const p = x.payload.passage;
   if (!p) return null;
-  return `${p.content ?? ''}¦${p.audio_url ?? ''}¦${p.image_url ?? ''}`;
+  if (p.id) return `id:${p.id}`;
+  return `${p.content ?? ""}¦${p.audio_url ?? ""}¦${p.image_url ?? ""}`;
 };
 
 // Petunjuk bagian (ditampilkan sekali di awal tiap section, ala ETS).
 const SECTION_DIRECTIONS: Record<string, string> = {
   listening:
-    'Bagian ini menguji kemampuanmu memahami percakapan dan ceramah dalam bahasa Inggris. Dengarkan tiap audio dengan saksama, lalu tandai jawaban yang paling tepat pada lembar jawaban di sebelah kanan.',
+    "Bagian ini menguji kemampuanmu memahami percakapan dan ceramah dalam bahasa Inggris. Dengarkan tiap audio dengan saksama, lalu tandai jawaban yang paling tepat pada lembar jawaban di sebelah kanan.",
   structure_we:
-    'Bagian ini menguji penguasaan tata bahasa. Pada tipe Structure, lengkapi kalimat rumpang dengan pilihan yang tepat. Pada tipe Written Expression, temukan satu bagian bergaris (A/B/C/D) yang keliru secara tata bahasa. Tandai jawabanmu pada lembar jawaban.',
+    "Bagian ini menguji penguasaan tata bahasa. Pada tipe Structure, lengkapi kalimat rumpang dengan pilihan yang tepat. Pada tipe Written Expression, temukan satu bagian bergaris (A/B/C/D) yang keliru secara tata bahasa. Tandai jawabanmu pada lembar jawaban.",
   reading:
-    'Bagian ini menguji pemahaman bacaan. Baca tiap teks dengan cermat, lalu jawab pertanyaan berdasarkan isi bacaan tersebut. Tandai jawabanmu pada lembar jawaban.',
+    "Bagian ini menguji pemahaman bacaan. Baca tiap teks dengan cermat, lalu jawab pertanyaan berdasarkan isi bacaan tersebut. Tandai jawabanmu pada lembar jawaban.",
 };
 
 function fmtClock(totalSeconds: number): string {
@@ -48,7 +80,7 @@ function fmtClock(totalSeconds: number): string {
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
   const sec = s % 60;
-  const pad = (n: number) => String(n).padStart(2, '0');
+  const pad = (n: number) => String(n).padStart(2, "0");
   return h > 0 ? `${pad(h)}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
 }
 
@@ -63,7 +95,9 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
   const [multi, setMulti] = useState<Record<string, string[]>>({}); // mcq_multi: himpunan opsi terpilih
   const [text, setText] = useState<Record<string, string>>({}); // fill_blank/short_answer/essay: jawaban teks
   const textTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-  const [pairs, setPairs] = useState<Record<string, Record<string, string>>>({}); // matching: leftIdx→rightKey
+  const [pairs, setPairs] = useState<Record<string, Record<string, string>>>(
+    {},
+  ); // matching: leftIdx→rightKey
   const [flags, setFlags] = useState<Set<string>>(new Set());
   const [current, setCurrent] = useState(0);
   const [endAt, setEndAt] = useState<number | null>(null);
@@ -72,7 +106,9 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
   const [submitting, setSubmitting] = useState(false);
 
   // F1.4b: timing per-bagian (mode berurutan). Null → 1 timer global (perilaku lama).
-  const [sectionTiming, setSectionTiming] = useState<SectionTiming | null>(null);
+  const [sectionTiming, setSectionTiming] = useState<SectionTiming | null>(
+    null,
+  );
   const [sectionEndAt, setSectionEndAt] = useState<number | null>(null);
   const [sectionRemaining, setSectionRemaining] = useState(0);
   const [showAdvanceConfirm, setShowAdvanceConfirm] = useState(false);
@@ -96,13 +132,20 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
         const initPairs: Record<string, Record<string, string>> = {};
         res.questions.forEach((q) => {
           init[q.exam_question_id] = q.selected_answer;
-          const aj = q.answer_json as
-            | { selected?: string[]; text?: string; pairs?: Record<string, string>; positions?: Record<string, string> }
-            | null;
-          if (Array.isArray(aj?.selected)) initMulti[q.exam_question_id] = aj.selected;
-          if (typeof aj?.text === 'string') initText[q.exam_question_id] = aj.text;
-          if (aj?.pairs && typeof aj.pairs === 'object') initPairs[q.exam_question_id] = aj.pairs;
-          if (aj?.positions && typeof aj.positions === 'object') initPairs[q.exam_question_id] = aj.positions;
+          const aj = q.answer_json as {
+            selected?: string[];
+            text?: string;
+            pairs?: Record<string, string>;
+            positions?: Record<string, string>;
+          } | null;
+          if (Array.isArray(aj?.selected))
+            initMulti[q.exam_question_id] = aj.selected;
+          if (typeof aj?.text === "string")
+            initText[q.exam_question_id] = aj.text;
+          if (aj?.pairs && typeof aj.pairs === "object")
+            initPairs[q.exam_question_id] = aj.pairs;
+          if (aj?.positions && typeof aj.positions === "object")
+            initPairs[q.exam_question_id] = aj.positions;
         });
         setAnswers(init);
         setMulti(initMulti);
@@ -112,7 +155,9 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
         setRemaining(res.remaining_seconds);
         if (res.section_timing) {
           setSectionTiming(res.section_timing);
-          setSectionEndAt(Date.now() + res.section_timing.current_remaining_seconds * 1000);
+          setSectionEndAt(
+            Date.now() + res.section_timing.current_remaining_seconds * 1000,
+          );
           setSectionRemaining(res.section_timing.current_remaining_seconds);
         }
         try {
@@ -123,7 +168,10 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
         }
       })
       .catch((err) => {
-        if (active) setLoadError(err instanceof Error ? err.message : 'Gagal memuat ujian');
+        if (active)
+          setLoadError(
+            err instanceof Error ? err.message : "Gagal memuat ujian",
+          );
       });
     return () => {
       active = false;
@@ -148,7 +196,9 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
     } catch (err) {
       submittedRef.current = false;
       setSubmitting(false);
-      setLoadError(err instanceof Error ? err.message : 'Gagal mengumpulkan ujian');
+      setLoadError(
+        err instanceof Error ? err.message : "Gagal mengumpulkan ujian",
+      );
     }
   }, [attemptId, router]);
 
@@ -156,10 +206,13 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
   const order = sectionTiming?.order ?? [];
   const activeSection = sectionTiming?.current_section ?? null;
   const sectionIndex = activeSection ? order.indexOf(activeSection) : -1;
-  const isLastSection = perSection && order.length > 0 && activeSection === order[order.length - 1];
+  const isLastSection =
+    perSection && order.length > 0 && activeSection === order[order.length - 1];
 
   const allQuestions = data?.questions ?? [];
-  const questions = perSection ? allQuestions.filter((x) => x.section === activeSection) : allQuestions;
+  const questions = perSection
+    ? allQuestions.filter((x) => x.section === activeSection)
+    : allQuestions;
   const q = questions[current];
 
   // ── Maju ke bagian berikutnya (kunci bagian aktif) ──
@@ -181,7 +234,7 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
           setSectionRemaining(res.current_remaining_seconds);
         }
       } catch (err) {
-        console.warn('advance gagal', err);
+        console.warn("advance gagal", err);
       } finally {
         setAdvancing(false);
       }
@@ -239,14 +292,18 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
     if (!q || !attemptId || submittedRef.current) return;
     const eqId = q.exam_question_id;
     setAnswers((prev) => ({ ...prev, [eqId]: key }));
-    void attemptsApi.saveAnswer(attemptId, eqId, key).catch((e) => console.warn('autosave gagal', e));
+    void attemptsApi
+      .saveAnswer(attemptId, eqId, key)
+      .catch((e) => console.warn("autosave gagal", e));
   };
 
   // mcq_multi: toggle satu opsi (hormati batas "pilih N" dari content_json.choose).
   const handleMultiToggle = (key: string) => {
     if (!q || !attemptId || submittedRef.current) return;
     const eqId = q.exam_question_id;
-    const choose = (q.payload.content_json as { choose?: number } | null | undefined)?.choose;
+    const choose = (
+      q.payload.content_json as { choose?: number } | null | undefined
+    )?.choose;
     const cur = multi[eqId] ?? [];
     let next: string[];
     if (cur.includes(key)) {
@@ -258,12 +315,14 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
     setMulti((prev) => ({ ...prev, [eqId]: next }));
     void attemptsApi
       .saveAnswer(attemptId, eqId, null, { selected: next })
-      .catch((e) => console.warn('autosave gagal', e));
+      .catch((e) => console.warn("autosave gagal", e));
   };
 
   // fill_blank/essay: ketik jawaban (autosave debounce 400ms; flush saat blur / pindah soal).
   const saveText = (eqId: string, value: string) =>
-    void attemptsApi.saveAnswer(attemptId!, eqId, null, { text: value }).catch((e) => console.warn('autosave gagal', e));
+    void attemptsApi
+      .saveAnswer(attemptId!, eqId, null, { text: value })
+      .catch((e) => console.warn("autosave gagal", e));
   const handleTextChange = (value: string) => {
     if (!q || !attemptId || submittedRef.current) return;
     const eqId = q.exam_question_id;
@@ -277,7 +336,7 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
     if (textTimers.current[eqId]) {
       clearTimeout(textTimers.current[eqId]);
       delete textTimers.current[eqId];
-      saveText(eqId, text[eqId] ?? '');
+      saveText(eqId, text[eqId] ?? "");
     }
   };
 
@@ -287,8 +346,13 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
     const eqId = q.exam_question_id;
     const nextPairs = { ...(pairs[eqId] ?? {}), [String(leftIdx)]: rightKey };
     setPairs((prev) => ({ ...prev, [eqId]: nextPairs }));
-    const body = q.payload.question_type === 'ordering' ? { positions: nextPairs } : { pairs: nextPairs };
-    void attemptsApi.saveAnswer(attemptId, eqId, null, body).catch((e) => console.warn('autosave gagal', e));
+    const body =
+      q.payload.question_type === "ordering"
+        ? { positions: nextPairs }
+        : { pairs: nextPairs };
+    void attemptsApi
+      .saveAnswer(attemptId, eqId, null, body)
+      .catch((e) => console.warn("autosave gagal", e));
   };
 
   const toggleFlag = () => {
@@ -311,11 +375,13 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
           <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center">
             <AlertTriangle className="w-7 h-7 text-red-500" />
           </div>
-          <h2 className="text-lg font-extrabold text-slate-800">Tidak dapat memulai ujian</h2>
+          <h2 className="text-lg font-extrabold text-slate-800">
+            Tidak dapat memulai ujian
+          </h2>
           <p className="text-sm text-slate-500">{loadError}</p>
           <Button
             variant="secondary"
-            onClick={() => router.replace('/ujian')}
+            onClick={() => router.replace("/ujian")}
             className="font-bold flex items-center gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -339,9 +405,11 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
 
   const isAnswered = (x: (typeof questions)[number]) => {
     const t = x.payload.question_type;
-    if (t === 'mcq_multi') return (multi[x.exam_question_id]?.length ?? 0) > 0;
-    if (t === 'fill_blank' || t === 'short_answer' || t === 'essay') return !!text[x.exam_question_id]?.trim();
-    if (t === 'matching' || t === 'ordering') return Object.keys(pairs[x.exam_question_id] ?? {}).length > 0;
+    if (t === "mcq_multi") return (multi[x.exam_question_id]?.length ?? 0) > 0;
+    if (t === "fill_blank" || t === "short_answer" || t === "essay")
+      return !!text[x.exam_question_id]?.trim();
+    if (t === "matching" || t === "ordering")
+      return Object.keys(pairs[x.exam_question_id] ?? {}).length > 0;
     return !!answers[x.exam_question_id];
   };
   const answeredCount = questions.filter(isAnswered).length;
@@ -353,16 +421,20 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
 
   const shownRemaining = perSection ? sectionRemaining : remaining;
   const timerColor =
-    shownRemaining <= 60 ? 'text-red-600 bg-red-50 border-red-200' :
-    shownRemaining <= 300 ? 'text-amber-600 bg-amber-50 border-amber-200' :
-    'text-slate-700 bg-slate-50 border-slate-200';
+    shownRemaining <= 60
+      ? "text-red-600 bg-red-50 border-red-200"
+      : shownRemaining <= 300
+        ? "text-amber-600 bg-amber-50 border-amber-200"
+        : "text-slate-700 bg-slate-50 border-slate-200";
 
   const activeLabel = activeSection
-    ? SECTION_LABELS[activeSection as ExamSectionId] ?? activeSection
-    : SECTION_LABELS[q.section as ExamSectionId] ?? q.section;
+    ? (SECTION_LABELS[activeSection as ExamSectionId] ?? activeSection)
+    : (SECTION_LABELS[q.section as ExamSectionId] ?? q.section);
 
   // ── Mode OMR (buku soal + lembar jawaban bubble) — untuk ujian single-choice/ITP ──
-  const omrMode = allQuestions.length > 0 && allQuestions.every((x) => isSingleChoice(x.payload.question_type));
+  const omrMode =
+    allQuestions.length > 0 &&
+    allQuestions.every((x) => isSingleChoice(x.payload.question_type));
   // Section aktif (Structure+WE = satu Section 2). Nomor section = urutan kemunculan bagian.
   const gKey = groupKey(q.section);
   const sheetQuestions = questions.filter((x) => groupKey(x.section) === gKey);
@@ -378,7 +450,9 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
     exam_question_id: x.exam_question_id,
     option_count: optionsFor(x.payload).length,
   }));
-  const currentLocalIdx = sheetQuestions.findIndex((x) => x.exam_question_id === q.exam_question_id);
+  const currentLocalIdx = sheetQuestions.findIndex(
+    (x) => x.exam_question_id === q.exam_question_id,
+  );
   const flagged = flags.has(q.exam_question_id);
 
   // D: rentang soal yang berbagi materi ini (reading "Questions X–Y").
@@ -386,14 +460,23 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
   let grpStart = currentLocalIdx;
   let grpEnd = currentLocalIdx;
   if (curSig && currentLocalIdx >= 0) {
-    while (grpStart > 0 && passageSig(sheetQuestions[grpStart - 1]) === curSig) grpStart--;
-    while (grpEnd < sheetQuestions.length - 1 && passageSig(sheetQuestions[grpEnd + 1]) === curSig) grpEnd++;
+    while (grpStart > 0 && passageSig(sheetQuestions[grpStart - 1]) === curSig)
+      grpStart--;
+    while (
+      grpEnd < sheetQuestions.length - 1 &&
+      passageSig(sheetQuestions[grpEnd + 1]) === curSig
+    )
+      grpEnd++;
   }
-  const passageGroupLabel = curSig && grpEnd > grpStart ? `Questions ${grpStart + 1}–${grpEnd + 1}` : null;
+  const passageGroupLabel =
+    curSig && grpEnd > grpStart
+      ? `Questions ${grpStart + 1}–${grpEnd + 1}`
+      : null;
 
   // A: tampilkan petunjuk saat masuk section baru (belum ditutup).
   const showDirections = omrMode && sectionNo > 0 && !seenSections.has(gKey);
-  const dismissDirections = () => setSeenSections((prev) => new Set(prev).add(gKey));
+  const dismissDirections = () =>
+    setSeenSections((prev) => new Set(prev).add(gKey));
 
   const jumpToEq = (eqId: string) => {
     flushText();
@@ -405,28 +488,51 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
     if (!target || !attemptId || submittedRef.current) return;
     const eqId = target.exam_question_id;
     setAnswers((prev) => ({ ...prev, [eqId]: key }));
-    void attemptsApi.saveAnswer(attemptId, eqId, key).catch((e) => console.warn('autosave gagal', e));
+    void attemptsApi
+      .saveAnswer(attemptId, eqId, key)
+      .catch((e) => console.warn("autosave gagal", e));
     jumpToEq(eqId);
   };
   const bubbleJump = (localIdx: number) => {
     const target = sheetQuestions[localIdx];
     if (target) jumpToEq(target.exam_question_id);
   };
-  const goPrev = () => { flushText(); setCurrent((i) => Math.max(0, i - 1)); };
-  const goNext = () => { flushText(); setCurrent((i) => Math.min(questions.length - 1, i + 1)); };
+  const goPrev = () => {
+    flushText();
+    setCurrent((i) => Math.max(0, i - 1));
+  };
+  const goNext = () => {
+    flushText();
+    setCurrent((i) => Math.min(questions.length - 1, i + 1));
+  };
 
   return (
-    <div className={cn('fixed inset-0 z-50 flex flex-col', omrMode ? 'bg-white' : 'bg-slate-100')}>
+    <div
+      className={cn(
+        "fixed inset-0 z-50 flex flex-col",
+        omrMode ? "bg-white" : "bg-slate-100",
+      )}
+    >
       {/* ── Top bar ── */}
       <header className="shrink-0 bg-white border-b border-slate-200 px-4 md:px-7 py-3 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
         {/* kiri: judul + section */}
         <div className="min-w-0">
-          <h1 className="font-extrabold text-slate-800 text-sm md:text-[15px] truncate leading-tight">{data.title}</h1>
+          <h1 className="font-extrabold text-slate-800 text-sm md:text-[15px] truncate leading-tight">
+            {data.title}
+          </h1>
           <p className="text-[11px] md:text-xs text-brand font-bold mt-0.5 truncate">
             {omrMode && sectionNo ? (
-              <>Section {sectionNo}<span className="text-slate-300 font-normal mx-1.5">·</span>{groupedLabel}</>
+              <>
+                Section {sectionNo}
+                <span className="text-slate-300 font-normal mx-1.5">·</span>
+                {groupedLabel}
+              </>
             ) : perSection ? (
-              <>{activeLabel}<span className="text-slate-300 font-normal mx-1.5">·</span>Bagian {sectionIndex + 1}/{order.length}</>
+              <>
+                {activeLabel}
+                <span className="text-slate-300 font-normal mx-1.5">·</span>
+                Bagian {sectionIndex + 1}/{order.length}
+              </>
             ) : (
               activeLabel
             )}
@@ -436,13 +542,17 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
         {/* tengah: timer */}
         <div
           className={cn(
-            'justify-self-center flex items-center gap-2.5 font-extrabold text-lg md:text-xl px-4 py-1.5 rounded-full border tabular-nums',
+            "justify-self-center flex items-center gap-2.5 font-extrabold text-lg md:text-xl px-4 py-1.5 rounded-full border tabular-nums",
             timerColor,
           )}
         >
-          <Clock className="w-[18px] h-[18px]" />
+          <Clock className="w-4.5 h-4.5" />
           {fmtClock(shownRemaining)}
-          {perSection && <span className="hidden sm:inline text-[9px] font-bold uppercase tracking-widest opacity-60">/ bagian</span>}
+          {perSection && (
+            <span className="hidden sm:inline text-[9px] font-bold uppercase tracking-widest opacity-60">
+              / bagian
+            </span>
+          )}
         </div>
 
         {/* kanan: progres + aksi */}
@@ -454,7 +564,10 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
           {perSection && !isLastSection ? (
             <Button
               variant="primary"
-              onClick={() => { flushText(); setShowAdvanceConfirm(true); }}
+              onClick={() => {
+                flushText();
+                setShowAdvanceConfirm(true);
+              }}
               loading={advancing}
               className="font-bold flex items-center gap-2"
             >
@@ -464,7 +577,10 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
           ) : (
             <Button
               variant="primary"
-              onClick={() => { flushText(); setShowConfirm(true); }}
+              onClick={() => {
+                flushText();
+                setShowConfirm(true);
+              }}
               className="font-bold flex items-center gap-2"
             >
               <Send className="w-4 h-4" />
@@ -484,12 +600,12 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
               <span
                 key={s}
                 className={cn(
-                  'inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full border whitespace-nowrap',
+                  "inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full border whitespace-nowrap",
                   isActive
-                    ? 'border-brand bg-brand/10 text-brand'
+                    ? "border-brand bg-brand/10 text-brand"
                     : done
-                      ? 'border-slate-200 bg-slate-50 text-slate-400'
-                      : 'border-slate-100 bg-white text-slate-400',
+                      ? "border-slate-200 bg-slate-50 text-slate-400"
+                      : "border-slate-100 bg-white text-slate-400",
                 )}
               >
                 {done && <Lock className="w-3 h-3" />}
@@ -511,7 +627,8 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
                   {currentLocalIdx + 1}
                 </span>
                 <span className="text-xs font-bold text-slate-400">
-                  Soal {currentLocalIdx + 1} dari {sheetQuestions.length} · {groupedLabel}
+                  Soal {currentLocalIdx + 1} dari {sheetQuestions.length} ·{" "}
+                  {groupedLabel}
                 </span>
               </div>
 
@@ -531,14 +648,19 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
                   type="button"
                   onClick={toggleFlag}
                   className={cn(
-                    'shrink-0 inline-flex items-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-bold transition-colors',
+                    "shrink-0 inline-flex items-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-bold transition-colors",
                     flagged
-                      ? 'border-amber-300 bg-amber-50 text-amber-700'
-                      : 'border-slate-200 text-slate-500 hover:bg-slate-50',
+                      ? "border-amber-300 bg-amber-50 text-amber-700"
+                      : "border-slate-200 text-slate-500 hover:bg-slate-50",
                   )}
                 >
-                  <Flag className={cn('w-3.5 h-3.5', flagged && 'fill-amber-400 text-amber-500')} />
-                  {flagged ? 'Ditandai' : 'Tandai'}
+                  <Flag
+                    className={cn(
+                      "w-3.5 h-3.5",
+                      flagged && "fill-amber-400 text-amber-500",
+                    )}
+                  />
+                  {flagged ? "Ditandai" : "Tandai"}
                 </button>
                 <Button
                   variant="secondary"
@@ -554,7 +676,11 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
 
           <aside className="min-h-0 overflow-y-auto overflow-x-hidden bg-white border-t lg:border-t-0 lg:border-l border-slate-200 p-5 md:p-6">
             <AnswerBubbleSheet
-              sectionLabel={sectionNo ? `Section ${sectionNo} · ${groupedLabel}` : groupedLabel}
+              sectionLabel={
+                sectionNo
+                  ? `Section ${sectionNo} · ${groupedLabel}`
+                  : groupedLabel
+              }
               items={bubbleItems}
               answers={answers}
               currentLocalIdx={currentLocalIdx}
@@ -581,7 +707,7 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
               onSelect={handleSelect}
               multiSelected={multi[q.exam_question_id] ?? []}
               onMultiToggle={handleMultiToggle}
-              textValue={text[q.exam_question_id] ?? ''}
+              textValue={text[q.exam_question_id] ?? ""}
               onTextChange={handleTextChange}
               onTextBlur={flushText}
               pairs={pairs[q.exam_question_id] ?? {}}
@@ -590,9 +716,18 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
               onToggleFlag={toggleFlag}
               palette={palette}
               currentIndex={current}
-              onJump={(i) => { flushText(); setCurrent(i); }}
-              onPrev={() => { flushText(); setCurrent((i) => Math.max(0, i - 1)); }}
-              onNext={() => { flushText(); setCurrent((i) => Math.min(questions.length - 1, i + 1)); }}
+              onJump={(i) => {
+                flushText();
+                setCurrent(i);
+              }}
+              onPrev={() => {
+                flushText();
+                setCurrent((i) => Math.max(0, i - 1));
+              }}
+              onNext={() => {
+                flushText();
+                setCurrent((i) => Math.min(questions.length - 1, i + 1));
+              }}
             />
           </aside>
         </div>
@@ -615,14 +750,20 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
         <div className="text-sm text-slate-600 leading-relaxed">
           {unanswered > 0 ? (
             <p>
-              Masih ada <span className="font-bold text-amber-600">{unanswered} soal belum dijawab</span> di
-              bagian ini. Setelah lanjut, bagian ini <span className="font-bold">terkunci</span> dan tidak
-              bisa dibuka lagi. Sisa waktu bagian ini <span className="font-bold">hangus</span>.
+              Masih ada{" "}
+              <span className="font-bold text-amber-600">
+                {unanswered} soal belum dijawab
+              </span>{" "}
+              di bagian ini. Setelah lanjut, bagian ini{" "}
+              <span className="font-bold">terkunci</span> dan tidak bisa dibuka
+              lagi. Sisa waktu bagian ini{" "}
+              <span className="font-bold">hangus</span>.
             </p>
           ) : (
             <p>
-              Bagian ini akan <span className="font-bold">terkunci</span> dan tidak bisa dibuka lagi. Sisa
-              waktunya hangus, lalu timer bagian berikutnya dimulai.
+              Bagian ini akan <span className="font-bold">terkunci</span> dan
+              tidak bisa dibuka lagi. Sisa waktunya hangus, lalu timer bagian
+              berikutnya dimulai.
             </p>
           )}
         </div>
@@ -645,12 +786,18 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
         <div className="text-sm text-slate-600 leading-relaxed">
           {unanswered > 0 ? (
             <p>
-              Masih ada <span className="font-bold text-amber-600">{unanswered} soal belum dijawab</span>
-              {perSection ? ' di bagian ini' : ''}. Setelah dikumpulkan, jawaban tidak dapat diubah lagi.
+              Masih ada{" "}
+              <span className="font-bold text-amber-600">
+                {unanswered} soal belum dijawab
+              </span>
+              {perSection ? " di bagian ini" : ""}. Setelah dikumpulkan, jawaban
+              tidak dapat diubah lagi.
             </p>
           ) : (
             <p>
-              {perSection ? 'Bagian terakhir selesai. ' : 'Semua soal sudah terjawab. '}
+              {perSection
+                ? "Bagian terakhir selesai. "
+                : "Semua soal sudah terjawab. "}
               Setelah dikumpulkan, jawaban tidak dapat diubah lagi.
             </p>
           )}
@@ -664,15 +811,19 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
             <span className="inline-flex items-center rounded-full bg-brand/10 px-4 py-1.5 text-xs font-extrabold uppercase tracking-wider text-brand">
               Section {sectionNo} dari {totalGroups}
             </span>
-            <h2 className="text-2xl font-extrabold text-slate-800 text-balance">{groupedLabel}</h2>
+            <h2 className="text-2xl font-extrabold text-slate-800 text-balance">
+              {groupedLabel}
+            </h2>
             <p className="text-[15px] leading-relaxed text-slate-500">
-              {SECTION_DIRECTIONS[gKey] ?? 'Pilih jawaban yang paling tepat pada lembar jawaban.'}
+              {SECTION_DIRECTIONS[gKey] ??
+                "Pilih jawaban yang paling tepat pada lembar jawaban."}
             </p>
             <div className="flex items-center gap-4 text-xs font-bold text-slate-400">
               <span>{sheetQuestions.length} soal</span>
               {perSection && sectionRemaining > 0 && (
                 <span className="flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5" /> {Math.ceil(sectionRemaining / 60)} menit
+                  <Clock className="w-3.5 h-3.5" />{" "}
+                  {Math.ceil(sectionRemaining / 60)} menit
                 </span>
               )}
             </div>

@@ -534,6 +534,7 @@ class ExamService:
         }
         if passage:
             payload["passage"] = {
+                "id": passage.get("id"),  # F1.4b: pengelompokan reading "Questions X–Y" yang andal
                 "type": passage.get("type"),
                 "content": passage.get("content"),
                 "audio_url": passage.get("audio_url"),

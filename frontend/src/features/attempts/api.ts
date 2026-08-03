@@ -46,6 +46,7 @@ export interface QuestionPayload {
   options_image_url?: string | null;
   audio_url?: string | null;
   passage?: {
+    id?: string | null;
     type?: string;
     content?: string | null;
     audio_url?: string | null;
