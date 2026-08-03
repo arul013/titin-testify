@@ -86,10 +86,8 @@ export function ExamResultsPage({ examId }: { examId: string }) {
       className="space-y-6 pb-16"
       header={
         <ManajemenUjianHeader
-          breadcrumb={[
-            { label: 'Manajemen Ujian', href: '/manajemen-ujian' },
-            { label: data ? `Hasil: ${data.title}` : 'Hasil' },
-          ]}
+          backLabel="Semua Ujian"
+          onBack={() => router.push('/manajemen-ujian')}
         />
       }
     >

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   AlertTriangle, CheckCircle2, XCircle, Hourglass, CalendarClock, User, Loader2,
 } from 'lucide-react';
@@ -26,6 +27,7 @@ function fmtDate(v: string | null): string {
 
 /** Rincian jawaban satu peserta (admin) — header ringkas + pembahasan per-soal. */
 export function AdminAttemptReviewPage({ examId, attemptId }: { examId: string; attemptId: string }) {
+  const router = useRouter();
   const [data, setData] = useState<AdminAttemptReview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -52,11 +54,8 @@ export function AdminAttemptReviewPage({ examId, attemptId }: { examId: string; 
       className="space-y-6 pb-16"
       header={
         <ManajemenUjianHeader
-          breadcrumb={[
-            { label: 'Manajemen Ujian', href: '/manajemen-ujian' },
-            { label: data ? `Hasil: ${data.title}` : 'Hasil', href: `/manajemen-ujian/${examId}/hasil` },
-            { label: data?.participant_name || 'Rincian Jawaban' },
-          ]}
+          backLabel={data ? `Hasil: ${data.title}` : 'Kembali ke Hasil'}
+          onBack={() => router.push(`/manajemen-ujian/${examId}/hasil`)}
         />
       }
     >
