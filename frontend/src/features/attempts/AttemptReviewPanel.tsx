@@ -8,6 +8,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { renderExamText } from '@/features/questions/examText';
 import { SECTION_LABELS, type ExamSectionId } from '@/features/exams/hooks/useExams';
 import { SoalPanel } from '@/features/attempts/SoalPanel';
+import { Tabs } from '@/components/ui/tabs';
+import { cn } from '@/src/lib/cn';
 import { attemptsApi, type AttemptReview, type ReviewQuestion } from '@/features/attempts/api';
 
 const KEYS = ['a', 'b', 'c', 'd'] as const;
@@ -15,6 +17,47 @@ const LETTERS = ['A', 'B', 'C', 'D'] as const;
 
 function sectionLabel(section: string): string {
   return SECTION_LABELS[section as ExamSectionId] ?? section;
+}
+
+// Section TOEFL ITP: Structure + Written Expression = satu grup tab "Section 2".
+const SEC_GROUP_LABEL: Record<string, string> = {
+  listening: 'Listening Comprehension',
+  structure_we: 'Structure & Written Expression',
+  reading: 'Reading Comprehension',
+};
+const groupKeyOf = (s: string) => (s === 'structure' || s === 'written_expression' ? 'structure_we' : s);
+const groupLabelOf = (s: string) => SEC_GROUP_LABEL[groupKeyOf(s)] ?? SECTION_LABELS[s as ExamSectionId] ?? s;
+
+type QState = 'correct' | 'wrong' | 'unanswered' | 'manual';
+
+/** Status satu soal (untuk navigator + filter). Essay/speaking = dinilai manual. */
+function questionState(q: ReviewQuestion): QState {
+  const t = q.payload.question_type;
+  if (q.scoring_mode === 'manual' || t === 'essay' || t === 'speaking') return 'manual';
+  let answered: boolean;
+  if (t === 'mcq_multi') answered = ((q.answer_json?.selected as string[] | undefined)?.length ?? 0) > 0;
+  else if (t === 'fill_blank' || t === 'short_answer') answered = !!(q.answer_json?.text as string | undefined)?.trim();
+  else if (t === 'matching') answered = Object.keys((q.answer_json?.pairs as object | undefined) ?? {}).length > 0;
+  else if (t === 'ordering') answered = Object.keys((q.answer_json?.positions as object | undefined) ?? {}).length > 0;
+  else answered = q.selected_answer != null;
+  if (!answered) return 'unanswered';
+  return q.is_correct ? 'correct' : 'wrong';
+}
+
+function FilterChip({ label, count, active, onClick }: { label: string; count: number; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'rounded-full border px-3 py-1.5 text-xs font-bold transition-colors',
+        active ? 'border-brand bg-brand/10 text-brand' : 'border-slate-200 text-slate-500 hover:bg-slate-50',
+      )}
+    >
+      {label}
+      <span className="ml-1 tabular-nums opacity-70">({count})</span>
+    </button>
+  );
 }
 
 /** Panel pembahasan per-soal. Default memakai endpoint peserta; `fetcher` bisa
@@ -32,6 +75,8 @@ export function AttemptReviewPanel({
   const [fetched, setFetched] = useState<AttemptReview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(!data);
+  const [activeTab, setActiveTab] = useState('');
+  const [filter, setFilter] = useState<'all' | 'wrong' | 'empty'>('all');
 
   useEffect(() => {
     if (data) return; // data disuplai induk → tak perlu fetch
@@ -77,11 +122,114 @@ export function AttemptReviewPanel({
 
   if (!review || review.questions.length === 0) return null;
 
+  // Kelompokkan per-section (Structure+WE = satu grup) → tab.
+  const order: string[] = [];
+  review.questions.forEach((q) => {
+    const k = groupKeyOf(q.section);
+    if (!order.includes(k)) order.push(k);
+  });
+  const groups = order.map((k) => {
+    const qs = review.questions.filter((q) => groupKeyOf(q.section) === k);
+    return {
+      key: k,
+      label: groupLabelOf(qs[0].section),
+      correct: qs.filter((q) => questionState(q) === 'correct').length,
+      total: qs.length,
+      questions: qs,
+    };
+  });
+
+  const activeKey = groups.some((g) => g.key === activeTab) ? activeTab : groups[0].key;
+  const activeGroup = groups.find((g) => g.key === activeKey) ?? groups[0];
+
+  const numbered = activeGroup.questions.map((q, i) => ({ q, num: i + 1 }));
+  const wrongCount = numbered.filter(({ q }) => questionState(q) === 'wrong').length;
+  const emptyCount = numbered.filter(({ q }) => questionState(q) === 'unanswered').length;
+  const visible = numbered.filter(({ q }) => {
+    if (filter === 'all') return true;
+    const st = questionState(q);
+    return filter === 'wrong' ? st === 'wrong' : st === 'unanswered';
+  });
+
+  const jumpTo = (eqId: string) => {
+    setFilter('all');
+    requestAnimationFrame(() => {
+      document.getElementById(`rev-${eqId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
+  const NAV_TONE: Record<QState, string> = {
+    correct: 'border-emerald-300 bg-emerald-50 text-emerald-700',
+    wrong: 'border-rose-300 bg-rose-50 text-rose-700',
+    unanswered: 'border-slate-200 bg-white text-slate-400',
+    manual: 'border-indigo-200 bg-indigo-50 text-indigo-600',
+  };
+
   return (
     <div className="flex flex-col gap-5">
-      {review.questions.map((q, i) => (
-        <ReviewCard key={q.exam_question_id} q={q} number={i + 1} />
-      ))}
+      {/* Tab per-section (bila lebih dari satu bagian) */}
+      {groups.length > 1 && (
+        <div className="overflow-x-auto">
+          <Tabs
+            value={activeKey}
+            onChange={(id) => { setActiveTab(id); setFilter('all'); }}
+            tabs={groups.map((g) => ({
+              id: g.key,
+              label: (
+                <span className="whitespace-nowrap">
+                  {g.label} <span className="opacity-70 tabular-nums">· {g.correct}/{g.total}</span>
+                </span>
+              ),
+            }))}
+          />
+        </div>
+      )}
+
+      {/* Filter + navigator nomor */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <FilterChip label="Semua" count={numbered.length} active={filter === 'all'} onClick={() => setFilter('all')} />
+          <FilterChip label="Salah" count={wrongCount} active={filter === 'wrong'} onClick={() => setFilter('wrong')} />
+          <FilterChip label="Tak dijawab" count={emptyCount} active={filter === 'empty'} onClick={() => setFilter('empty')} />
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {numbered.map(({ q, num }) => (
+            <button
+              key={q.exam_question_id}
+              type="button"
+              onClick={() => jumpTo(q.exam_question_id)}
+              title={`Soal ${num}`}
+              className={cn(
+                'h-7 w-7 rounded-lg border text-[11px] font-bold tabular-nums transition-transform hover:scale-105',
+                NAV_TONE[questionState(q)],
+              )}
+            >
+              {num}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-semibold text-slate-400">
+          <span className="flex items-center gap-1.5"><i className="h-3 w-3 rounded border border-emerald-300 bg-emerald-50" /> Benar</span>
+          <span className="flex items-center gap-1.5"><i className="h-3 w-3 rounded border border-rose-300 bg-rose-50" /> Salah</span>
+          <span className="flex items-center gap-1.5"><i className="h-3 w-3 rounded border border-slate-200 bg-white" /> Tak dijawab</span>
+          {numbered.some(({ q }) => questionState(q) === 'manual') && (
+            <span className="flex items-center gap-1.5"><i className="h-3 w-3 rounded border border-indigo-200 bg-indigo-50" /> Dinilai manual</span>
+          )}
+        </div>
+      </div>
+
+      {/* Kartu soal (terfilter) */}
+      {visible.length === 0 ? (
+        <p className="py-6 text-center text-sm text-slate-400">
+          {filter === 'wrong' ? 'Tidak ada jawaban yang salah di bagian ini. 🎉' : 'Tidak ada soal yang belum dijawab di bagian ini.'}
+        </p>
+      ) : (
+        visible.map(({ q, num }) => (
+          <div id={`rev-${q.exam_question_id}`} key={q.exam_question_id} className="scroll-mt-4">
+            <ReviewCard q={q} number={num} />
+          </div>
+        ))
+      )}
     </div>
   );
 }
