@@ -17,6 +17,20 @@ import { AnswerBubbleSheet, type BubbleItem } from './AnswerBubbleSheet';
 const SINGLE_CHOICE = new Set(['mcq_single', 'true_false_ng']);
 const isSingleChoice = (t?: string) => !t || SINGLE_CHOICE.has(t);
 
+// Section TOEFL ITP: Structure + Written Expression = SATU "Section 2".
+const SEC_GROUP_ORDER = ['listening', 'structure_we', 'reading'];
+const SEC_GROUP_LABEL: Record<string, string> = {
+  listening: 'Listening Comprehension',
+  structure_we: 'Structure & Written Expression',
+  reading: 'Reading Comprehension',
+};
+const groupKey = (s: string) => (s === 'structure' || s === 'written_expression' ? 'structure_we' : s);
+const groupLabel = (s: string) => SEC_GROUP_LABEL[groupKey(s)] ?? SECTION_LABELS[s as ExamSectionId] ?? s;
+const groupNumber = (s: string) => {
+  const i = SEC_GROUP_ORDER.indexOf(groupKey(s));
+  return i >= 0 ? i + 1 : null;
+};
+
 function fmtClock(totalSeconds: number): string {
   const s = Math.max(0, totalSeconds);
   const h = Math.floor(s / 3600);
@@ -335,8 +349,10 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
 
   // ── Mode OMR (buku soal + lembar jawaban bubble) — untuk ujian single-choice/ITP ──
   const omrMode = allQuestions.length > 0 && allQuestions.every((x) => isSingleChoice(x.payload.question_type));
-  // Lembar jawaban dibatasi ke BAGIAN aktif (nomor per-bagian, ala ITP).
-  const sheetQuestions = questions.filter((x) => x.section === q.section);
+  // Lembar jawaban dibatasi ke SECTION aktif (Structure+WE = satu Section 2), nomor per-section ala ITP.
+  const sheetQuestions = questions.filter((x) => groupKey(x.section) === groupKey(q.section));
+  const sectionNo = groupNumber(q.section);
+  const groupedLabel = groupLabel(q.section);
   const bubbleItems: BubbleItem[] = sheetQuestions.map((x) => ({
     exam_question_id: x.exam_question_id,
     option_count: optionsFor(x.payload).length,
@@ -367,37 +383,38 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
   return (
     <div className={cn('fixed inset-0 z-50 flex flex-col', omrMode ? 'bg-white' : 'bg-slate-100')}>
       {/* ── Top bar ── */}
-      <header className="shrink-0 bg-white border-b border-slate-200 px-4 md:px-6 py-3 flex items-center justify-between gap-4">
+      <header className="shrink-0 bg-white border-b border-slate-200 px-4 md:px-7 py-3 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+        {/* kiri: judul + section */}
         <div className="min-w-0">
-          <h1 className="font-extrabold text-slate-800 text-sm md:text-base truncate">{data.title}</h1>
-          <p className="text-xs text-brand font-bold uppercase tracking-wide">
-            {perSection ? (
-              <>
-                {activeLabel} · Bagian {sectionIndex + 1}/{order.length} · Soal {current + 1}/{questions.length}
-              </>
+          <h1 className="font-extrabold text-slate-800 text-sm md:text-[15px] truncate leading-tight">{data.title}</h1>
+          <p className="text-[11px] md:text-xs text-brand font-bold mt-0.5 truncate">
+            {omrMode && sectionNo ? (
+              <>Section {sectionNo}<span className="text-slate-300 font-normal mx-1.5">·</span>{groupedLabel}</>
+            ) : perSection ? (
+              <>{activeLabel}<span className="text-slate-300 font-normal mx-1.5">·</span>Bagian {sectionIndex + 1}/{order.length}</>
             ) : (
-              <>
-                {activeLabel} · Soal {current + 1}/{questions.length}
-              </>
+              activeLabel
             )}
           </p>
         </div>
 
+        {/* tengah: timer */}
         <div
           className={cn(
-            'flex items-center gap-2 font-mono font-extrabold text-lg md:text-xl px-3.5 py-1.5 rounded-xl border tabular-nums',
+            'justify-self-center flex items-center gap-2.5 font-extrabold text-lg md:text-xl px-4 py-1.5 rounded-full border tabular-nums',
             timerColor,
           )}
         >
-          <Clock className="w-5 h-5" />
+          <Clock className="w-[18px] h-[18px]" />
           {fmtClock(shownRemaining)}
-          {perSection && <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-wide opacity-70">bagian</span>}
+          {perSection && <span className="hidden sm:inline text-[9px] font-bold uppercase tracking-widest opacity-60">/ bagian</span>}
         </div>
 
-        <div className="flex items-center gap-3">
-          <span className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-slate-500">
-            <ListChecks className="w-4 h-4 text-brand" />
-            {answeredCount}/{questions.length} terjawab
+        {/* kanan: progres + aksi */}
+        <div className="justify-self-end flex items-center gap-4">
+          <span className="hidden md:flex items-center gap-1.5 text-xs font-bold text-slate-400 tabular-nums">
+            <ListChecks className="w-4 h-4 text-brand/70" />
+            {answeredCount}/{questions.length}
           </span>
           {perSection && !isLastSection ? (
             <Button
@@ -459,7 +476,7 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
                   {currentLocalIdx + 1}
                 </span>
                 <span className="text-xs font-bold text-slate-400">
-                  Soal {currentLocalIdx + 1} dari {sheetQuestions.length} · {activeLabel}
+                  Soal {currentLocalIdx + 1} dari {sheetQuestions.length} · {groupedLabel}
                 </span>
               </div>
 
@@ -502,7 +519,7 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
 
           <aside className="min-h-0 overflow-y-auto overflow-x-hidden bg-white border-t lg:border-t-0 lg:border-l border-slate-200 p-5 md:p-6">
             <AnswerBubbleSheet
-              sectionLabel={activeLabel}
+              sectionLabel={sectionNo ? `Section ${sectionNo} · ${groupedLabel}` : groupedLabel}
               items={bubbleItems}
               answers={answers}
               currentLocalIdx={currentLocalIdx}

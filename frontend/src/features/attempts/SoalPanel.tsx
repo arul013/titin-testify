@@ -6,22 +6,6 @@ import { renderExamText } from '@/features/questions/examText';
 import { PassageView } from '@/features/questions/PassageView';
 import type { QuestionPayload } from './api';
 
-/** Instruksi per bagian (ala standardized test). */
-function instruction(section: string): string {
-  switch (section) {
-    case 'listening':
-      return 'Dengarkan audio dengan saksama, lalu pilih jawaban yang paling tepat pada lembar jawaban.';
-    case 'written_expression':
-      return 'Temukan bagian berlabel (A/B/C/D) yang SALAH secara tata bahasa, lalu tandai pada lembar jawaban.';
-    case 'structure':
-      return 'Lengkapi kalimat berikut dengan memilih jawaban yang paling tepat pada lembar jawaban.';
-    case 'reading':
-      return 'Baca teks berikut, lalu jawab pertanyaan pada lembar jawaban.';
-    default:
-      return 'Pilih jawaban yang paling tepat pada lembar jawaban.';
-  }
-}
-
 const AudioPlayer: React.FC<{ src: string }> = ({ src }) => (
   <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex flex-col gap-2.5">
     <div className="flex items-center gap-2 text-xs font-bold text-brand uppercase tracking-wide">
@@ -79,10 +63,8 @@ export const SoalPanel: React.FC<{ q: QuestionPayload }> = ({ q }) => {
         <AudioPlayer src={standaloneAudio} />
       ) : null}
 
-      {/* Instruksi + pertanyaan/kalimat */}
+      {/* Pertanyaan/kalimat */}
       <div className="flex flex-col gap-3">
-        <p className="text-xs text-slate-400 italic leading-relaxed">{instruction(q.section)}</p>
-
         {!isListening && q.question_text && (
           <div className="text-slate-800 text-lg font-medium leading-relaxed whitespace-pre-wrap">
             {renderExamText(q.question_text)}
