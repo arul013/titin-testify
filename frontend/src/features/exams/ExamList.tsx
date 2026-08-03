@@ -14,8 +14,8 @@ import {
   Lock,
   Archive,
   ArchiveRestore,
-  MoreHorizontal,
   ChevronRight,
+  Settings2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -160,9 +160,9 @@ export const ExamList: React.FC<ExamListProps> = ({
   }
 
   // Aksi kontekstual sesuai status ujian yang dibuka menunya.
-  // Catatan: "Kelola" TIDAK di menu — sudah jadi tombol utama di kartu.
   const m = menuExam;
   const hasAttempts = !!m && m.attempts_count > 0;
+  const canEdit = !!m && (m.status === "draft" || m.status === "published");
   const canUnpublish = !!m && m.status === "published" && !hasAttempts;
   const canClose = !!m && m.status === "published";
   const canArchive = !!m && m.status !== "archived";
@@ -178,8 +178,6 @@ export const ExamList: React.FC<ExamListProps> = ({
         {exams.map((exam) => {
           const meta = STATUS_META[exam.status];
           const rowHasAttempts = exam.attempts_count > 0;
-          const rowCanEdit =
-            exam.status === "draft" || exam.status === "published";
 
           return (
             <Card
@@ -242,27 +240,16 @@ export const ExamList: React.FC<ExamListProps> = ({
                 </div>
               </div>
 
-              {/* aksi */}
-              <div className="flex shrink-0 items-center gap-2 md:justify-end">
-                {rowCanEdit && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => onEdit(exam)}
-                    className="font-bold"
-                    leftIcon={<Edit2 className="h-3.5 w-3.5" />}
-                  >
-                    Kelola
-                  </Button>
-                )}
+              {/* aksi — satu tombol membuka menu berisi semua aksi */}
+              <div className="flex shrink-0 items-center md:justify-end">
                 <Button
-                  variant="ghost"
+                  variant="secondary"
                   size="sm"
                   onClick={() => setMenuExam(exam)}
-                  className="font-bold text-slate-500"
-                  leftIcon={<MoreHorizontal className="h-4 w-4" />}
+                  className="font-bold"
+                  leftIcon={<Settings2 className="h-4 w-4" />}
                 >
-                  Lainnya
+                  Kelola
                 </Button>
               </div>
             </Card>
@@ -275,20 +262,28 @@ export const ExamList: React.FC<ExamListProps> = ({
         open={!!menuExam}
         onClose={() => setMenuExam(null)}
         title={m ? m.title : ""}
-        icon={<MoreHorizontal className="h-5 w-5 text-white" />}
+        icon={<Settings2 className="h-5 w-5 text-white" />}
         size="md"
       >
         {m && (
           <div className="flex flex-col gap-2">
+            {canEdit && (
+              <ActionRow
+                icon={<Edit2 className="h-[18px] w-[18px]" />}
+                label="Ubah Ujian"
+                desc="Ubah komposisi soal, jadwal, dan peserta"
+                onClick={act(() => onEdit(m))}
+              />
+            )}
             <ActionRow
-              icon={<Copy className="h-4.5 w-4.5" />}
+              icon={<Copy className="h-[18px] w-[18px]" />}
               label="Duplikat"
               desc="Salin jadi ujian baru (atur ulang jadwalnya)"
               onClick={act(() => onDuplicate(m))}
             />
             {canUnpublish && (
               <ActionRow
-                icon={<Undo2 className="h-4.5 w-4.5" />}
+                icon={<Undo2 className="h-[18px] w-[18px]" />}
                 label="Kembalikan ke Draf"
                 desc="Sembunyikan dari peserta untuk diubah lagi"
                 onClick={act(() => onUnpublish(m.id))}
@@ -296,7 +291,7 @@ export const ExamList: React.FC<ExamListProps> = ({
             )}
             {canClose && (
               <ActionRow
-                icon={<Lock className="h-4.5 w-4.5" />}
+                icon={<Lock className="h-[18px] w-[18px]" />}
                 label="Tutup Ujian"
                 desc="Kunci — tak bisa dikerjakan lagi"
                 onClick={act(() => onClose(m))}
@@ -304,7 +299,7 @@ export const ExamList: React.FC<ExamListProps> = ({
             )}
             {canArchive && (
               <ActionRow
-                icon={<Archive className="h-4.5 w-4.5" />}
+                icon={<Archive className="h-[18px] w-[18px]" />}
                 label="Arsipkan"
                 desc="Sembunyikan dari daftar aktif"
                 onClick={act(() => onArchive(m))}
@@ -312,7 +307,7 @@ export const ExamList: React.FC<ExamListProps> = ({
             )}
             {canUnarchive && (
               <ActionRow
-                icon={<ArchiveRestore className="h-4.5 w-4.5" />}
+                icon={<ArchiveRestore className="h-[18px] w-[18px]" />}
                 label="Keluarkan dari Arsip"
                 desc="Kembalikan ke daftar aktif"
                 onClick={act(() => onUnarchive(m))}
@@ -320,7 +315,7 @@ export const ExamList: React.FC<ExamListProps> = ({
             )}
             <div className="my-1 border-t border-slate-100" />
             <ActionRow
-              icon={<Trash2 className="h-4.5 w-4.5" />}
+              icon={<Trash2 className="h-[18px] w-[18px]" />}
               label="Hapus"
               desc="Ujian dihapus dari daftar (data tetap tersimpan untuk audit)"
               danger
