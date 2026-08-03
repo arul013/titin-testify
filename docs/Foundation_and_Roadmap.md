@@ -72,7 +72,7 @@ Masalah sekarang: model soal mengasumsikan **pilihan ganda** (`option_a..d`, `co
 
 | Milestone | Isi | Bergantung | Status |
 |---|---|---|---|
-| **M2** | **Monitoring peserta + analitik** (progres per peserta; ringkasan; statistik per-soal: p-value & daya beda; breakdown; **ekspor CSV/PDF**). | — | **kandidat berikutnya** |
+| **M2** | **Monitoring peserta + analitik** (hasil per peserta; ringkasan; statistik per-soal: p-value & daya beda; ekspor). | — | ✅ **SELESAI** (2026-08-04): M2.1 hasil admin (daftar+drill-down review, authz pemilik+super_admin, audit) + M2.2 analitik (distribusi skor, item-analysis p-value/daya-beda, flag soal) + ekspor CSV. Endpoint `/api/admin/exams/{id}/results|analytics|results.csv`, `/api/admin/attempts/{id}/review`. Review pakai tab per-section + filter salah/kosong + navigator. PDF = cetak browser. |
 | **F1** | **Model soal ekstensibel** — fondasi IELTS/iBT. | — | ✅ **inti selesai** (F1.3 + band F1.4a ditunda) |
 | **F4** | **Skalabilitas**: N+1, pagination, background job, observability. | — | ✅ inti selesai (jobs/obs/N+1/index ✅; notif/export job nanti) |
 | **M3** | **Auto-submit/expire job** (finalisasi attempt kedaluwarsa; auto-close saat `ends_at` lewat) + infra job (F4). | F4 | 🟡 **endpoint siap** (`/api/internal/jobs/expire-attempts`); tinggal **jadwalkan cron** (deploy) |

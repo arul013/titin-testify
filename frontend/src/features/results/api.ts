@@ -52,7 +52,70 @@ export interface AdminAttemptReview extends AttemptReview {
   submitted_at: string | null;
 }
 
+export interface ItemStat {
+  exam_question_id: string;
+  position: number;
+  section: string;
+  question_type: string;
+  n_answered: number;
+  n_correct: number;
+  p_value: number;
+  discrimination: number | null;
+  flag: 'too_easy' | 'too_hard' | 'low_discrimination' | 'negative' | null;
+  correct_answer: string | null;
+  option_counts: Record<string, number>;
+}
+
+export interface ScoreBand {
+  label: string;
+  lo: number;
+  hi: number;
+  count: number;
+}
+
+export interface AnalyticsSummary {
+  submitted: number;
+  avg_score: number | null;
+  median_score: number | null;
+  highest: number | null;
+  lowest: number | null;
+  passed_count: number | null;
+  pass_rate: number | null;
+}
+
+export interface ExamAnalytics {
+  exam_id: string;
+  title: string;
+  scale_unit: string;
+  passing_value: number | null;
+  summary: AnalyticsSummary;
+  distribution: ScoreBand[];
+  items: ItemStat[];
+}
+
 export const resultsApi = {
   exam: (examId: string) => api.get<AdminResults>(`/api/admin/exams/${examId}/results`),
   review: (attemptId: string) => api.get<AdminAttemptReview>(`/api/admin/attempts/${attemptId}/review`),
+  analytics: (examId: string) => api.get<ExamAnalytics>(`/api/admin/exams/${examId}/analytics`),
 };
+
+/** Unduh CSV hasil (endpoint ter-autentikasi → fetch dengan token → blob download). */
+export async function downloadResultsCsv(examId: string): Promise<void> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('cbt_access_token') : null;
+  const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const res = await fetch(`${base}/api/admin/exams/${examId}/results.csv`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error('Gagal mengunduh CSV.');
+  const blob = await res.blob();
+  const cd = res.headers.get('Content-Disposition');
+  const name = cd?.match(/filename="?([^"]+)"?/)?.[1] || 'hasil.csv';
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}

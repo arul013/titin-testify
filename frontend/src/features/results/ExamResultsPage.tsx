@@ -2,19 +2,24 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import {
   Users, CheckCircle2, XCircle, Hourglass, ChevronRight, AlertTriangle,
-  TrendingUp, Award, ClipboardCheck, CalendarClock, Loader2,
+  TrendingUp, Award, ClipboardCheck, CalendarClock, Loader2, Download,
 } from 'lucide-react';
 import { PageContainer } from '@/components/ui/page-container';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Tabs } from '@/components/ui/tabs';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/src/lib/cn';
+import { getErrorMessage } from '@/lib/errors';
 import { SECTION_LABELS, type ExamSectionId } from '@/features/exams/hooks/useExams';
-import { resultsApi, type AdminResults, type AdminAttemptRow } from './api';
+import { resultsApi, downloadResultsCsv, type AdminResults, type AdminAttemptRow } from './api';
+import { ExamAnalytics } from './ExamAnalytics';
 
 function fmtDate(v: string | null): string {
   if (!v) return '—';
@@ -47,6 +52,19 @@ export function ExamResultsPage({ examId }: { examId: string }) {
   const [data, setData] = useState<AdminResults | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<'peserta' | 'analitik'>('peserta');
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await downloadResultsCsv(examId);
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Gagal mengunduh CSV.'));
+    } finally {
+      setExporting(false);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -87,51 +105,78 @@ export function ExamResultsPage({ examId }: { examId: string }) {
         <EmptyState icon={<AlertTriangle className="w-8 h-8" />} title="Gagal memuat" description={error} />
       ) : data ? (
         <>
-          {/* Ringkasan */}
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatTile
-              icon={<Users className="h-5 w-5" />}
-              label="Peserta mengerjakan"
-              value={`${data.summary.submitted + data.summary.in_progress} / ${data.summary.participants_total}`}
+          {/* Tab + ekspor */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Tabs
+              value={tab}
+              onChange={(id) => setTab(id as 'peserta' | 'analitik')}
+              tabs={[
+                { id: 'peserta', label: 'Peserta' },
+                { id: 'analitik', label: 'Analitik' },
+              ]}
             />
-            <StatTile
-              icon={<TrendingUp className="h-5 w-5" />}
-              label={`Rata-rata (${isItp ? 'skor' : 'nilai'})`}
-              value={data.summary.avg_score != null ? Math.round(data.summary.avg_score) : '—'}
-              tone="bg-blue-50 text-blue-600"
-            />
-            <StatTile
-              icon={<Award className="h-5 w-5" />}
-              label="Lulus"
-              value={data.summary.passed_count != null ? data.summary.passed_count : '—'}
-              tone="bg-emerald-50 text-emerald-600"
-            />
-            <StatTile
-              icon={<Hourglass className="h-5 w-5" />}
-              label="Menunggu penilaian"
-              value={data.summary.pending_grading}
-              tone="bg-amber-50 text-amber-600"
-            />
+            <Button
+              variant="secondary"
+              onClick={handleExport}
+              loading={exporting}
+              leftIcon={<Download className="h-4 w-4" />}
+              className="font-bold"
+            >
+              Ekspor CSV
+            </Button>
           </div>
 
-          {/* Daftar peserta */}
-          {data.attempts.length === 0 ? (
-            <EmptyState
-              icon={<ClipboardCheck className="w-8 h-8" />}
-              title="Belum ada yang mengerjakan"
-              description="Hasil akan muncul di sini setelah peserta mulai/menyelesaikan ujian."
-            />
-          ) : (
-            <div className="flex flex-col gap-3">
-              {data.attempts.map((a) => (
-                <AttemptRow
-                  key={a.attempt_id}
-                  a={a}
-                  unit={unit}
-                  onOpen={() => router.push(`/manajemen-ujian/${examId}/hasil/${a.attempt_id}`)}
+          {tab === 'peserta' ? (
+            <>
+              {/* Ringkasan */}
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <StatTile
+                  icon={<Users className="h-5 w-5" />}
+                  label="Peserta mengerjakan"
+                  value={`${data.summary.submitted + data.summary.in_progress} / ${data.summary.participants_total}`}
                 />
-              ))}
-            </div>
+                <StatTile
+                  icon={<TrendingUp className="h-5 w-5" />}
+                  label={`Rata-rata (${isItp ? 'skor' : 'nilai'})`}
+                  value={data.summary.avg_score != null ? Math.round(data.summary.avg_score) : '—'}
+                  tone="bg-blue-50 text-blue-600"
+                />
+                <StatTile
+                  icon={<Award className="h-5 w-5" />}
+                  label="Lulus"
+                  value={data.summary.passed_count != null ? data.summary.passed_count : '—'}
+                  tone="bg-emerald-50 text-emerald-600"
+                />
+                <StatTile
+                  icon={<Hourglass className="h-5 w-5" />}
+                  label="Menunggu penilaian"
+                  value={data.summary.pending_grading}
+                  tone="bg-amber-50 text-amber-600"
+                />
+              </div>
+
+              {/* Daftar peserta */}
+              {data.attempts.length === 0 ? (
+                <EmptyState
+                  icon={<ClipboardCheck className="w-8 h-8" />}
+                  title="Belum ada yang mengerjakan"
+                  description="Hasil akan muncul di sini setelah peserta mulai/menyelesaikan ujian."
+                />
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {data.attempts.map((a) => (
+                    <AttemptRow
+                      key={a.attempt_id}
+                      a={a}
+                      unit={unit}
+                      onOpen={() => router.push(`/manajemen-ujian/${examId}/hasil/${a.attempt_id}`)}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <ExamAnalytics examId={examId} />
           )}
         </>
       ) : null}
