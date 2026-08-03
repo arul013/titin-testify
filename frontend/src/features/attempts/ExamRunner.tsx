@@ -18,7 +18,6 @@ const SINGLE_CHOICE = new Set(['mcq_single', 'true_false_ng']);
 const isSingleChoice = (t?: string) => !t || SINGLE_CHOICE.has(t);
 
 // Section TOEFL ITP: Structure + Written Expression = SATU "Section 2".
-const SEC_GROUP_ORDER = ['listening', 'structure_we', 'reading'];
 const SEC_GROUP_LABEL: Record<string, string> = {
   listening: 'Listening Comprehension',
   structure_we: 'Structure & Written Expression',
@@ -26,9 +25,22 @@ const SEC_GROUP_LABEL: Record<string, string> = {
 };
 const groupKey = (s: string) => (s === 'structure' || s === 'written_expression' ? 'structure_we' : s);
 const groupLabel = (s: string) => SEC_GROUP_LABEL[groupKey(s)] ?? SECTION_LABELS[s as ExamSectionId] ?? s;
-const groupNumber = (s: string) => {
-  const i = SEC_GROUP_ORDER.indexOf(groupKey(s));
-  return i >= 0 ? i + 1 : null;
+
+// Tanda-tangan materi → kelompokkan soal yang berbagi passage yang sama (reading "Questions X–Y").
+const passageSig = (x: { payload: { passage?: { content?: string | null; audio_url?: string | null; image_url?: string | null } | null } }) => {
+  const p = x.payload.passage;
+  if (!p) return null;
+  return `${p.content ?? ''}¦${p.audio_url ?? ''}¦${p.image_url ?? ''}`;
+};
+
+// Petunjuk bagian (ditampilkan sekali di awal tiap section, ala ETS).
+const SECTION_DIRECTIONS: Record<string, string> = {
+  listening:
+    'Bagian ini menguji kemampuanmu memahami percakapan dan ceramah dalam bahasa Inggris. Dengarkan tiap audio dengan saksama, lalu tandai jawaban yang paling tepat pada lembar jawaban di sebelah kanan.',
+  structure_we:
+    'Bagian ini menguji penguasaan tata bahasa. Pada tipe Structure, lengkapi kalimat rumpang dengan pilihan yang tepat. Pada tipe Written Expression, temukan satu bagian bergaris (A/B/C/D) yang keliru secara tata bahasa. Tandai jawabanmu pada lembar jawaban.',
+  reading:
+    'Bagian ini menguji pemahaman bacaan. Baca tiap teks dengan cermat, lalu jawab pertanyaan berdasarkan isi bacaan tersebut. Tandai jawabanmu pada lembar jawaban.',
 };
 
 function fmtClock(totalSeconds: number): string {
@@ -65,6 +77,8 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
   const [sectionRemaining, setSectionRemaining] = useState(0);
   const [showAdvanceConfirm, setShowAdvanceConfirm] = useState(false);
   const [advancing, setAdvancing] = useState(false);
+  // A: petunjuk bagian yang sudah ditutup peserta (per kelompok section).
+  const [seenSections, setSeenSections] = useState<Set<string>>(new Set());
 
   const submittedRef = useRef(false);
 
@@ -349,16 +363,37 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
 
   // ── Mode OMR (buku soal + lembar jawaban bubble) — untuk ujian single-choice/ITP ──
   const omrMode = allQuestions.length > 0 && allQuestions.every((x) => isSingleChoice(x.payload.question_type));
-  // Lembar jawaban dibatasi ke SECTION aktif (Structure+WE = satu Section 2), nomor per-section ala ITP.
-  const sheetQuestions = questions.filter((x) => groupKey(x.section) === groupKey(q.section));
-  const sectionNo = groupNumber(q.section);
+  // Section aktif (Structure+WE = satu Section 2). Nomor section = urutan kemunculan bagian.
+  const gKey = groupKey(q.section);
+  const sheetQuestions = questions.filter((x) => groupKey(x.section) === gKey);
   const groupedLabel = groupLabel(q.section);
+  const presentGroups: string[] = [];
+  allQuestions.forEach((x) => {
+    const k = groupKey(x.section);
+    if (!presentGroups.includes(k)) presentGroups.push(k);
+  });
+  const sectionNo = presentGroups.indexOf(gKey) + 1;
+  const totalGroups = presentGroups.length;
   const bubbleItems: BubbleItem[] = sheetQuestions.map((x) => ({
     exam_question_id: x.exam_question_id,
     option_count: optionsFor(x.payload).length,
   }));
   const currentLocalIdx = sheetQuestions.findIndex((x) => x.exam_question_id === q.exam_question_id);
   const flagged = flags.has(q.exam_question_id);
+
+  // D: rentang soal yang berbagi materi ini (reading "Questions X–Y").
+  const curSig = passageSig(q);
+  let grpStart = currentLocalIdx;
+  let grpEnd = currentLocalIdx;
+  if (curSig && currentLocalIdx >= 0) {
+    while (grpStart > 0 && passageSig(sheetQuestions[grpStart - 1]) === curSig) grpStart--;
+    while (grpEnd < sheetQuestions.length - 1 && passageSig(sheetQuestions[grpEnd + 1]) === curSig) grpEnd++;
+  }
+  const passageGroupLabel = curSig && grpEnd > grpStart ? `Questions ${grpStart + 1}–${grpEnd + 1}` : null;
+
+  // A: tampilkan petunjuk saat masuk section baru (belum ditutup).
+  const showDirections = omrMode && sectionNo > 0 && !seenSections.has(gKey);
+  const dismissDirections = () => setSeenSections((prev) => new Set(prev).add(gKey));
 
   const jumpToEq = (eqId: string) => {
     flushText();
@@ -480,7 +515,7 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
                 </span>
               </div>
 
-              <SoalPanel q={q.payload} />
+              <SoalPanel q={q.payload} groupLabel={passageGroupLabel} />
               <BookletOptions q={q.payload} />
 
               <div className="flex items-center gap-3 pt-1">
@@ -621,6 +656,37 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
           )}
         </div>
       </ConfirmDialog>
+
+      {/* ── Petunjuk bagian (ETS-style) — sekali di awal tiap section ── */}
+      {showDirections && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/95 p-6 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-8 md:p-10 shadow-xl flex flex-col items-center gap-5 text-center">
+            <span className="inline-flex items-center rounded-full bg-brand/10 px-4 py-1.5 text-xs font-extrabold uppercase tracking-wider text-brand">
+              Section {sectionNo} dari {totalGroups}
+            </span>
+            <h2 className="text-2xl font-extrabold text-slate-800 text-balance">{groupedLabel}</h2>
+            <p className="text-[15px] leading-relaxed text-slate-500">
+              {SECTION_DIRECTIONS[gKey] ?? 'Pilih jawaban yang paling tepat pada lembar jawaban.'}
+            </p>
+            <div className="flex items-center gap-4 text-xs font-bold text-slate-400">
+              <span>{sheetQuestions.length} soal</span>
+              {perSection && sectionRemaining > 0 && (
+                <span className="flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" /> {Math.ceil(sectionRemaining / 60)} menit
+                </span>
+              )}
+            </div>
+            <Button
+              variant="primary"
+              onClick={dismissDirections}
+              className="mt-1 font-bold flex items-center gap-2"
+            >
+              Mulai Bagian
+              <ArrowRightCircle className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,37 +1,35 @@
 'use client';
 
 import React from 'react';
-import { Music, FileText, Headphones } from 'lucide-react';
+import { Music, FileText } from 'lucide-react';
 import { renderExamText } from '@/features/questions/examText';
 import { PassageView } from '@/features/questions/PassageView';
+import { ExamAudioPlayer } from './ExamAudioPlayer';
 import type { QuestionPayload } from './api';
 
-const AudioPlayer: React.FC<{ src: string }> = ({ src }) => (
-  <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex flex-col gap-2.5">
-    <div className="flex items-center gap-2 text-xs font-bold text-brand uppercase tracking-wide">
-      <Headphones className="w-4 h-4" />
-      Audio Soal
-    </div>
-    <audio src={src} controls className="w-full" />
-  </div>
-);
+interface SoalPanelProps {
+  q: QuestionPayload;
+  /** Rentang soal yang berbagi materi ini, mis. "Questions 1–10" (reading). */
+  groupLabel?: string | null;
+}
 
 /** Panel kiri "Soal": materi (audio/passage/gambar) + pertanyaan/kalimat. */
-export const SoalPanel: React.FC<{ q: QuestionPayload }> = ({ q }) => {
+export const SoalPanel: React.FC<SoalPanelProps> = ({ q, groupLabel }) => {
   const passage = q.passage || null;
   const standaloneAudio = !passage ? q.audio_url || '' : '';
   const isListening = q.section === 'listening';
+  const isReading = passage?.type === 'reading';
 
   const passageText = passage?.content ? (
     <div
       key="text"
-      className="text-slate-700 text-[15px] leading-loose whitespace-pre-wrap bg-white border border-slate-200 p-5 rounded-2xl shadow-sm"
+      className={
+        isReading
+          ? 'font-serif text-slate-800 text-[16.5px] leading-[1.95] whitespace-pre-wrap bg-white border border-slate-200 p-6 rounded-2xl shadow-sm'
+          : 'text-slate-700 text-[15px] leading-loose whitespace-pre-wrap bg-white border border-slate-200 p-5 rounded-2xl shadow-sm'
+      }
     >
-      {passage.type === 'reading' ? (
-        <PassageView content={passage.content} />
-      ) : (
-        renderExamText(passage.content)
-      )}
+      {isReading ? <PassageView content={passage.content} /> : renderExamText(passage.content)}
     </div>
   ) : null;
 
@@ -50,17 +48,24 @@ export const SoalPanel: React.FC<{ q: QuestionPayload }> = ({ q }) => {
       {/* Materi */}
       {passage ? (
         <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
-            {passage.audio_url ? <Music className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
-            {passage.audio_url ? 'Materi (Audio)' : 'Materi (Teks Bacaan)'}
+          <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2.5">
+            <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
+              {passage.audio_url ? <Music className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+              {passage.audio_url ? 'Materi (Audio)' : 'Materi (Teks Bacaan)'}
+            </div>
+            {groupLabel && (
+              <span className="shrink-0 rounded-full bg-brand/10 px-3 py-1 text-xs font-extrabold text-brand">
+                {groupLabel}
+              </span>
+            )}
           </div>
-          {passage.audio_url && <AudioPlayer src={passage.audio_url} />}
+          {passage.audio_url && <ExamAudioPlayer src={passage.audio_url} />}
           {passage.image_position === 'above'
             ? [passageImage, passageText]
             : [passageText, passageImage]}
         </div>
       ) : standaloneAudio ? (
-        <AudioPlayer src={standaloneAudio} />
+        <ExamAudioPlayer src={standaloneAudio} />
       ) : null}
 
       {/* Pertanyaan/kalimat */}
