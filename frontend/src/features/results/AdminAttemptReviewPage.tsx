@@ -1,15 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
-  ArrowLeft, AlertTriangle, CheckCircle2, XCircle, Hourglass, CalendarClock, User, Loader2,
+  AlertTriangle, CheckCircle2, XCircle, Hourglass, CalendarClock, User, Loader2,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { PageContainer } from '@/components/ui/page-container';
+import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SECTION_LABELS, type ExamSectionId } from '@/features/exams/hooks/useExams';
+import { ManajemenUjianHeader } from '@/features/exams/ManajemenUjianHeader';
 import { AttemptReviewPanel } from '@/features/attempts/AttemptReviewPanel';
 import { resultsApi, type AdminAttemptReview } from './api';
 
@@ -26,7 +28,6 @@ function fmtDate(v: string | null): string {
 
 /** Rincian jawaban satu peserta (admin) — header ringkas + pembahasan per-soal. */
 export function AdminAttemptReviewPage({ examId, attemptId }: { examId: string; attemptId: string }) {
-  const router = useRouter();
   const [data, setData] = useState<AdminAttemptReview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,16 +50,22 @@ export function AdminAttemptReviewPage({ examId, attemptId }: { examId: string; 
   const inProgress = data?.status !== 'submitted';
 
   return (
-    <div className="flex flex-col gap-6 py-1">
-      <Button
-        variant="ghost"
-        onClick={() => router.push(`/manajemen-ujian/${examId}/hasil`)}
-        className="self-start font-bold text-slate-500 flex items-center gap-2"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Kembali ke Hasil
-      </Button>
-
+    <PageContainer
+      className="space-y-6 pb-16"
+      header={
+        <div className="flex flex-col gap-3">
+          <Breadcrumb
+            linkComponent={Link}
+            items={[
+              { label: 'Manajemen Ujian', href: '/manajemen-ujian' },
+              { label: data ? `Hasil: ${data.title}` : 'Hasil', href: `/manajemen-ujian/${examId}/hasil` },
+              { label: data?.participant_name || 'Rincian Jawaban' },
+            ]}
+          />
+          <ManajemenUjianHeader />
+        </div>
+      }
+    >
       {loading ? (
         <>
           <Skeleton className="h-36 w-full rounded-3xl" />
@@ -158,6 +165,6 @@ export function AdminAttemptReviewPage({ examId, attemptId }: { examId: string; 
           )}
         </>
       ) : null}
-    </div>
+    </PageContainer>
   );
 }

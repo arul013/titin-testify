@@ -38,15 +38,17 @@ def _median(vals: list[float]) -> float | None:
     return s[mid] if n % 2 else round((s[mid - 1] + s[mid]) / 2, 1)
 
 
-def _flag(p: float, disc: float | None) -> str | None:
+def _flag(p: float, disc: float | None, n: int) -> str | None:
     if disc is not None and disc < 0:
         return "negative"
     if disc is not None and disc < 0.1:
         return "low_discrimination"
-    if p <= 0.2:
-        return "too_hard"
-    if p >= 0.9:
-        return "too_easy"
+    # Flag berbasis p-value hanya bermakna bila peserta cukup (kalau sedikit, p=0/1 utk semua).
+    if n >= 5:
+        if p <= 0.2:
+            return "too_hard"
+        if p >= 0.9:
+            return "too_easy"
     return None
 
 
@@ -151,7 +153,7 @@ class ExamAnalyticsService:
                     n_correct=n_correct,
                     p_value=p,
                     discrimination=disc,
-                    flag=_flag(p, disc),
+                    flag=_flag(p, disc, n),
                     correct_answer=q.get("correct_answer"),
                     option_counts=opt_counts,
                 ))

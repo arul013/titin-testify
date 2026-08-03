@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import {
   Users, CheckCircle2, XCircle, Hourglass, ChevronRight, AlertTriangle,
   TrendingUp, Award, ClipboardCheck, CalendarClock, Loader2, Download,
 } from 'lucide-react';
 import { PageContainer } from '@/components/ui/page-container';
-import { PageHeader } from '@/components/ui/page-header';
+import { Breadcrumb } from '@/components/ui/breadcrumb';
+import { ManajemenUjianHeader } from '@/features/exams/ManajemenUjianHeader';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -85,13 +87,16 @@ export function ExamResultsPage({ examId }: { examId: string }) {
     <PageContainer
       className="space-y-6 pb-16"
       header={
-        <PageHeader
-          icon={<TrendingUp />}
-          title={data ? `Hasil — ${data.title}` : 'Hasil Ujian'}
-          subtitle="Skor & rincian jawaban peserta yang telah mengerjakan ujian ini."
-          backLabel="Manajemen Ujian"
-          onBack={() => router.push('/manajemen-ujian')}
-        />
+        <div className="flex flex-col gap-3">
+          <Breadcrumb
+            linkComponent={Link}
+            items={[
+              { label: 'Manajemen Ujian', href: '/manajemen-ujian' },
+              { label: data ? `Hasil: ${data.title}` : 'Hasil' },
+            ]}
+          />
+          <ManajemenUjianHeader />
+        </div>
       }
     >
       {loading ? (

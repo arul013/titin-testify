@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { ToggleGroup } from '@/components/ui/toggle-group';
 import { Pagination } from '@/components/ui/pagination';
 import { PageContainer } from '@/components/ui/page-container';
-import { PageHeader } from '@/components/ui/page-header';
+import { ManajemenUjianHeader } from '@/features/exams/ManajemenUjianHeader';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { FAB, type FABAction } from '@/components/ui/FAB';
 import { getErrorMessage } from '@/lib/errors';
@@ -207,13 +207,7 @@ export function ManajemenUjianPage() {
   return (
     <PageContainer
       className="space-y-6 pb-24"
-      header={
-        <PageHeader
-          icon={<ClipboardCheck />}
-          title="Manajemen Ujian"
-          subtitle="Susun paket ujian dari Bank Soal: tentukan komposisi soal, jadwal, dan peserta."
-        />
-      }
+      header={<ManajemenUjianHeader />}
     >
       {mode === 'builder' ? (
         <ExamBuilder
