@@ -2,18 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Search, ClipboardCheck, Trash2, Lock, Archive, ArchiveRestore } from 'lucide-react';
-import { Card } from '@/components/ui/card';
+import { Search, ClipboardCheck, Trash2, Lock, Archive, ArchiveRestore, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { ToggleGroup } from '@/components/ui/toggle-group';
 import { Pagination } from '@/components/ui/pagination';
 import { PageContainer } from '@/components/ui/page-container';
 import { PageHeader } from '@/components/ui/page-header';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { FAB, type FABAction } from '@/components/ui/FAB';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { useExams, type Exam, type ExamDetail, type ExamMode } from '@/features/exams/hooks/useExams';
-import { ExamTable } from '@/features/exams/ExamTable';
+import { useExams, type Exam, type ExamDetail, type ExamMode, type ExamStatus } from '@/features/exams/hooks/useExams';
+import { ExamList } from '@/features/exams/ExamList';
 import { ExamBuilder } from '@/features/exams/ExamBuilder';
 import { PilihJenisUjianModal } from '@/features/exams/PilihJenisUjianModal';
 import type { TestType } from '@/features/test-types/useTestTypes';
@@ -25,6 +25,7 @@ export function ManajemenUjianPage() {
 
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | ExamStatus>('all');
   const [page, setPage] = useState(1);
 
   const [mode, setMode] = useState<'list' | 'builder'>('list');
@@ -61,6 +62,7 @@ export function ManajemenUjianPage() {
     duplicateExam,
   } = useExams({
     search: debouncedSearch,
+    status: statusFilter === 'all' ? undefined : statusFilter,
     page,
     perPage: PER_PAGE,
   });
@@ -192,14 +194,6 @@ export function ManajemenUjianPage() {
     }
   };
 
-  const createActions: FABAction[] = [
-    {
-      icon: <ClipboardCheck className="w-5 h-5" />,
-      label: 'Buat Ujian',
-      onClick: openCreate,
-    },
-  ];
-
   return (
     <PageContainer
       className="space-y-6 pb-24"
@@ -208,6 +202,13 @@ export function ManajemenUjianPage() {
           icon={<ClipboardCheck />}
           title="Manajemen Ujian"
           subtitle="Susun paket ujian dari Bank Soal: tentukan komposisi soal, jadwal, dan peserta."
+          actions={
+            mode === 'list' ? (
+              <Button variant="primary" onClick={openCreate} leftIcon={<Plus className="w-4 h-4" />} className="font-bold">
+                Buat Ujian
+              </Button>
+            ) : undefined
+          }
         />
       }
     >
@@ -227,9 +228,10 @@ export function ManajemenUjianPage() {
           fetchPreview={poolPreview}
         />
       ) : (
-        <>
-          <Card className="bg-white border border-slate-100 rounded-3xl p-6 shadow-md shadow-slate-100 flex flex-col gap-6">
-            <div className="relative max-w-sm">
+        <div className="flex flex-col gap-5">
+          {/* Toolbar: cari + filter status */}
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="relative w-full md:max-w-xs">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <Input
                 value={search}
@@ -238,30 +240,51 @@ export function ManajemenUjianPage() {
                 className="pl-10"
               />
             </div>
-
-            <ExamTable
-              exams={exams}
-              isLoading={isLoading}
-              currentUserRole={user?.role}
-              onEdit={(exam) => openEdit(exam.id)}
-              onDelete={(exam) => setPendingDeleteId(exam.id)}
-              onUnpublish={handleUnpublish}
-              onClose={(exam) => setPendingLifecycle({ exam, action: 'close' })}
-              onArchive={(exam) => setPendingLifecycle({ exam, action: 'archive' })}
-              onUnarchive={(exam) => setPendingLifecycle({ exam, action: 'unarchive' })}
-              onDuplicate={handleDuplicate}
+            <ToggleGroup
+              size="sm"
+              value={statusFilter}
+              onChange={(v) => {
+                if (v) {
+                  setStatusFilter(v as 'all' | ExamStatus);
+                  setPage(1);
+                }
+              }}
+              options={[
+                { value: 'all', label: 'Semua' },
+                { value: 'published', label: 'Tayang' },
+                { value: 'draft', label: 'Draf' },
+                { value: 'closed', label: 'Selesai' },
+                { value: 'archived', label: 'Arsip' },
+              ]}
             />
+          </div>
 
-            <Pagination
-              page={page}
-              totalPages={totalPages}
-              onPrev={() => setPage(page - 1)}
-              onNext={() => setPage(page + 1)}
-            />
-          </Card>
+          {!isLoading && (
+            <p className="text-xs font-semibold text-slate-400">
+              {total} ujian{statusFilter !== 'all' ? ' (terfilter)' : ''}
+            </p>
+          )}
 
-          <FAB actions={createActions} />
-        </>
+          <ExamList
+            exams={exams}
+            isLoading={isLoading}
+            currentUserRole={user?.role}
+            onEdit={(exam) => openEdit(exam.id)}
+            onDelete={(exam) => setPendingDeleteId(exam.id)}
+            onUnpublish={handleUnpublish}
+            onClose={(exam) => setPendingLifecycle({ exam, action: 'close' })}
+            onArchive={(exam) => setPendingLifecycle({ exam, action: 'archive' })}
+            onUnarchive={(exam) => setPendingLifecycle({ exam, action: 'unarchive' })}
+            onDuplicate={handleDuplicate}
+          />
+
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPrev={() => setPage(page - 1)}
+            onNext={() => setPage(page + 1)}
+          />
+        </div>
       )}
 
       <PilihJenisUjianModal
