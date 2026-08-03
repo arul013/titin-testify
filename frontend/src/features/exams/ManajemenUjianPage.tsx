@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Search, ClipboardCheck, Trash2, Lock, Archive, ArchiveRestore } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -22,6 +23,7 @@ const PER_PAGE = 10;
 
 export function ManajemenUjianPage() {
   const { user } = useAuth();
+  const router = useRouter();
 
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -278,6 +280,7 @@ export function ManajemenUjianPage() {
             onArchive={(exam) => setPendingLifecycle({ exam, action: 'archive' })}
             onUnarchive={(exam) => setPendingLifecycle({ exam, action: 'unarchive' })}
             onDuplicate={handleDuplicate}
+            onViewResults={(exam) => router.push(`/manajemen-ujian/${exam.id}/hasil`)}
           />
 
           <Pagination

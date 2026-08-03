@@ -17,17 +17,27 @@ function sectionLabel(section: string): string {
   return SECTION_LABELS[section as ExamSectionId] ?? section;
 }
 
-/** Panel pembahasan: dimuat lazy saat peserta membuka. */
-export function AttemptReviewPanel({ attemptId }: { attemptId: string }) {
-  const [review, setReview] = useState<AttemptReview | null>(null);
+/** Panel pembahasan per-soal. Default memakai endpoint peserta; `fetcher` bisa
+ *  di-override (mis. endpoint admin) — bentuk responsnya kompatibel (punya `questions`). */
+export function AttemptReviewPanel({
+  attemptId,
+  fetcher,
+  data,
+}: {
+  attemptId: string;
+  fetcher?: (id: string) => Promise<AttemptReview>;
+  /** Data pra-muat (mis. dari induk) → panel tak fetch lagi (hindari fetch/audit ganda). */
+  data?: AttemptReview | null;
+}) {
+  const [fetched, setFetched] = useState<AttemptReview | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!data);
 
   useEffect(() => {
+    if (data) return; // data disuplai induk → tak perlu fetch
     let active = true;
-    attemptsApi
-      .review(attemptId)
-      .then((res) => active && setReview(res))
+    (fetcher ?? attemptsApi.review)(attemptId)
+      .then((res) => active && setFetched(res))
       .catch(
         (err) => active && setError(err instanceof Error ? err.message : 'Gagal memuat pembahasan'),
       )
@@ -35,9 +45,11 @@ export function AttemptReviewPanel({ attemptId }: { attemptId: string }) {
     return () => {
       active = false;
     };
-  }, [attemptId]);
+  }, [attemptId, fetcher, data]);
 
-  if (loading) {
+  const review = data ?? fetched;
+
+  if (!data && loading) {
     return (
       <div className="flex flex-col gap-4">
         {[0, 1].map((i) => (

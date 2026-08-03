@@ -16,6 +16,7 @@ import {
   ArchiveRestore,
   ChevronRight,
   Settings2,
+  BarChart3,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ interface ExamListProps {
   onArchive: (exam: Exam) => void;
   onUnarchive: (exam: Exam) => void;
   onDuplicate: (exam: Exam) => void;
+  onViewResults: (exam: Exam) => void;
 }
 
 const STATUS_META: Record<
@@ -132,6 +134,7 @@ export const ExamList: React.FC<ExamListProps> = ({
   onArchive,
   onUnarchive,
   onDuplicate,
+  onViewResults,
 }) => {
   const isSuperAdmin = currentUserRole === "super_admin";
   const [menuExam, setMenuExam] = useState<Exam | null>(null);
@@ -225,10 +228,16 @@ export const ExamList: React.FC<ExamListProps> = ({
                     <Meta icon={<Users className="h-3.5 w-3.5" />}>
                       {exam.participants_count} peserta
                       {rowHasAttempts && (
-                        <span className="font-semibold text-emerald-600">
-                          {" "}
-                          · {exam.attempts_count} mengerjakan
-                        </span>
+                        <>
+                          {" · "}
+                          <button
+                            type="button"
+                            onClick={() => onViewResults(exam)}
+                            className="font-semibold text-emerald-600 hover:underline"
+                          >
+                            {exam.attempts_count} mengerjakan
+                          </button>
+                        </>
                       )}
                     </Meta>
                   </div>
@@ -267,6 +276,12 @@ export const ExamList: React.FC<ExamListProps> = ({
       >
         {m && (
           <div className="flex flex-col gap-2">
+            <ActionRow
+              icon={<BarChart3 className="h-4.5 w-4.5" />}
+              label="Lihat Hasil"
+              desc="Skor & rincian jawaban peserta"
+              onClick={act(() => onViewResults(m))}
+            />
             {canEdit && (
               <ActionRow
                 icon={<Edit2 className="h-4.5 w-4.5" />}
