@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Clock, Send, Loader2, AlertTriangle, ArrowLeft, ListChecks, ArrowRightCircle, Lock } from 'lucide-react';
+import { Clock, Send, Loader2, AlertTriangle, ArrowLeft, ListChecks, ArrowRightCircle, Lock, ChevronLeft, ChevronRight, Flag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { cn } from '@/src/lib/cn';
@@ -10,6 +10,12 @@ import { SECTION_LABELS, type ExamSectionId } from '@/features/exams/hooks/useEx
 import { attemptsApi, type StartAttemptResponse, type SectionTiming } from './api';
 import { SoalPanel } from './SoalPanel';
 import { AnswerSheet, type PaletteItem } from './AnswerSheet';
+import { BookletOptions, optionsFor } from './BookletOptions';
+import { AnswerBubbleSheet, type BubbleItem } from './AnswerBubbleSheet';
+
+// Tipe single-choice (pakai selected_answer a/b/c/d) → layout lembar-jawaban OMR.
+const SINGLE_CHOICE = new Set(['mcq_single', 'true_false_ng']);
+const isSingleChoice = (t?: string) => !t || SINGLE_CHOICE.has(t);
 
 function fmtClock(totalSeconds: number): string {
   const s = Math.max(0, totalSeconds);
@@ -327,8 +333,39 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
     ? SECTION_LABELS[activeSection as ExamSectionId] ?? activeSection
     : SECTION_LABELS[q.section as ExamSectionId] ?? q.section;
 
+  // ── Mode OMR (buku soal + lembar jawaban bubble) — untuk ujian single-choice/ITP ──
+  const omrMode = allQuestions.length > 0 && allQuestions.every((x) => isSingleChoice(x.payload.question_type));
+  // Lembar jawaban dibatasi ke BAGIAN aktif (nomor per-bagian, ala ITP).
+  const sheetQuestions = questions.filter((x) => x.section === q.section);
+  const bubbleItems: BubbleItem[] = sheetQuestions.map((x) => ({
+    exam_question_id: x.exam_question_id,
+    option_count: optionsFor(x.payload).length,
+  }));
+  const currentLocalIdx = sheetQuestions.findIndex((x) => x.exam_question_id === q.exam_question_id);
+  const flagged = flags.has(q.exam_question_id);
+
+  const jumpToEq = (eqId: string) => {
+    flushText();
+    const gi = questions.findIndex((x) => x.exam_question_id === eqId);
+    if (gi >= 0) setCurrent(gi);
+  };
+  const bubblePick = (localIdx: number, key: string) => {
+    const target = sheetQuestions[localIdx];
+    if (!target || !attemptId || submittedRef.current) return;
+    const eqId = target.exam_question_id;
+    setAnswers((prev) => ({ ...prev, [eqId]: key }));
+    void attemptsApi.saveAnswer(attemptId, eqId, key).catch((e) => console.warn('autosave gagal', e));
+    jumpToEq(eqId);
+  };
+  const bubbleJump = (localIdx: number) => {
+    const target = sheetQuestions[localIdx];
+    if (target) jumpToEq(target.exam_question_id);
+  };
+  const goPrev = () => { flushText(); setCurrent((i) => Math.max(0, i - 1)); };
+  const goNext = () => { flushText(); setCurrent((i) => Math.min(questions.length - 1, i + 1)); };
+
   return (
-    <div className="fixed inset-0 z-50 bg-slate-100 flex flex-col">
+    <div className={cn('fixed inset-0 z-50 flex flex-col', omrMode ? 'bg-white' : 'bg-slate-100')}>
       {/* ── Top bar ── */}
       <header className="shrink-0 bg-white border-b border-slate-200 px-4 md:px-6 py-3 flex items-center justify-between gap-4">
         <div className="min-w-0">
@@ -411,37 +448,103 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
         </div>
       )}
 
-      {/* ── Body: kiri Soal · kanan Lembar Jawaban ── */}
-      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_minmax(360px,440px)]">
-        <main className="min-h-0 overflow-y-auto p-5 md:p-8">
-          <div className="max-w-3xl mx-auto lg:mx-0">
-            <SoalPanel q={q.payload} />
-          </div>
-        </main>
+      {/* ── Body ── */}
+      {omrMode ? (
+        /* Layout OMR: kiri BUKU SOAL (opsi display-only) · kanan LEMBAR JAWABAN (bubble) */
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2">
+          <main className="min-h-0 overflow-y-auto p-5 md:p-8">
+            <div className="max-w-3xl mx-auto flex flex-col gap-5">
+              <div className="flex items-center gap-2.5">
+                <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-lg bg-brand px-2.5 text-sm font-extrabold tabular-nums text-white">
+                  {currentLocalIdx + 1}
+                </span>
+                <span className="text-xs font-bold text-slate-400">
+                  Soal {currentLocalIdx + 1} dari {sheetQuestions.length} · {activeLabel}
+                </span>
+              </div>
 
-        <aside className="min-h-0 overflow-y-auto bg-white border-t lg:border-t-0 lg:border-l border-slate-200 p-5 md:p-6">
-          <AnswerSheet
-            q={q.payload}
-            number={current + 1}
-            selected={answers[q.exam_question_id] ?? null}
-            onSelect={handleSelect}
-            multiSelected={multi[q.exam_question_id] ?? []}
-            onMultiToggle={handleMultiToggle}
-            textValue={text[q.exam_question_id] ?? ''}
-            onTextChange={handleTextChange}
-            onTextBlur={flushText}
-            pairs={pairs[q.exam_question_id] ?? {}}
-            onPairChange={handlePairChange}
-            flagged={flags.has(q.exam_question_id)}
-            onToggleFlag={toggleFlag}
-            palette={palette}
-            currentIndex={current}
-            onJump={(i) => { flushText(); setCurrent(i); }}
-            onPrev={() => { flushText(); setCurrent((i) => Math.max(0, i - 1)); }}
-            onNext={() => { flushText(); setCurrent((i) => Math.min(questions.length - 1, i + 1)); }}
-          />
-        </aside>
-      </div>
+              <SoalPanel q={q.payload} />
+              <BookletOptions q={q.payload} />
+
+              <div className="flex items-center gap-3 pt-1">
+                <Button
+                  variant="secondary"
+                  onClick={goPrev}
+                  disabled={current === 0}
+                  className="flex-1 font-bold flex items-center justify-center gap-1.5"
+                >
+                  <ChevronLeft className="w-4 h-4" /> Sebelumnya
+                </Button>
+                <button
+                  type="button"
+                  onClick={toggleFlag}
+                  className={cn(
+                    'shrink-0 inline-flex items-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-bold transition-colors',
+                    flagged
+                      ? 'border-amber-300 bg-amber-50 text-amber-700'
+                      : 'border-slate-200 text-slate-500 hover:bg-slate-50',
+                  )}
+                >
+                  <Flag className={cn('w-3.5 h-3.5', flagged && 'fill-amber-400 text-amber-500')} />
+                  {flagged ? 'Ditandai' : 'Tandai'}
+                </button>
+                <Button
+                  variant="secondary"
+                  onClick={goNext}
+                  disabled={current === questions.length - 1}
+                  className="flex-1 font-bold flex items-center justify-center gap-1.5"
+                >
+                  Berikutnya <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </main>
+
+          <aside className="min-h-0 overflow-y-auto overflow-x-hidden bg-white border-t lg:border-t-0 lg:border-l border-slate-200 p-5 md:p-6">
+            <AnswerBubbleSheet
+              sectionLabel={activeLabel}
+              items={bubbleItems}
+              answers={answers}
+              currentLocalIdx={currentLocalIdx}
+              flaggedIds={flags}
+              onPick={bubblePick}
+              onJump={bubbleJump}
+            />
+          </aside>
+        </div>
+      ) : (
+        /* Layout lama (tipe non-MCQ: essay/matching/isian/…): panel jawaban inline + peta soal */
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_minmax(360px,440px)]">
+          <main className="min-h-0 overflow-y-auto p-5 md:p-8">
+            <div className="max-w-3xl mx-auto lg:mx-0">
+              <SoalPanel q={q.payload} />
+            </div>
+          </main>
+
+          <aside className="min-h-0 overflow-y-auto bg-white border-t lg:border-t-0 lg:border-l border-slate-200 p-5 md:p-6">
+            <AnswerSheet
+              q={q.payload}
+              number={current + 1}
+              selected={answers[q.exam_question_id] ?? null}
+              onSelect={handleSelect}
+              multiSelected={multi[q.exam_question_id] ?? []}
+              onMultiToggle={handleMultiToggle}
+              textValue={text[q.exam_question_id] ?? ''}
+              onTextChange={handleTextChange}
+              onTextBlur={flushText}
+              pairs={pairs[q.exam_question_id] ?? {}}
+              onPairChange={handlePairChange}
+              flagged={flags.has(q.exam_question_id)}
+              onToggleFlag={toggleFlag}
+              palette={palette}
+              currentIndex={current}
+              onJump={(i) => { flushText(); setCurrent(i); }}
+              onPrev={() => { flushText(); setCurrent((i) => Math.max(0, i - 1)); }}
+              onNext={() => { flushText(); setCurrent((i) => Math.min(questions.length - 1, i + 1)); }}
+            />
+          </aside>
+        </div>
+      )}
 
       {/* ── Konfirmasi lanjut bagian (mode per-bagian) ── */}
       <ConfirmDialog
