@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Search, ClipboardCheck, Trash2, Lock, Archive, ArchiveRestore, Plus } from 'lucide-react';
+import { Search, ClipboardCheck, Trash2, Lock, Archive, ArchiveRestore } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { ToggleGroup } from '@/components/ui/toggle-group';
 import { Pagination } from '@/components/ui/pagination';
 import { PageContainer } from '@/components/ui/page-container';
 import { PageHeader } from '@/components/ui/page-header';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { FAB, type FABAction } from '@/components/ui/FAB';
 import { getErrorMessage } from '@/lib/errors';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useExams, type Exam, type ExamDetail, type ExamMode, type ExamStatus } from '@/features/exams/hooks/useExams';
@@ -194,6 +194,14 @@ export function ManajemenUjianPage() {
     }
   };
 
+  const createActions: FABAction[] = [
+    {
+      icon: <ClipboardCheck className="w-5 h-5" />,
+      label: 'Buat Ujian',
+      onClick: openCreate,
+    },
+  ];
+
   return (
     <PageContainer
       className="space-y-6 pb-24"
@@ -202,13 +210,6 @@ export function ManajemenUjianPage() {
           icon={<ClipboardCheck />}
           title="Manajemen Ujian"
           subtitle="Susun paket ujian dari Bank Soal: tentukan komposisi soal, jadwal, dan peserta."
-          actions={
-            mode === 'list' ? (
-              <Button variant="primary" onClick={openCreate} leftIcon={<Plus className="w-4 h-4" />} className="font-bold">
-                Buat Ujian
-              </Button>
-            ) : undefined
-          }
         />
       }
     >
@@ -228,6 +229,7 @@ export function ManajemenUjianPage() {
           fetchPreview={poolPreview}
         />
       ) : (
+        <>
         <div className="flex flex-col gap-5">
           {/* Toolbar: cari + filter status */}
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -285,6 +287,8 @@ export function ManajemenUjianPage() {
             onNext={() => setPage(page + 1)}
           />
         </div>
+        <FAB actions={createActions} />
+        </>
       )}
 
       <PilihJenisUjianModal
