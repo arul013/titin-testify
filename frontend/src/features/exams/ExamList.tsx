@@ -269,21 +269,21 @@ export const ExamList: React.FC<ExamListProps> = ({
           <div className="flex flex-col gap-2">
             {canEdit && (
               <ActionRow
-                icon={<Edit2 className="h-[18px] w-[18px]" />}
+                icon={<Edit2 className="h-4.5 w-4.5" />}
                 label="Ubah Ujian"
                 desc="Ubah komposisi soal, jadwal, dan peserta"
                 onClick={act(() => onEdit(m))}
               />
             )}
             <ActionRow
-              icon={<Copy className="h-[18px] w-[18px]" />}
+              icon={<Copy className="h-4.5 w-4.5" />}
               label="Duplikat"
               desc="Salin jadi ujian baru (atur ulang jadwalnya)"
               onClick={act(() => onDuplicate(m))}
             />
             {canUnpublish && (
               <ActionRow
-                icon={<Undo2 className="h-[18px] w-[18px]" />}
+                icon={<Undo2 className="h-4.5 w-4.5" />}
                 label="Kembalikan ke Draf"
                 desc="Sembunyikan dari peserta untuk diubah lagi"
                 onClick={act(() => onUnpublish(m.id))}
@@ -291,7 +291,7 @@ export const ExamList: React.FC<ExamListProps> = ({
             )}
             {canClose && (
               <ActionRow
-                icon={<Lock className="h-[18px] w-[18px]" />}
+                icon={<Lock className="h-4.5 w-4.5" />}
                 label="Tutup Ujian"
                 desc="Kunci — tak bisa dikerjakan lagi"
                 onClick={act(() => onClose(m))}
@@ -299,7 +299,7 @@ export const ExamList: React.FC<ExamListProps> = ({
             )}
             {canArchive && (
               <ActionRow
-                icon={<Archive className="h-[18px] w-[18px]" />}
+                icon={<Archive className="h-4.5 w-4.5" />}
                 label="Arsipkan"
                 desc="Sembunyikan dari daftar aktif"
                 onClick={act(() => onArchive(m))}
@@ -307,7 +307,7 @@ export const ExamList: React.FC<ExamListProps> = ({
             )}
             {canUnarchive && (
               <ActionRow
-                icon={<ArchiveRestore className="h-[18px] w-[18px]" />}
+                icon={<ArchiveRestore className="h-4.5 w-4.5" />}
                 label="Keluarkan dari Arsip"
                 desc="Kembalikan ke daftar aktif"
                 onClick={act(() => onUnarchive(m))}
@@ -315,7 +315,7 @@ export const ExamList: React.FC<ExamListProps> = ({
             )}
             <div className="my-1 border-t border-slate-100" />
             <ActionRow
-              icon={<Trash2 className="h-[18px] w-[18px]" />}
+              icon={<Trash2 className="h-4.5 w-4.5" />}
               label="Hapus"
               desc="Ujian dihapus dari daftar (data tetap tersimpan untuk audit)"
               danger

@@ -45,7 +45,7 @@ function fmtDate(v: string | null): string | null {
 }
 
 function sectionIconEl(section: string) {
-  const cls = "h-[18px] w-[18px]";
+  const cls = "h-4.5 w-4.5";
   if (section === "listening") return <Headphones className={cls} />;
   if (section === "reading") return <BookOpenText className={cls} />;
   return <PencilRuler className={cls} />; // structure / written_expression / structure_we

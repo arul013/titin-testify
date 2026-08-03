@@ -15,7 +15,7 @@ from app.config import get_settings
 from app.middleware.cors import setup_cors
 from app.middleware.rate_limit import limiter
 from app.middleware.observability import setup_logging, install_request_logging
-from app.routes import auth, users, questions, upload, exams, scoring_schemes, exam_attempts, test_types, scoring, rubrics, grading, internal
+from app.routes import auth, users, questions, upload, exams, scoring_schemes, exam_attempts, test_types, scoring, rubrics, grading, internal, exam_results
 
 settings = get_settings()
 
@@ -50,6 +50,7 @@ app.include_router(exams.router)
 app.include_router(scoring_schemes.router)
 app.include_router(rubrics.router)
 app.include_router(grading.router)
+app.include_router(exam_results.router)
 app.include_router(exam_attempts.router)
 app.include_router(test_types.router)
 app.include_router(scoring.router)

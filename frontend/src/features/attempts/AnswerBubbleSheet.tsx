@@ -97,7 +97,7 @@ export const AnswerBubbleSheet: React.FC<AnswerBubbleSheetProps> = ({
                         }}
                         aria-label={`Soal ${number} pilihan ${LETTERS[k]}`}
                         className={cn(
-                          'mx-auto flex h-[26px] w-[26px] items-center justify-center rounded-full border-[1.5px] text-[11px] font-bold transition-all',
+                          'mx-auto flex h-6.5 w-6.5 items-center justify-center rounded-full border-[1.5px] text-[11px] font-bold transition-all',
                           filled
                             ? 'border-brand bg-brand text-white scale-[1.03]'
                             : 'border-slate-300 bg-white text-slate-400 hover:border-brand',
