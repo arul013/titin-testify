@@ -2,14 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { toast } from 'sonner';
 import {
   Users, CheckCircle2, XCircle, Hourglass, ChevronRight, AlertTriangle,
   TrendingUp, Award, ClipboardCheck, CalendarClock, Loader2, Download,
 } from 'lucide-react';
 import { PageContainer } from '@/components/ui/page-container';
-import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { ManajemenUjianHeader } from '@/features/exams/ManajemenUjianHeader';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -87,16 +85,12 @@ export function ExamResultsPage({ examId }: { examId: string }) {
     <PageContainer
       className="space-y-6 pb-16"
       header={
-        <div className="flex flex-col gap-3">
-          <Breadcrumb
-            linkComponent={Link}
-            items={[
-              { label: 'Manajemen Ujian', href: '/manajemen-ujian' },
-              { label: data ? `Hasil: ${data.title}` : 'Hasil' },
-            ]}
-          />
-          <ManajemenUjianHeader />
-        </div>
+        <ManajemenUjianHeader
+          breadcrumb={[
+            { label: 'Manajemen Ujian', href: '/manajemen-ujian' },
+            { label: data ? `Hasil: ${data.title}` : 'Hasil' },
+          ]}
+        />
       }
     >
       {loading ? (

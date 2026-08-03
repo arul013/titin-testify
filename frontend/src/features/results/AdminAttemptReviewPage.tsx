@@ -1,12 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import {
   AlertTriangle, CheckCircle2, XCircle, Hourglass, CalendarClock, User, Loader2,
 } from 'lucide-react';
 import { PageContainer } from '@/components/ui/page-container';
-import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -53,17 +51,13 @@ export function AdminAttemptReviewPage({ examId, attemptId }: { examId: string; 
     <PageContainer
       className="space-y-6 pb-16"
       header={
-        <div className="flex flex-col gap-3">
-          <Breadcrumb
-            linkComponent={Link}
-            items={[
-              { label: 'Manajemen Ujian', href: '/manajemen-ujian' },
-              { label: data ? `Hasil: ${data.title}` : 'Hasil', href: `/manajemen-ujian/${examId}/hasil` },
-              { label: data?.participant_name || 'Rincian Jawaban' },
-            ]}
-          />
-          <ManajemenUjianHeader />
-        </div>
+        <ManajemenUjianHeader
+          breadcrumb={[
+            { label: 'Manajemen Ujian', href: '/manajemen-ujian' },
+            { label: data ? `Hasil: ${data.title}` : 'Hasil', href: `/manajemen-ujian/${examId}/hasil` },
+            { label: data?.participant_name || 'Rincian Jawaban' },
+          ]}
+        />
       }
     >
       {loading ? (
