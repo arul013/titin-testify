@@ -5,6 +5,7 @@ Hasil ujian sisi admin. Otorisasi: PEMILIK ujian (created_by) + super_admin.
 Setiap akses (data performa peserta = sensitif) dicatat ke audit_events.
 """
 
+from datetime import datetime, timezone
 from typing import Any
 from fastapi import HTTPException, status
 from postgrest.types import CountMethod
@@ -62,7 +63,8 @@ class ExamResultsService:
 
         attempts = (
             supabase.table("exam_attempts").select("*")
-            .eq("exam_id", exam_id).order("submitted_at", desc=True).execute().data or []
+            .eq("exam_id", exam_id).is_("reset_at", "null")  # M5.3: kecualikan percobaan ter-reset
+            .order("submitted_at", desc=True).execute().data or []
         )
         names = _names_by_user(supabase, [a["user_id"] for a in attempts])
         scale_unit = _exam_scale_unit(exam)
@@ -226,3 +228,45 @@ class ExamResultsService:
             submitted_at=_parse_dt(attempt.get("submitted_at")),
             questions=questions,
         )
+
+    @staticmethod
+    async def reset_attempt(attempt_id: str, current_user: Any, request: Any) -> dict:
+        """Void LUNAK sebuah percobaan (M5.3) → peserta bisa mengerjakan ulang.
+
+        Percobaan tidak dihapus (auditable): ditandai `reset_at`/`reset_by`, lalu
+        diabaikan saat mulai & dikecualikan dari hasil/analitik.
+        """
+        supabase = get_supabase_admin()
+        user_id, user_role = current_user.id, current_user.role.value
+
+        ar = supabase.table("exam_attempts").select("*").eq("id", attempt_id).execute().data
+        if not ar:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Percobaan tidak ditemukan.")
+        attempt = ar[0]
+        if attempt.get("reset_at"):
+            raise HTTPException(status.HTTP_409_CONFLICT, "Percobaan ini sudah direset.")
+
+        er = (
+            supabase.table("exams").select("id, title, created_by")
+            .eq("id", attempt["exam_id"]).is_("deleted_at", "null").execute().data
+        )
+        if not er:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Ujian tidak ditemukan.")
+        exam = er[0]
+        _assert_owner(exam, user_id, user_role)
+
+        supabase.table("exam_attempts").update({
+            "reset_at": datetime.now(timezone.utc).isoformat(),
+            "reset_by": user_id,
+        }).eq("id", attempt_id).execute()
+
+        name = _names_by_user(supabase, [attempt["user_id"]]).get(attempt["user_id"]) or "Peserta"
+        AuditService.log_action(
+            request, current_user,
+            action="attempt.reset", entity_type="exam_attempt", entity_id=attempt_id,
+            summary=(
+                f"Reset akses '{name}' di ujian '{exam['title']}' "
+                f"(status={attempt['status']}, skor={attempt.get('score')})"
+            ),
+        )
+        return {"message": f"Akses {name} direset. Peserta dapat mengerjakan ulang ujian.", "success": True}

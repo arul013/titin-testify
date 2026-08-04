@@ -97,6 +97,8 @@ export const resultsApi = {
   exam: (examId: string) => api.get<AdminResults>(`/api/admin/exams/${examId}/results`),
   review: (attemptId: string) => api.get<AdminAttemptReview>(`/api/admin/attempts/${attemptId}/review`),
   analytics: (examId: string) => api.get<ExamAnalytics>(`/api/admin/exams/${examId}/analytics`),
+  reset: (attemptId: string) =>
+    api.post<{ message: string; success: boolean }>(`/api/admin/attempts/${attemptId}/reset`, {}),
 };
 
 /** Unduh CSV hasil (endpoint ter-autentikasi → fetch dengan token → blob download). */

@@ -74,7 +74,9 @@ class ExamAnalyticsService:
         attempts = (
             supabase.table("exam_attempts")
             .select("id, user_id, score, passed, total_correct, grading_status")
-            .eq("exam_id", exam_id).eq("status", "submitted").execute().data or []
+            .eq("exam_id", exam_id).eq("status", "submitted")
+            .is_("reset_at", "null")  # M5.3: kecualikan percobaan ter-reset
+            .execute().data or []
         )
         n = len(attempts)
 
@@ -182,7 +184,8 @@ class ExamAnalyticsService:
 
         attempts = (
             supabase.table("exam_attempts").select("*")
-            .eq("exam_id", exam_id).order("submitted_at", desc=True).execute().data or []
+            .eq("exam_id", exam_id).is_("reset_at", "null")  # M5.3: kecualikan percobaan ter-reset
+            .order("submitted_at", desc=True).execute().data or []
         )
         names = _names_by_user(supabase, [a["user_id"] for a in attempts])
 

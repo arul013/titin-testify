@@ -36,6 +36,16 @@ async def attempt_review(
     return await ExamResultsService.admin_review(attempt_id, current_user, request)
 
 
+@router.post("/attempts/{attempt_id}/reset")
+async def reset_attempt(
+    attempt_id: str,
+    request: Request,
+    current_user: UserProfile = Depends(require_admin),
+):
+    """Reset (void lunak) percobaan peserta → peserta bisa mengerjakan ulang (M5.3)."""
+    return await ExamResultsService.reset_attempt(attempt_id, current_user, request)
+
+
 @router.get("/exams/{exam_id}/analytics", response_model=ExamAnalytics)
 async def exam_analytics(
     exam_id: str,

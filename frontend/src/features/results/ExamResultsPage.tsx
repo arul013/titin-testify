@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   Users, CheckCircle2, XCircle, Hourglass, ChevronRight, AlertTriangle,
-  TrendingUp, Award, ClipboardCheck, CalendarClock, Loader2, Download,
+  TrendingUp, Award, ClipboardCheck, CalendarClock, Loader2, Download, RotateCcw,
 } from 'lucide-react';
 import { PageContainer } from '@/components/ui/page-container';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ManajemenUjianHeader } from '@/features/exams/ManajemenUjianHeader';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -54,6 +55,24 @@ export function ExamResultsPage({ examId }: { examId: string }) {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'peserta' | 'analitik'>('peserta');
   const [exporting, setExporting] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [pendingReset, setPendingReset] = useState<AdminAttemptRow | null>(null);
+  const [resetting, setResetting] = useState(false);
+
+  const confirmReset = async () => {
+    if (!pendingReset) return;
+    setResetting(true);
+    try {
+      const res = await resultsApi.reset(pendingReset.attempt_id);
+      toast.success(res.message || 'Akses peserta direset.');
+      setPendingReset(null);
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Gagal mereset akses peserta.'));
+    } finally {
+      setResetting(false);
+    }
+  };
 
   const handleExport = async () => {
     setExporting(true);
@@ -76,7 +95,7 @@ export function ExamResultsPage({ examId }: { examId: string }) {
     return () => {
       active = false;
     };
-  }, [examId]);
+  }, [examId, reloadKey]);
 
   const isItp = data?.scale_unit === 'toefl_itp';
   const unit = data?.scale_unit === 'percent' ? '%' : '';
@@ -167,6 +186,7 @@ export function ExamResultsPage({ examId }: { examId: string }) {
                       a={a}
                       unit={unit}
                       onOpen={() => router.push(`/manajemen-ujian/${examId}/hasil/${a.attempt_id}`)}
+                      onReset={() => setPendingReset(a)}
                     />
                   ))}
                 </div>
@@ -177,11 +197,29 @@ export function ExamResultsPage({ examId }: { examId: string }) {
           )}
         </>
       ) : null}
+
+      <ConfirmDialog
+        open={!!pendingReset}
+        onClose={() => setPendingReset(null)}
+        title="Reset Akses Peserta?"
+        icon={<RotateCcw className="h-4 w-4" />}
+        confirmLabel="Ya, Reset"
+        confirmVariant="warning"
+        confirmIcon={<RotateCcw className="h-4 w-4" />}
+        loading={resetting}
+        onConfirm={confirmReset}
+      >
+        <p className="text-sm text-slate-600 leading-relaxed">
+          Percobaan <b>{pendingReset?.participant_name || 'peserta'}</b> akan dibatalkan (di-void) sehingga
+          peserta bisa <b>mengerjakan ulang</b> ujian ini. Percobaan lama tidak dihapus — tetap tersimpan
+          untuk audit, tapi dikeluarkan dari hasil &amp; analitik.
+        </p>
+      </ConfirmDialog>
     </PageContainer>
   );
 }
 
-function AttemptRow({ a, unit, onOpen }: { a: AdminAttemptRow; unit: string; onOpen: () => void }) {
+function AttemptRow({ a, unit, onOpen, onReset }: { a: AdminAttemptRow; unit: string; onOpen: () => void; onReset: () => void }) {
   const inProgress = a.status !== 'submitted';
   const pending = a.grading_status === 'pending';
   const finalScore = !inProgress && !pending;
@@ -246,6 +284,14 @@ function AttemptRow({ a, unit, onOpen }: { a: AdminAttemptRow; unit: string; onO
             <p className="text-sm font-bold text-slate-400">{pending ? 'Menunggu' : '—'}</p>
           )}
         </div>
+        <button
+          type="button"
+          title="Reset akses — peserta bisa mengerjakan ulang"
+          onClick={(e) => { e.stopPropagation(); onReset(); }}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-amber-50 hover:text-amber-600"
+        >
+          <RotateCcw className="h-4 w-4" />
+        </button>
         {!inProgress && (
           <ChevronRight className="h-5 w-5 shrink-0 text-slate-300 transition-colors group-hover:text-brand" />
         )}

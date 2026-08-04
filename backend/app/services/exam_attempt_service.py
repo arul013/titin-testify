@@ -198,6 +198,7 @@ class ExamAttemptService:
         # Percobaan terbaru per ujian
         attempts = (
             supabase.table("exam_attempts").select("*").eq("user_id", user_id).in_("exam_id", live_ids)
+            .is_("reset_at", "null")  # M5.3: percobaan ter-reset tak memblokir mulai ulang
             .order("created_at", desc=True).execute().data or []
         )
         latest: dict = {}
@@ -274,6 +275,7 @@ class ExamAttemptService:
 
         existing = (
             supabase.table("exam_attempts").select("*").eq("exam_id", exam_id).eq("user_id", user_id)
+            .is_("reset_at", "null")  # M5.3: abaikan percobaan yang di-reset admin
             .order("created_at", desc=True).execute().data or []
         )
         attempt = next((a for a in existing if a["status"] == "in_progress"), None)
@@ -550,7 +552,8 @@ class ExamAttemptService:
         now = datetime.now(timezone.utc)
         attempts = (
             supabase.table("exam_attempts").select("id, user_id, exam_id, started_at")
-            .eq("status", "in_progress").limit(limit).execute().data or []
+            .eq("status", "in_progress").is_("reset_at", "null")  # M5.3: jangan finalisasi yg di-reset
+            .limit(limit).execute().data or []
         )
         if not attempts:
             return {"checked": 0, "expired": 0}
