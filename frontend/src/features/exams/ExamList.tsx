@@ -14,7 +14,6 @@ import {
   Lock,
   Archive,
   ArchiveRestore,
-  ChevronRight,
   Settings2,
   BarChart3,
   LayoutTemplate,
@@ -84,48 +83,39 @@ const Meta: React.FC<{ icon: React.ReactNode; children: React.ReactNode }> = ({
   </span>
 );
 
-/** Kartu aksi ringkas untuk grid 2 kolom (tinggi seragam via auto-rows-fr). */
+/** Kartu aksi ringkas untuk grid 3 kolom (tinggi seragam via auto-rows-fr).
+ *  `danger` = varian merah untuk aksi destruktif (mis. Hapus). */
 const ActionTile: React.FC<{
   icon: React.ReactNode;
   label: string;
   desc: string;
+  danger?: boolean;
   onClick: () => void;
-}> = ({ icon, label, desc, onClick }) => (
+}> = ({ icon, label, desc, danger, onClick }) => (
   <button
     type="button"
     onClick={onClick}
-    className="group flex h-full w-full items-start gap-3 rounded-2xl border border-slate-100 p-3.5 text-left transition-colors hover:border-brand/30 hover:bg-slate-50"
+    className={cn(
+      "group flex h-full w-full items-start gap-3 rounded-2xl border p-3.5 text-left transition-colors",
+      danger
+        ? "border-red-100 hover:border-red-200 hover:bg-red-50/50"
+        : "border-slate-100 hover:border-brand/30 hover:bg-slate-50",
+    )}
   >
-    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-500 transition-colors group-hover:bg-brand/10 group-hover:text-brand">
+    <span
+      className={cn(
+        "grid h-10 w-10 shrink-0 place-items-center rounded-xl transition-colors",
+        danger
+          ? "bg-red-50 text-red-500"
+          : "bg-slate-100 text-slate-500 group-hover:bg-brand/10 group-hover:text-brand",
+      )}
+    >
       {icon}
     </span>
     <span className="min-w-0 flex-1">
-      <span className="block text-sm font-bold text-slate-800">{label}</span>
+      <span className={cn("block text-sm font-bold", danger ? "text-red-600" : "text-slate-800")}>{label}</span>
       <span className="mt-0.5 block text-xs leading-snug text-slate-400">{desc}</span>
     </span>
-  </button>
-);
-
-/** Baris aksi berbahaya (full-width) di kaki modal. */
-const DangerRow: React.FC<{
-  icon: React.ReactNode;
-  label: string;
-  desc: string;
-  onClick: () => void;
-}> = ({ icon, label, desc, onClick }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className="group flex w-full items-center gap-3.5 rounded-2xl border border-red-100 p-3.5 text-left transition-colors hover:border-red-200 hover:bg-red-50/50"
-  >
-    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-red-50 text-red-500">
-      {icon}
-    </span>
-    <span className="min-w-0 flex-1">
-      <span className="block text-sm font-bold text-red-600">{label}</span>
-      <span className="block text-xs text-slate-400">{desc}</span>
-    </span>
-    <ChevronRight className="h-4 w-4 shrink-0 text-red-200 group-hover:text-red-300" />
   </button>
 );
 
@@ -281,11 +271,10 @@ export const ExamList: React.FC<ExamListProps> = ({
         onClose={() => setMenuExam(null)}
         title={m ? m.title : ""}
         icon={<Settings2 className="h-5 w-5 text-white" />}
-        size="lg"
+        size="xl"
       >
         {m && (
-          <div className="flex flex-col gap-3">
-            <div className="grid auto-rows-fr grid-cols-1 gap-2.5 sm:grid-cols-2">
+          <div className="grid auto-rows-fr grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
               <ActionTile
                 icon={<BarChart3 className="h-4.5 w-4.5" />}
                 label="Lihat Hasil"
@@ -352,14 +341,13 @@ export const ExamList: React.FC<ExamListProps> = ({
                   onClick={act(() => onUnarchive(m))}
                 />
               )}
-            </div>
-            <div className="border-t border-slate-100" />
-            <DangerRow
-              icon={<Trash2 className="h-4.5 w-4.5" />}
-              label="Hapus"
-              desc="Ujian dihapus dari daftar (data tetap tersimpan untuk audit)"
-              onClick={act(() => onDelete(m))}
-            />
+              <ActionTile
+                danger
+                icon={<Trash2 className="h-4.5 w-4.5" />}
+                label="Hapus"
+                desc="Ujian dihapus dari daftar (data tetap tersimpan untuk audit)"
+                onClick={act(() => onDelete(m))}
+              />
           </div>
         )}
       </Modal>
