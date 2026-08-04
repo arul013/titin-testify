@@ -3,10 +3,12 @@
 import React, { useEffect, useState } from 'react';
 import { Search, Users } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUsers } from '@/features/users/hooks/useUsers';
+import { GroupManagerModal } from '@/features/exams/GroupManagerModal';
 
 interface StepParticipantsProps {
   selectedIds: string[];
@@ -22,6 +24,7 @@ export const StepParticipants: React.FC<StepParticipantsProps> = ({
 }) => {
   const { users, isLoading, fetchUsers } = useUsers();
   const [search, setSearch] = useState('');
+  const [groupModalOpen, setGroupModalOpen] = useState(false);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -37,6 +40,12 @@ export const StepParticipants: React.FC<StepParticipantsProps> = ({
     const next = new Set(selected);
     if (next.has(id)) next.delete(id);
     else next.add(id);
+    onChange([...next]);
+  };
+
+  const addMembers = (ids: string[]) => {
+    const next = new Set(selected);
+    ids.forEach((id) => next.add(id));
     onChange([...next]);
   };
 
@@ -56,9 +65,20 @@ export const StepParticipants: React.FC<StepParticipantsProps> = ({
           Tandai peserta yang boleh mengikuti ujian ini. Yang tidak ditandai tidak akan melihat sesi
           ujian.
         </p>
-        <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-xl shrink-0">
-          {selectedIds.length} peserta dipilih
-        </span>
+        <div className="flex items-center gap-2.5 shrink-0">
+          <Button
+            variant="secondary"
+            size="sm"
+            className="font-bold"
+            leftIcon={<Users className="h-4 w-4" />}
+            onClick={() => setGroupModalOpen(true)}
+          >
+            Grup / Kelas
+          </Button>
+          <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-xl">
+            {selectedIds.length} peserta dipilih
+          </span>
+        </div>
       </div>
 
       <div className="relative">
@@ -122,6 +142,13 @@ export const StepParticipants: React.FC<StepParticipantsProps> = ({
           )}
         </div>
       </div>
+
+      <GroupManagerModal
+        open={groupModalOpen}
+        onClose={() => setGroupModalOpen(false)}
+        selectedIds={selectedIds}
+        onAddMembers={addMembers}
+      />
     </div>
   );
 };

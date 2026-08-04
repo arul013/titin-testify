@@ -76,14 +76,14 @@ Masalah sekarang: model soal mengasumsikan **pilihan ganda** (`option_a..d`, `co
 | **F1** | **Model soal ekstensibel** — fondasi IELTS/iBT. | — | ✅ **inti selesai** (F1.3 + band F1.4a ditunda) |
 | **F4** | **Skalabilitas**: N+1, pagination, background job, observability. | — | ✅ inti selesai (jobs/obs/N+1/index ✅; notif/export job nanti) |
 | **M3** | **Auto-submit/expire job** (finalisasi attempt kedaluwarsa; auto-close saat `ends_at` lewat) + infra job (F4). | F4 | 🟡 **endpoint siap** (`/api/internal/jobs/expire-attempts`); tinggal **jadwalkan cron** (deploy) |
-| **M4** | **Duplikat & template ujian**; tandai soal **"dipakai di N ujian"** (cegah/peringatan edit soal live). | — | rencana (duplikat sudah ada dari M1) |
-| **M5** | **Manajemen peserta**: assign per **grup/kelas** (cohort), **perpanjangan waktu per-peserta** (akomodasi), re-invite. | — | rencana |
+| **M4** | **Duplikat & template ujian**; tandai soal **"dipakai di N ujian"** (cegah/peringatan edit soal live). | — | ✅ **SELESAI** (2026-08-04, migrasi 023 nunggu user): (A) guard hapus soal/materi **409** bila dipakai ujian + badge "Dipakai di N ujian" di Bank Soal (`used_in_exams`, batch anti-N+1; `delete_passage` cek soal anak yg ikut CASCADE). (B) template ujian — `exams.is_template` (mig. 023), `_clone_exam` seam, `save_as_template`/`create_from_template`, route `save-as-template`/`use-template` + `GET /api/exams?templates=true` (audit `exam.template.create`/`exam.from_template`); UI: menu "Jadikan Template" + toolbar "Dari Template" → `TemplatePickerModal`. Duplikat sudah dari M1. |
+| **M5** | **Manajemen peserta**: assign per **grup/kelas** (cohort), **perpanjangan waktu per-peserta** (akomodasi), re-invite. | — | 🟡 **M5.1 grup SELESAI** (2026-08-04, migrasi 024 nunggu user): tabel `participant_groups`+`participant_group_members` (RLS lockdown), CRUD `/api/participant-groups` (+audit), UI `GroupManagerModal` di StepParticipants (buat dari pilihan / Gunakan→tambah ke pilihan / perbarui-ke-pilihan / hapus). **M5.2** akomodasi & **M5.3** re-invite menyusul. **Keputusan (2026-08-04): akomodasi M5.2 menggeser `ends_at` +extra_minutes utk peserta ybs** (bukan dinding keras). |
 | **M6** | **Notifikasi** (ujian ditugaskan / akan dibuka / pengingat) — in-app + email. | F4 (job) | rencana |
 | **M7** | **Layar pra-ujian** (instruksi, durasi, jumlah soal, **pakta integritas**) + **ketahanan koneksi** (indikator tersimpan, auto-resume) + **aksesibilitas** (ukuran font/kontras). | — | rencana |
 | **M8** | **Anti-cheat**: deteksi pindah-tab/blur, fullscreen lock, cegah copy-paste, satu-sesi-aktif, log ke `audit_events`, (opsional) proctoring. (Acak urutan soal/opsi per-peserta DICORET 2026-08-01 — lihat §Security.) | F1, F2 | rencana |
 | **M9** | **Tipe soal non-MCQ + alur grading** (IELTS Writing/Speaking, matching, dst.). | F1 | ✅ **sebagian besar** via F1.1+F1.2 (sisa: speaking F1.3) |
 
-Urutan default: **M1 → (F3/F4 secukupnya) → M2 → M3 → M4 → M5 → M6 → M7 → M8 → M9**. F1/F2 sudah disuntik sebagai sprint fondasi. **Kandidat berikutnya: F4 (N+1/pagination), M2 (monitoring), atau M8 (anti-cheat perilaku).**
+Urutan default: **M1 → (F3/F4 secukupnya) → M2 → M3 → M4 → M5 → M6 → M7 → M8 → M9**. F1/F2 sudah disuntik sebagai sprint fondasi. **Selesai s/d M4** (M3 tinggal jadwalkan cron di deploy). **Kandidat berikutnya: M5 (manajemen peserta: grup/perpanjangan/re-invite) atau M8 (anti-cheat perilaku).**
 
 ---
 
