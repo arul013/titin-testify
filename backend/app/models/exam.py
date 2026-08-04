@@ -120,6 +120,13 @@ class ExamParticipantResponse(BaseModel):
     user_id: str
     username: Optional[str] = None
     full_name: Optional[str] = None
+    # M5.2: menit tambahan (akomodasi) untuk peserta ini pada ujian ini.
+    extra_minutes: int = 0
+
+
+class SetParticipantExtraRequest(BaseModel):
+    """Set menit tambahan (akomodasi) satu peserta pada satu ujian."""
+    extra_minutes: int = Field(..., ge=0, le=600, description="Menit tambahan (0–600)")
 
 
 class ExamPoolUnitResponse(BaseModel):

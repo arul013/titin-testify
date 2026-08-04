@@ -35,6 +35,8 @@ export interface ExamParticipant {
   user_id: string;
   username: string | null;
   full_name: string | null;
+  /** M5.2: menit tambahan (akomodasi) untuk peserta ini pada ujian ini. */
+  extra_minutes?: number;
 }
 
 export interface ExamPoolUnit {
@@ -212,6 +214,13 @@ export function useExams(filters?: {
     return res;
   };
 
+  // M5.2: set menit tambahan (akomodasi) satu peserta pada satu ujian.
+  const setParticipantExtra = (examId: string, userId: string, extraMinutes: number) =>
+    api.request<ExamDetail>(`/api/exams/${examId}/participants/${userId}/extra-time`, {
+      method: 'PATCH',
+      body: JSON.stringify({ extra_minutes: extraMinutes }),
+    });
+
   return {
     exams,
     total,
@@ -230,5 +239,6 @@ export function useExams(filters?: {
     duplicateExam,
     saveAsTemplate,
     createFromTemplate,
+    setParticipantExtra,
   };
 }

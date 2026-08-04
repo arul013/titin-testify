@@ -111,6 +111,15 @@ def _section_timing_config(supabase, exam_id: str):
     return order, limits
 
 
+def _distribute_extra(order: list[str], limits: dict[str, int], extra: int) -> dict[str, int]:
+    """M5.2: sebar menit akomodasi prorata ke tiap bagian (sisa ke bagian terdepan).
+    Contoh extra=10, 3 bagian → +4,+3,+3."""
+    if extra <= 0 or not order:
+        return dict(limits)
+    base, rem = divmod(extra, len(order))
+    return {s: limits[s] + base + (1 if i < rem else 0) for i, s in enumerate(order)}
+
+
 def _init_section_state(order: list[str], limits: dict[str, int], now: datetime) -> dict:
     first = order[0]
     sections = {s: {"status": "pending"} for s in order}
@@ -247,9 +256,10 @@ class ExamAttemptService:
     async def start_attempt(exam_id: str, user_id: str) -> StartAttemptResponse:
         supabase = get_supabase_admin()
 
-        ep = supabase.table("exam_participants").select("id").eq("exam_id", exam_id).eq("user_id", user_id).execute()
+        ep = supabase.table("exam_participants").select("id, extra_minutes").eq("exam_id", exam_id).eq("user_id", user_id).execute()
         if not ep.data:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Anda tidak terdaftar sebagai peserta ujian ini.")
+        extra_minutes = int((ep.data[0] or {}).get("extra_minutes") or 0)  # M5.2 akomodasi
 
         er = supabase.table("exams").select("*").eq("id", exam_id).is_("deleted_at", "null").execute().data
         exam = er[0] if er else None
@@ -302,10 +312,12 @@ class ExamAttemptService:
         ]
 
         started = _parse_dt(attempt["started_at"]) or now
-        deadline = started + timedelta(minutes=exam["duration_minutes"])
-        # ends_at = dinding keras: jendela ujian menutup untuk semua, termasuk yang sedang jalan.
-        if ends and ends < deadline:
-            deadline = ends
+        # M5.2 akomodasi: durasi personal +extra; dinding ends_at digeser +extra utk peserta ini.
+        deadline = started + timedelta(minutes=exam["duration_minutes"] + extra_minutes)
+        if ends:
+            wall = ends + timedelta(minutes=extra_minutes)
+            if wall < deadline:
+                deadline = wall
         remaining = max(0, int((deadline - now).total_seconds()))
 
         # F1.4b: mode per-bagian (bila semua bagian bersoal punya batas waktu).
@@ -315,7 +327,8 @@ class ExamAttemptService:
             order, limits = cfg
             state = attempt.get("section_state")
             if not state or state.get("mode") != "per_section":
-                state = _init_section_state(order, limits, now)
+                # M5.2: bakukan limit personal (akomodasi disebar prorata) ke section_state.
+                state = _init_section_state(order, _distribute_extra(order, limits, extra_minutes), now)
                 supabase.table("exam_attempts").update({"section_state": state}).eq("id", attempt["id"]).execute()
             elif _advance_expired(state, now):
                 supabase.table("exam_attempts").update({"section_state": state}).eq("id", attempt["id"]).execute()
@@ -550,17 +563,28 @@ class ExamAttemptService:
                 .in_("id", exam_ids).execute().data or []
             )
         }
+        # M5.2: akomodasi per-peserta (exam_id, user_id) → extra_minutes.
+        extra_map = {
+            (p["exam_id"], p["user_id"]): int(p.get("extra_minutes") or 0)
+            for p in (
+                supabase.table("exam_participants").select("exam_id, user_id, extra_minutes")
+                .in_("exam_id", exam_ids).execute().data or []
+            )
+        }
 
         expired = 0
         for a in attempts:
             ex = exams.get(a["exam_id"])
             if not ex:
                 continue
+            extra = extra_map.get((a["exam_id"], a["user_id"]), 0)
             started = _parse_dt(a.get("started_at")) or now
-            deadline = started + timedelta(minutes=ex.get("duration_minutes") or 0)
+            deadline = started + timedelta(minutes=(ex.get("duration_minutes") or 0) + extra)
             ends = _parse_dt(ex.get("ends_at"))
-            if ends and ends < deadline:
-                deadline = ends
+            if ends:
+                wall = ends + timedelta(minutes=extra)
+                if wall < deadline:
+                    deadline = wall
             if now <= deadline:
                 continue
             try:

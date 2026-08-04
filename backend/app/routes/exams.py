@@ -13,6 +13,7 @@ from app.models.exam import (
     ExamMessageResponse,
     PoolPreviewRequest,
     PoolPreviewResponse,
+    SetParticipantExtraRequest,
 )
 from app.models.user import UserProfile
 from app.services.exam_service import ExamService
@@ -193,6 +194,27 @@ async def duplicate_exam(
     AuditService.log_action(
         http_request, current_user, action="exam.duplicate", entity_type="exam",
         entity_id=result.id, summary=f"Duplikat dari {exam_id} → '{result.title}'",
+    )
+    return result
+
+
+@router.patch("/api/exams/{exam_id}/participants/{participant_user_id}/extra-time", response_model=ExamDetailResponse)
+async def set_participant_extra(
+    exam_id: str,
+    participant_user_id: str,
+    request: SetParticipantExtraRequest,
+    http_request: Request,
+    current_user: UserProfile = Depends(require_admin),
+):
+    """Set menit tambahan (akomodasi) satu peserta pada ujian (owner/super_admin)."""
+    result = await ExamService.set_participant_extra(
+        exam_id, participant_user_id, request.extra_minutes,
+        current_user.id, current_user.role.value,
+    )
+    AuditService.log_action(
+        http_request, current_user, action="exam.participant.extra_time", entity_type="exam",
+        entity_id=exam_id,
+        summary=f"Set waktu tambahan peserta {participant_user_id} = {request.extra_minutes} menit",
     )
     return result
 

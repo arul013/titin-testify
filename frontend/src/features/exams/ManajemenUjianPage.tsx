@@ -19,6 +19,7 @@ import { ExamList } from '@/features/exams/ExamList';
 import { ExamBuilder } from '@/features/exams/ExamBuilder';
 import { PilihJenisUjianModal } from '@/features/exams/PilihJenisUjianModal';
 import { TemplatePickerModal } from '@/features/exams/TemplatePickerModal';
+import { AccommodationModal } from '@/features/exams/AccommodationModal';
 import type { TestType } from '@/features/test-types/useTestTypes';
 
 const PER_PAGE = 10;
@@ -36,6 +37,7 @@ export function ManajemenUjianPage() {
   const [editingDetail, setEditingDetail] = useState<ExamDetail | null>(null);
   const [chooserOpen, setChooserOpen] = useState(false);
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  const [accommodationExam, setAccommodationExam] = useState<Exam | null>(null);
   const [newChoice, setNewChoice] = useState<{
     testType: string;
     examMode: ExamMode;
@@ -67,6 +69,7 @@ export function ManajemenUjianPage() {
     duplicateExam,
     saveAsTemplate,
     createFromTemplate,
+    setParticipantExtra,
   } = useExams({
     search: debouncedSearch,
     status: statusFilter === 'all' ? undefined : statusFilter,
@@ -311,6 +314,7 @@ export function ManajemenUjianPage() {
             onUnarchive={(exam) => setPendingLifecycle({ exam, action: 'unarchive' })}
             onDuplicate={handleDuplicate}
             onSaveAsTemplate={handleSaveAsTemplate}
+            onManageAccommodation={(exam) => setAccommodationExam(exam)}
             onViewResults={(exam) => router.push(`/manajemen-ujian/${exam.id}/hasil`)}
           />
 
@@ -335,6 +339,15 @@ export function ManajemenUjianPage() {
         open={templatePickerOpen}
         onClose={() => setTemplatePickerOpen(false)}
         onUse={handleUseTemplate}
+      />
+
+      <AccommodationModal
+        open={!!accommodationExam}
+        onClose={() => setAccommodationExam(null)}
+        examId={accommodationExam?.id ?? null}
+        examTitle={accommodationExam?.title}
+        getExam={getExam}
+        setParticipantExtra={setParticipantExtra}
       />
 
       <ConfirmDialog

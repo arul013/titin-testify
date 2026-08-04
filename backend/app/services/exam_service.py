@@ -273,13 +273,14 @@ class ExamService:
         summary = ExamService._build_summary(supabase, e)
 
         participants_res = supabase.table("exam_participants").select(
-            "user_id, profiles!exam_participants_user_id_fkey(username, full_name)"
+            "user_id, extra_minutes, profiles!exam_participants_user_id_fkey(username, full_name)"
         ).eq("exam_id", exam_id).execute()
         participants = [
             ExamParticipantResponse(
                 user_id=p["user_id"],
                 username=(p.get("profiles") or {}).get("username"),
                 full_name=(p.get("profiles") or {}).get("full_name"),
+                extra_minutes=int(p.get("extra_minutes") or 0),
             )
             for p in (participants_res.data or [])
         ]
@@ -372,10 +373,21 @@ class ExamService:
 
         if request.participant_ids is not None:
             ids = ExamService._validate_participants(supabase, request.participant_ids)
-            supabase.table("exam_participants").delete().eq("exam_id", exam_id).execute()
-            if ids:
+            # Diff (bukan replace-all) agar `extra_minutes` peserta yang tetap tidak hilang.
+            cur = {
+                c["user_id"] for c in (
+                    supabase.table("exam_participants").select("user_id")
+                    .eq("exam_id", exam_id).execute().data or []
+                )
+            }
+            new_ids = set(ids)
+            to_remove = list(cur - new_ids)
+            to_add = list(new_ids - cur)
+            if to_remove:
+                supabase.table("exam_participants").delete().eq("exam_id", exam_id).in_("user_id", to_remove).execute()
+            if to_add:
                 supabase.table("exam_participants").insert([
-                    {"exam_id": exam_id, "user_id": uid} for uid in ids
+                    {"exam_id": exam_id, "user_id": uid} for uid in to_add
                 ]).execute()
 
         if request.pool_units is not None:
@@ -402,6 +414,27 @@ class ExamService:
             "deleted_at": ExamService._iso(datetime.now(timezone.utc)),
             "updated_by": user_id,
         }).eq("id", exam_id).execute()
+
+    # ─── Akomodasi waktu per-peserta (M5.2) ───────────────────
+
+    @staticmethod
+    async def set_participant_extra(
+        exam_id: str, participant_user_id: str, extra_minutes: int, user_id: str, user_role: str
+    ) -> ExamDetailResponse:
+        """Set menit tambahan (akomodasi) satu peserta pada satu ujian (owner/super_admin)."""
+        supabase = get_supabase_admin()
+        existing = supabase.table("exams").select("created_by").eq("id", exam_id).is_("deleted_at", "null").single().execute()
+        if not existing.data:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Paket ujian tidak ditemukan.")
+        ExamService._assert_owner(existing.data["created_by"], user_id, user_role)
+
+        upd = (
+            supabase.table("exam_participants").update({"extra_minutes": extra_minutes})
+            .eq("exam_id", exam_id).eq("user_id", participant_user_id).execute()
+        )
+        if not upd.data:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Peserta tidak terdaftar pada ujian ini.")
+        return await ExamService.get_exam(exam_id, user_id, user_role)
 
     # ─── Ketersediaan stok & publish ──────────────────────────
 
