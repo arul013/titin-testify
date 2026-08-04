@@ -58,6 +58,8 @@ export interface Exam {
   allow_retake: boolean;
   status: ExamStatus;
   version: number;
+  /** M4: resep template (dikecualikan dari daftar ujian aktif). */
+  is_template?: boolean;
   starts_at: string | null;
   ends_at: string | null;
   creator_name: string | null;
@@ -199,6 +201,17 @@ export function useExams(filters?: {
   const unarchiveExam = (id: string) => lifecycleAction(id, 'unarchive');
   const duplicateExam = (id: string) => lifecycleAction(id, 'duplicate');
 
+  // M4 Template: simpan ujian sebagai template; buat ujian baru dari template.
+  const saveAsTemplate = async (id: string) => {
+    const res = await api.request<ExamDetail>(`/api/exams/${id}/save-as-template`, { method: 'POST' });
+    return res;
+  };
+  const createFromTemplate = async (templateId: string) => {
+    const res = await api.request<ExamDetail>(`/api/exams/${templateId}/use-template`, { method: 'POST' });
+    refetch();
+    return res;
+  };
+
   return {
     exams,
     total,
@@ -215,5 +228,7 @@ export function useExams(filters?: {
     archiveExam,
     unarchiveExam,
     duplicateExam,
+    saveAsTemplate,
+    createFromTemplate,
   };
 }

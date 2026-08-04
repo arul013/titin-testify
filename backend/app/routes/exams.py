@@ -37,9 +37,10 @@ async def list_exams(
     per_page: int = Query(20, ge=1, le=100),
     status: Optional[str] = Query(None, description="Filter by status (draft/published)"),
     search: str = Query("", description="Search in exam title"),
+    templates: bool = Query(False, description="True = daftar template; False = ujian aktif"),
     current_user: UserProfile = Depends(require_admin),
 ):
-    """List paket ujian dengan pagination & filter (admin only)."""
+    """List paket ujian dengan pagination & filter (admin only). `templates=true` = daftar template."""
     return await ExamService.list_exams(
         user_id=current_user.id,
         user_role=current_user.role.value,
@@ -47,6 +48,7 @@ async def list_exams(
         per_page=per_page,
         status_filter=status,
         search=search,
+        is_template=templates,
     )
 
 
@@ -191,5 +193,35 @@ async def duplicate_exam(
     AuditService.log_action(
         http_request, current_user, action="exam.duplicate", entity_type="exam",
         entity_id=result.id, summary=f"Duplikat dari {exam_id} → '{result.title}'",
+    )
+    return result
+
+
+@router.post("/api/exams/{exam_id}/save-as-template", response_model=ExamDetailResponse, status_code=201)
+async def save_as_template(
+    exam_id: str,
+    http_request: Request,
+    current_user: UserProfile = Depends(require_admin),
+):
+    """Simpan ujian sebagai template baru (resep dipakai ulang)."""
+    result = await ExamService.save_as_template(exam_id, current_user.id, current_user.role.value)
+    AuditService.log_action(
+        http_request, current_user, action="exam.template.create", entity_type="exam",
+        entity_id=result.id, summary=f"Jadikan template dari {exam_id} → '{result.title}'",
+    )
+    return result
+
+
+@router.post("/api/exams/{template_id}/use-template", response_model=ExamDetailResponse, status_code=201)
+async def use_template(
+    template_id: str,
+    http_request: Request,
+    current_user: UserProfile = Depends(require_admin),
+):
+    """Buat ujian Draf baru dari sebuah template (tanpa jadwal/peserta)."""
+    result = await ExamService.create_from_template(template_id, current_user.id, current_user.role.value)
+    AuditService.log_action(
+        http_request, current_user, action="exam.from_template", entity_type="exam",
+        entity_id=result.id, summary=f"Buat ujian dari template {template_id} → '{result.title}'",
     )
     return result

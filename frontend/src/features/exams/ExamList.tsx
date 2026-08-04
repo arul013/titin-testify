@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Settings2,
   BarChart3,
+  LayoutTemplate,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ interface ExamListProps {
   onArchive: (exam: Exam) => void;
   onUnarchive: (exam: Exam) => void;
   onDuplicate: (exam: Exam) => void;
+  onSaveAsTemplate: (exam: Exam) => void;
   onViewResults: (exam: Exam) => void;
 }
 
@@ -134,6 +136,7 @@ export const ExamList: React.FC<ExamListProps> = ({
   onArchive,
   onUnarchive,
   onDuplicate,
+  onSaveAsTemplate,
   onViewResults,
 }) => {
   const isSuperAdmin = currentUserRole === "super_admin";
@@ -295,6 +298,12 @@ export const ExamList: React.FC<ExamListProps> = ({
               label="Duplikat"
               desc="Salin jadi ujian baru (atur ulang jadwalnya)"
               onClick={act(() => onDuplicate(m))}
+            />
+            <ActionRow
+              icon={<LayoutTemplate className="h-4.5 w-4.5" />}
+              label="Jadikan Template"
+              desc="Simpan komposisinya sebagai resep untuk ujian berikutnya"
+              onClick={act(() => onSaveAsTemplate(m))}
             />
             {canUnpublish && (
               <ActionRow

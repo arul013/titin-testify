@@ -228,12 +228,13 @@ class ExamService:
         per_page: int = 20,
         status_filter: str | None = None,
         search: str = "",
+        is_template: bool = False,
     ) -> ExamListResponse:
         supabase = get_supabase_admin()
 
         query = supabase.table("exams").select(
             "*, profiles!exams_created_by_fkey(full_name)", count=CountMethod.exact
-        ).is_("deleted_at", "null")
+        ).is_("deleted_at", "null").eq("is_template", is_template)
         if user_role != "super_admin":
             query = query.eq("created_by", user_id)
         if status_filter:
@@ -832,10 +833,52 @@ class ExamService:
     @staticmethod
     async def duplicate_exam(exam_id: str, user_id: str, user_role: str) -> ExamDetailResponse:
         """Kloning ujian jadi Draf baru (tanpa jadwal/snapshot/percobaan)."""
-        supabase = get_supabase_admin()
         src = await ExamService.get_exam(exam_id, user_id, user_role)  # + cek kepemilikan
+        return await ExamService._clone_exam(
+            src, user_id, user_role,
+            title=(src.title + " (Salinan)")[:200],
+            as_template=False, copy_participants=True,
+        )
 
-        title = (src.title + " (Salinan)")[:200]
+    @staticmethod
+    async def save_as_template(exam_id: str, user_id: str, user_role: str) -> ExamDetailResponse:
+        """Simpan sebuah ujian sebagai TEMPLATE baru (resep dipakai ulang; tanpa jadwal/peserta)."""
+        src = await ExamService.get_exam(exam_id, user_id, user_role)
+        base = src.title[:-len(" (Template)")] if src.title.endswith(" (Template)") else src.title
+        return await ExamService._clone_exam(
+            src, user_id, user_role,
+            title=(base + " (Template)")[:200],
+            as_template=True, copy_participants=False,
+        )
+
+    @staticmethod
+    async def create_from_template(template_id: str, user_id: str, user_role: str) -> ExamDetailResponse:
+        """Buat ujian Draf baru dari sebuah template (tanpa jadwal/peserta)."""
+        src = await ExamService.get_exam(template_id, user_id, user_role)
+        if not src.is_template:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Sumber bukan template ujian.")
+        title = src.title[:-len(" (Template)")] if src.title.endswith(" (Template)") else src.title
+        return await ExamService._clone_exam(
+            src, user_id, user_role,
+            title=title[:200] or "Ujian Baru",
+            as_template=False, copy_participants=False,
+        )
+
+    @staticmethod
+    async def _clone_exam(
+        src: ExamDetailResponse,
+        user_id: str,
+        user_role: str,
+        *,
+        title: str,
+        as_template: bool,
+        copy_participants: bool,
+    ) -> ExamDetailResponse:
+        """Kloning resep ujian (section + pool_units, opsional peserta) → Draf baru.
+
+        Jadwal selalu dikosongkan. `as_template` menandai hasil sebagai template.
+        """
+        supabase = get_supabase_admin()
         new = supabase.table("exams").insert({
             "created_by": user_id,
             "title": title,
@@ -848,11 +891,12 @@ class ExamService:
             "passing_value": src.passing_value,
             "allow_retake": src.allow_retake,
             "status": "draft",       # selalu mulai sebagai Draf
-            "starts_at": None,       # jadwal dikosongkan (ujian baru)
+            "is_template": as_template,
+            "starts_at": None,       # jadwal dikosongkan
             "ends_at": None,
         }).execute()
         if not new.data:
-            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Gagal menduplikat ujian.")
+            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Gagal menyalin ujian.")
         new_id = new.data[0]["id"]
 
         if src.sections:
@@ -861,7 +905,7 @@ class ExamService:
                  "time_limit_minutes": s.time_limit_minutes}
                 for s in src.sections
             ]).execute()
-        if src.participants:
+        if copy_participants and src.participants:
             supabase.table("exam_participants").insert([
                 {"exam_id": new_id, "user_id": p.user_id} for p in src.participants
             ]).execute()
@@ -959,6 +1003,7 @@ class ExamService:
             allow_retake=e.get("allow_retake", False),
             status=e["status"],
             version=e.get("version", 1),
+            is_template=e.get("is_template", False),
             starts_at=e.get("starts_at"),
             ends_at=e.get("ends_at"),
             creator_name=creator_name,

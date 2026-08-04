@@ -142,6 +142,8 @@ class ExamResponse(BaseModel):
     allow_retake: bool = False
     status: ExamStatus
     version: int = 1
+    # M4: resep template (dikecualikan dari daftar ujian aktif).
+    is_template: bool = False
     starts_at: Optional[datetime] = None
     ends_at: Optional[datetime] = None
     creator_name: Optional[str] = None

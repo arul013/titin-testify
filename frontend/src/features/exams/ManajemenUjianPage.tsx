@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Search, ClipboardCheck, Trash2, Lock, Archive, ArchiveRestore } from 'lucide-react';
+import { Search, ClipboardCheck, Trash2, Lock, Archive, ArchiveRestore, LayoutTemplate } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { ToggleGroup } from '@/components/ui/toggle-group';
 import { Pagination } from '@/components/ui/pagination';
 import { PageContainer } from '@/components/ui/page-container';
@@ -17,6 +18,7 @@ import { useExams, type Exam, type ExamDetail, type ExamMode, type ExamStatus } 
 import { ExamList } from '@/features/exams/ExamList';
 import { ExamBuilder } from '@/features/exams/ExamBuilder';
 import { PilihJenisUjianModal } from '@/features/exams/PilihJenisUjianModal';
+import { TemplatePickerModal } from '@/features/exams/TemplatePickerModal';
 import type { TestType } from '@/features/test-types/useTestTypes';
 
 const PER_PAGE = 10;
@@ -33,6 +35,7 @@ export function ManajemenUjianPage() {
   const [mode, setMode] = useState<'list' | 'builder'>('list');
   const [editingDetail, setEditingDetail] = useState<ExamDetail | null>(null);
   const [chooserOpen, setChooserOpen] = useState(false);
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
   const [newChoice, setNewChoice] = useState<{
     testType: string;
     examMode: ExamMode;
@@ -62,6 +65,8 @@ export function ManajemenUjianPage() {
     archiveExam,
     unarchiveExam,
     duplicateExam,
+    saveAsTemplate,
+    createFromTemplate,
   } = useExams({
     search: debouncedSearch,
     status: statusFilter === 'all' ? undefined : statusFilter,
@@ -171,6 +176,26 @@ export function ManajemenUjianPage() {
     }
   };
 
+  const handleSaveAsTemplate = async (exam: Exam) => {
+    try {
+      const tpl = await saveAsTemplate(exam.id);
+      toast.success(`Template “${tpl.title}” tersimpan. Pakai lewat “Dari Template”.`);
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Gagal menyimpan template.'));
+    }
+  };
+
+  const handleUseTemplate = async (templateId: string) => {
+    try {
+      const created = await createFromTemplate(templateId);
+      setTemplatePickerOpen(false);
+      toast.success('Ujian dibuat dari template. Atur jadwal & peserta, lalu simpan.');
+      openEdit(created.id);
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Gagal membuat ujian dari template.'));
+    }
+  };
+
   const LIFECYCLE_FN = {
     close: closeExam,
     archive: archiveExam,
@@ -238,23 +263,34 @@ export function ManajemenUjianPage() {
                 className="pl-10"
               />
             </div>
-            <ToggleGroup
-              size="sm"
-              value={statusFilter}
-              onChange={(v) => {
-                if (v) {
-                  setStatusFilter(v as 'all' | ExamStatus);
-                  setPage(1);
-                }
-              }}
-              options={[
-                { value: 'all', label: 'Semua' },
-                { value: 'published', label: 'Tayang' },
-                { value: 'draft', label: 'Draf' },
-                { value: 'closed', label: 'Selesai' },
-                { value: 'archived', label: 'Arsip' },
-              ]}
-            />
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="font-bold"
+                leftIcon={<LayoutTemplate className="h-4 w-4" />}
+                onClick={() => setTemplatePickerOpen(true)}
+              >
+                Dari Template
+              </Button>
+              <ToggleGroup
+                size="sm"
+                value={statusFilter}
+                onChange={(v) => {
+                  if (v) {
+                    setStatusFilter(v as 'all' | ExamStatus);
+                    setPage(1);
+                  }
+                }}
+                options={[
+                  { value: 'all', label: 'Semua' },
+                  { value: 'published', label: 'Tayang' },
+                  { value: 'draft', label: 'Draf' },
+                  { value: 'closed', label: 'Selesai' },
+                  { value: 'archived', label: 'Arsip' },
+                ]}
+              />
+            </div>
           </div>
 
           {!isLoading && (
@@ -274,6 +310,7 @@ export function ManajemenUjianPage() {
             onArchive={(exam) => setPendingLifecycle({ exam, action: 'archive' })}
             onUnarchive={(exam) => setPendingLifecycle({ exam, action: 'unarchive' })}
             onDuplicate={handleDuplicate}
+            onSaveAsTemplate={handleSaveAsTemplate}
             onViewResults={(exam) => router.push(`/manajemen-ujian/${exam.id}/hasil`)}
           />
 
@@ -292,6 +329,12 @@ export function ManajemenUjianPage() {
         open={chooserOpen}
         onClose={() => setChooserOpen(false)}
         onChoose={handleChooseType}
+      />
+
+      <TemplatePickerModal
+        open={templatePickerOpen}
+        onClose={() => setTemplatePickerOpen(false)}
+        onUse={handleUseTemplate}
       />
 
       <ConfirmDialog
