@@ -20,6 +20,86 @@ from app.models.question import (
 )
 
 
+def _exam_usage_counts(
+    supabase,
+    *,
+    question_ids: list[str] | None = None,
+    passage_ids: list[str] | None = None,
+) -> dict[str, int]:
+    """Hitung berapa ujian (belum dihapus) memakai tiap soal/materi via `exam_pool_units`.
+
+    Anti-N+1: 1 query per kolom + 1 query cek ujian hidup (soft-delete). Kunci hasil =
+    id soal/materi → jumlah ujian **distinct** (mengecualikan ujian ber-`deleted_at`).
+    """
+    pairs: list[tuple[str, str]] = []  # (ref_id, exam_id)
+    exam_ids: set[str] = set()
+    for col, ids in (("question_id", question_ids), ("passage_id", passage_ids)):
+        if not ids:
+            continue
+        rows = (
+            supabase.table("exam_pool_units").select(f"exam_id, {col}")
+            .in_(col, ids).execute().data or []
+        )
+        for r in rows:
+            ref, ex = r.get(col), r.get("exam_id")
+            if ref and ex:
+                pairs.append((ref, ex))
+                exam_ids.add(ex)
+
+    if not pairs:
+        return {}
+
+    live = {
+        e["id"] for e in (
+            supabase.table("exams").select("id")
+            .in_("id", list(exam_ids)).is_("deleted_at", "null").execute().data or []
+        )
+    }
+    seen: dict[str, set[str]] = {}
+    for ref, ex in pairs:
+        if ex in live:
+            seen.setdefault(ref, set()).add(ex)
+    return {ref: len(exs) for ref, exs in seen.items()}
+
+
+def _exam_usage_titles(
+    supabase,
+    *,
+    question_ids: list[str] | None = None,
+    passage_ids: list[str] | None = None,
+) -> list[str]:
+    """Judul ujian (belum dihapus) yang memakai soal/materi tsb — untuk pesan guard hapus."""
+    exam_ids: set[str] = set()
+    for col, ids in (("question_id", question_ids), ("passage_id", passage_ids)):
+        if not ids:
+            continue
+        rows = (
+            supabase.table("exam_pool_units").select("exam_id")
+            .in_(col, ids).execute().data or []
+        )
+        exam_ids.update(r["exam_id"] for r in rows if r.get("exam_id"))
+    if not exam_ids:
+        return []
+    exams = (
+        supabase.table("exams").select("title")
+        .in_("id", list(exam_ids)).is_("deleted_at", "null")
+        .order("title").execute().data or []
+    )
+    return [e["title"] for e in exams]
+
+
+def _in_use_error(titles: list[str], noun: str) -> HTTPException:
+    """409 dengan daftar ujian pemakai (maks 5 nama ditampilkan)."""
+    shown = titles[:5]
+    more = len(titles) - len(shown)
+    daftar = ", ".join(f"'{t}'" for t in shown) + (f", dan {more} lainnya" if more > 0 else "")
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail=f"{noun} ini dipakai di {len(titles)} ujian ({daftar}). "
+               f"Lepaskan dari ujian tersebut dulu sebelum menghapus.",
+    )
+
+
 def _q_resp(q: dict) -> QuestionResponse:
     """Bangun QuestionResponse dari satu baris DB (termasuk field F1 & creator_name)."""
     prof = q.get("profiles") or {}
@@ -165,6 +245,11 @@ class QuestionService:
                 updated_at=p.get("updated_at"),
             ))
 
+        # Badge "dipakai di N ujian" untuk materi (batch, anti-N+1).
+        usage = _exam_usage_counts(supabase, passage_ids=[p.id for p in passages])
+        for p in passages:
+            p.used_in_exams = usage.get(p.id, 0)
+
         return PassageListResponse(
             passages=passages,
             total=result.count or 0,
@@ -225,6 +310,14 @@ class QuestionService:
         )
 
         questions = [_q_resp(q) for q in (q_result.data or [])]
+
+        # Usage: materi (passage_id) + tiap soal anak (question_id) — 1 batch.
+        usage = _exam_usage_counts(
+            supabase, passage_ids=[passage_id], question_ids=[q.id for q in questions],
+        )
+        passage.used_in_exams = usage.get(passage_id, 0)
+        for q in questions:
+            q.used_in_exams = usage.get(q.id, 0)
 
         return PassageWithQuestionsResponse(passage=passage, questions=questions)
 
@@ -290,6 +383,16 @@ class QuestionService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Passage tidak ditemukan.")
         if user_role != "super_admin" and existing.data["created_by"] != user_id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Anda tidak memiliki akses ke passage ini.")
+
+        # Guard: materi + soal anaknya (ikut CASCADE) tak boleh dihapus bila masih dipakai ujian.
+        child_ids = [
+            q["id"] for q in (
+                supabase.table("questions").select("id").eq("passage_id", passage_id).execute().data or []
+            )
+        ]
+        titles = _exam_usage_titles(supabase, passage_ids=[passage_id], question_ids=child_ids or None)
+        if titles:
+            raise _in_use_error(titles, "Materi")
 
         supabase.table("question_passages").delete().eq("id", passage_id).execute()
 
@@ -389,6 +492,11 @@ class QuestionService:
 
         questions = [_q_resp(q) for q in (result.data or [])]
 
+        # Badge "dipakai di N ujian" (batch, anti-N+1).
+        usage = _exam_usage_counts(supabase, question_ids=[q.id for q in questions])
+        for q in questions:
+            q.used_in_exams = usage.get(q.id, 0)
+
         return QuestionListResponse(
             questions=questions,
             total=result.count or 0,
@@ -411,7 +519,9 @@ class QuestionService:
         if user_role != "super_admin" and q["created_by"] != user_id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Anda tidak memiliki akses ke soal ini.")
 
-        return _q_resp(q)
+        resp = _q_resp(q)
+        resp.used_in_exams = _exam_usage_counts(supabase, question_ids=[resp.id]).get(resp.id, 0)
+        return resp
 
     @staticmethod
     async def update_question(question_id: str, request: UpdateQuestionRequest, user_id: str, user_role: str) -> QuestionResponse:
@@ -476,6 +586,11 @@ class QuestionService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Soal tidak ditemukan.")
         if user_role != "super_admin" and existing.data["created_by"] != user_id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Anda tidak memiliki akses ke soal ini.")
+
+        # Guard: tolak hapus bila soal masih dipakai di ujian (cegah pemangkasan pool diam-diam).
+        titles = _exam_usage_titles(supabase, question_ids=[question_id])
+        if titles:
+            raise _in_use_error(titles, "Soal")
 
         supabase.table("questions").delete().eq("id", question_id).execute()
 

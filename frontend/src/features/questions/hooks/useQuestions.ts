@@ -33,6 +33,8 @@ export interface Question {
   status: string;
   tags: string[];
   sort_order: number;
+  /** M4: jumlah ujian (belum dihapus) yang memakai soal tunggal ini. */
+  used_in_exams?: number;
   creator_name?: string;
   created_at: string;
   updated_at: string;
@@ -50,6 +52,8 @@ export interface Passage {
   questions_count: number;
   /** Jumlah soal anak berstatus Tayang — dipakai Sumber Soal ujian. */
   published_questions_count?: number;
+  /** M4: jumlah ujian (belum dihapus) yang memakai materi ini. */
+  used_in_exams?: number;
   creator_name?: string;
   created_at: string;
   updated_at: string;

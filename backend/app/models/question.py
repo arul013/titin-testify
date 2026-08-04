@@ -145,6 +145,8 @@ class PassageResponse(BaseModel):
     questions_count: int = 0
     # Jumlah soal anak berstatus Tayang (published) — dipakai Sumber Soal ujian.
     published_questions_count: int = 0
+    # Jumlah ujian (belum dihapus) yang memakai materi ini (M4).
+    used_in_exams: int = 0
     creator_name: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -178,6 +180,8 @@ class QuestionResponse(BaseModel):
     scoring_mode: str = "auto"
     rubric_id: Optional[str] = None
     max_score: float = 1
+    # Jumlah ujian (belum dihapus) yang memakai soal tunggal ini (M4).
+    used_in_exams: int = 0
     creator_name: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
