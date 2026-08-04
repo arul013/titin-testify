@@ -22,6 +22,12 @@ import * as React from "react";
 import { ChevronLeft } from "lucide-react";
 import { cn } from "@/src/lib/cn";
 
+/** Satu tautan "kembali" di kaki header (rantai leluhur). */
+export interface BackLink {
+  label: React.ReactNode;
+  onBack: () => void;
+}
+
 export interface PageHeaderProps {
   /** Ikon (lucide) — dirender dalam chip gradient brand. */
   icon?: React.ReactNode;
@@ -31,9 +37,14 @@ export interface PageHeaderProps {
   actions?: React.ReactNode;
   /** Breadcrumb opsional di atas judul (mis. <Breadcrumb />). */
   breadcrumb?: React.ReactNode;
-  /** Back link di bawah header (garis + tombol). Muncul bila `onBack` diisi. */
+  /** Back link tunggal di bawah header (garis + tombol). Muncul bila `onBack` diisi. */
   backLabel?: React.ReactNode;
   onBack?: () => void;
+  /**
+   * Multi back-link (rantai leluhur) di bawah header, mis.
+   * `‹ Semua Ujian  ‹ Hasil: TOEFL ITP`. Bila diisi, mengabaikan `onBack`/`backLabel`.
+   */
+  backLinks?: BackLink[];
   /** Bungkus dalam panel kartu timbul (default true). Set false = header polos. */
   card?: boolean;
   className?: string;
@@ -47,9 +58,17 @@ export function PageHeader({
   breadcrumb,
   backLabel = "Kembali",
   onBack,
+  backLinks,
   card = true,
   className,
 }: PageHeaderProps) {
+  // Normalisasi: multi back-links diutamakan; jika tidak, pakai onBack tunggal.
+  const links: BackLink[] =
+    backLinks && backLinks.length > 0
+      ? backLinks
+      : onBack
+        ? [{ label: backLabel, onBack }]
+        : [];
   const inner = (
     <div className="space-y-3">
       {breadcrumb}
@@ -84,15 +103,18 @@ export function PageHeader({
       )}
     >
       <div className="p-6">{inner}</div>
-      {onBack && (
-        <div className="border-t border-slate-100 px-6 py-3">
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-400 transition-colors hover:text-indigo-600"
-          >
-            <ChevronLeft className="h-4 w-4" /> {backLabel}
-          </button>
+      {links.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-slate-100 px-6 py-3">
+          {links.map((link, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={link.onBack}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-400 transition-colors hover:text-indigo-600"
+            >
+              <ChevronLeft className="h-4 w-4" /> {link.label}
+            </button>
+          ))}
         </div>
       )}
     </div>

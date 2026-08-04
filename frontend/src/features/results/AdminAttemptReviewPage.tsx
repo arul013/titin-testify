@@ -54,8 +54,13 @@ export function AdminAttemptReviewPage({ examId, attemptId }: { examId: string; 
       className="space-y-6 pb-16"
       header={
         <ManajemenUjianHeader
-          backLabel={data ? `Hasil: ${data.title}` : 'Kembali ke Hasil'}
-          onBack={() => router.push(`/manajemen-ujian/${examId}/hasil`)}
+          backLinks={[
+            { label: 'Semua Ujian', onBack: () => router.push('/manajemen-ujian') },
+            {
+              label: data ? `Hasil: ${data.title}` : 'Hasil',
+              onBack: () => router.push(`/manajemen-ujian/${examId}/hasil`),
+            },
+          ]}
         />
       }
     >
