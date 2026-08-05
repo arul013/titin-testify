@@ -20,6 +20,34 @@ class ExamStatus(str, Enum):
     ARCHIVED = "archived"    # diarsipkan — tersembunyi dari daftar aktif
 
 
+# ─── Anti-cheat (M8) ─────────────────────────────────────────────
+
+class AntiCheatConfig(BaseModel):
+    """Config anti-cheat per-ujian (opt-in). Disimpan sebagai JSONB `exams.anti_cheat`."""
+    track_focus: bool = False            # catat pindah-tab/blur
+    on_focus_loss: str = "warn"          # "warn" | "submit"
+    focus_strikes: int = Field(default=1, ge=1, le=10)  # jml pelanggaran sebelum aksi "submit"
+    require_fullscreen: bool = False     # paksa fullscreen + deteksi keluar
+    block_copy_paste: bool = False       # blokir copy/cut/paste/klik-kanan (seleksi tetap boleh)
+    detect_multi_screen: bool = False    # deteksi layar ganda saat mulai (Window Management API)
+    single_session: bool = False         # M8.2 (belum ditegakkan)
+    max_violations: int = Field(default=0, ge=0, le=100)  # M8.3
+
+    @field_validator("on_focus_loss")
+    @classmethod
+    def _focus_action(cls, v: str) -> str:
+        if v not in ("warn", "submit"):
+            raise ValueError("on_focus_loss harus 'warn' atau 'submit'.")
+        return v
+
+    @property
+    def enabled(self) -> bool:
+        return any([
+            self.track_focus, self.require_fullscreen, self.block_copy_paste,
+            self.detect_multi_screen, self.single_session,
+        ])
+
+
 # ─── Nested input models ─────────────────────────────────────────
 
 class ExamSectionInput(BaseModel):
@@ -67,6 +95,7 @@ class CreateExamRequest(BaseModel):
     sections: list[ExamSectionInput] = Field(default_factory=list)
     participant_ids: list[str] = Field(default_factory=list)
     pool_units: list[ExamPoolUnitInput] = Field(default_factory=list)
+    anti_cheat: Optional[AntiCheatConfig] = None
 
     @field_validator("exam_mode")
     @classmethod
@@ -103,6 +132,7 @@ class UpdateExamRequest(BaseModel):
     sections: Optional[list[ExamSectionInput]] = None
     participant_ids: Optional[list[str]] = None
     pool_units: Optional[list[ExamPoolUnitInput]] = None
+    anti_cheat: Optional[AntiCheatConfig] = None
     # Optimistic concurrency: versi yang dilihat klien. Bila diisi & beda dg server → 409.
     version: Optional[int] = None
 
@@ -151,6 +181,8 @@ class ExamResponse(BaseModel):
     version: int = 1
     # M4: resep template (dikecualikan dari daftar ujian aktif).
     is_template: bool = False
+    # M8: config anti-cheat per-ujian.
+    anti_cheat: AntiCheatConfig = Field(default_factory=AntiCheatConfig)
     starts_at: Optional[datetime] = None
     ends_at: Optional[datetime] = None
     creator_name: Optional[str] = None

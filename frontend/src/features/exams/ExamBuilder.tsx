@@ -13,6 +13,7 @@ import { StepSource } from './steps/StepSource';
 import { StepParticipants } from './steps/StepParticipants';
 import { StepReview } from './steps/StepReview';
 import {
+  type ExamAntiCheat,
   type ExamDetail,
   type ExamMode,
   type ExamPoolUnit,
@@ -111,6 +112,8 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
   const [showReview, setShowReview] = useState(
     initial?.show_review ?? examMode === 'custom',
   );
+  // M8: config anti-cheat (opt-in).
+  const [antiCheat, setAntiCheat] = useState<ExamAntiCheat>(initial?.anti_cheat ?? {});
   const [scheduled, setScheduled] = useState(!!initial?.starts_at);
   const _startParts = isoToParts(initial?.starts_at ?? null);
   const _endParts = isoToParts(initial?.ends_at ?? null);
@@ -188,6 +191,7 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
     scoring_scheme_id: null,
     passing_value: passingValue === '' ? null : Number(passingValue),
     allow_retake: allowRetake,
+    anti_cheat: antiCheat,
     status: 'draft',
     starts_at: scheduled ? partsToIso(startDate, startTime) : null,
     ends_at: scheduled ? partsToIso(endDate, endTime) : null,
@@ -412,6 +416,8 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
             setShowReview={setShowReview}
             allowRetake={allowRetake}
             setAllowRetake={setAllowRetake}
+            antiCheat={antiCheat}
+            setAntiCheat={setAntiCheat}
             scheduled={scheduled}
             setScheduled={setScheduled}
             startDate={startDate}

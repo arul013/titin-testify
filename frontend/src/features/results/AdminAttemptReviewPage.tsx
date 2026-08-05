@@ -4,15 +4,81 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   AlertTriangle, CheckCircle2, XCircle, Hourglass, CalendarClock, User, Loader2,
+  ShieldAlert, Eye, Maximize, Copy, ClipboardPaste, MousePointerClick,
 } from 'lucide-react';
 import { PageContainer } from '@/components/ui/page-container';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/src/lib/cn';
 import { SECTION_LABELS, type ExamSectionId } from '@/features/exams/hooks/useExams';
 import { ManajemenUjianHeader } from '@/features/exams/ManajemenUjianHeader';
 import { AttemptReviewPanel } from '@/features/attempts/AttemptReviewPanel';
-import { resultsApi, type AdminAttemptReview } from './api';
+import { resultsApi, type AdminAttemptReview, type AttemptIntegrity } from './api';
+
+const EVENT_META: Record<string, { icon: React.ReactNode; label: string }> = {
+  focus_lost: { icon: <Eye className="h-3.5 w-3.5" />, label: 'Meninggalkan layar ujian' },
+  fullscreen_exit: { icon: <Maximize className="h-3.5 w-3.5" />, label: 'Keluar layar penuh' },
+  copy_blocked: { icon: <Copy className="h-3.5 w-3.5" />, label: 'Percobaan menyalin diblokir' },
+  paste_blocked: { icon: <ClipboardPaste className="h-3.5 w-3.5" />, label: 'Percobaan menempel diblokir' },
+  contextmenu_blocked: { icon: <MousePointerClick className="h-3.5 w-3.5" />, label: 'Klik kanan diblokir' },
+};
+
+function evtLabel(t: string): string {
+  return EVENT_META[t]?.label ?? t;
+}
+
+function IntegrityCard({ integrity }: { integrity: AttemptIntegrity }) {
+  return (
+    <Card className="rounded-3xl p-6 md:p-7 border-red-100">
+      <div className="flex items-center gap-3">
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-red-50 text-red-500">
+          <ShieldAlert className="h-6 w-6" />
+        </span>
+        <div>
+          <h2 className="text-base font-extrabold text-slate-800">Integritas</h2>
+          <p className="text-sm text-slate-500">
+            {integrity.violation_count} pelanggaran terdeteksi selama ujian.
+          </p>
+        </div>
+      </div>
+
+      {/* Ringkasan per jenis */}
+      <div className="mt-4 flex flex-wrap gap-2">
+        {Object.entries(integrity.by_type).map(([t, n]) => (
+          <span key={t} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">
+            {EVENT_META[t]?.icon} {evtLabel(t)} · <span className="tabular-nums">{n}</span>
+          </span>
+        ))}
+      </div>
+
+      {/* Timeline */}
+      {integrity.events.length > 0 && (
+        <div className="mt-4 max-h-64 overflow-y-auto rounded-2xl border border-slate-100">
+          {integrity.events.map((e, i) => (
+            <div
+              key={i}
+              className={cn(
+                'flex items-center justify-between gap-3 px-4 py-2.5 text-sm',
+                i > 0 && 'border-t border-slate-100',
+              )}
+            >
+              <span className="inline-flex items-center gap-2 font-semibold text-slate-700">
+                {EVENT_META[e.type]?.icon ?? <ShieldAlert className="h-3.5 w-3.5" />} {evtLabel(e.type)}
+                {typeof e.detail?.away_ms === 'number' && (
+                  <span className="text-xs font-normal text-slate-400">
+                    ({Math.round((e.detail.away_ms as number) / 1000)} dtk)
+                  </span>
+                )}
+              </span>
+              <span className="shrink-0 text-xs tabular-nums text-slate-400">{fmtDate(e.created_at)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
 
 function fmtDate(v: string | null): string {
   if (!v) return '—';
@@ -143,6 +209,11 @@ export function AdminAttemptReviewPage({ examId, attemptId }: { examId: string; 
               </div>
             )}
           </Card>
+
+          {/* M8.1: Integritas — pelanggaran anti-cheat */}
+          {(data.integrity?.violation_count ?? 0) > 0 && (
+            <IntegrityCard integrity={data.integrity!} />
+          )}
 
           {/* Rincian jawaban — hanya bila sudah dikumpulkan */}
           {inProgress ? (

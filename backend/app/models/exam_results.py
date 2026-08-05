@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 
-from app.models.exam_attempt import SectionResult, AttemptReviewQuestion
+from app.models.exam_attempt import SectionResult, AttemptReviewQuestion, AttemptIntegrity
 
 
 class AdminAttemptRow(BaseModel):
@@ -26,6 +26,8 @@ class AdminAttemptRow(BaseModel):
     per_section: list[SectionResult] = []
     started_at: Optional[datetime] = None
     submitted_at: Optional[datetime] = None
+    # M8: jumlah pelanggaran anti-cheat (untuk badge).
+    violation_count: int = 0
 
 
 class AdminResultsSummary(BaseModel):
@@ -66,3 +68,5 @@ class AdminAttemptReviewResponse(BaseModel):
     per_section: list[SectionResult] = []
     submitted_at: Optional[datetime] = None
     questions: list[AttemptReviewQuestion] = []
+    # M8: ringkasan integritas (pelanggaran anti-cheat).
+    integrity: AttemptIntegrity = AttemptIntegrity()

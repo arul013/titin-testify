@@ -20,6 +20,8 @@ from app.models.exam_attempt import (
     AttemptReviewQuestion,
     AttemptReviewResponse,
     SectionTiming,
+    ReportEventsRequest,
+    ReportEventsResponse,
 )
 from app.services.scoring_engine import compute_exam_score, is_official_itp
 
@@ -269,7 +271,7 @@ class ExamAttemptService:
 
         er = (
             supabase.table("exams")
-            .select("id, title, description, duration_minutes, allow_retake, starts_at, ends_at, status")
+            .select("id, title, description, duration_minutes, allow_retake, starts_at, ends_at, status, anti_cheat")
             .eq("id", exam_id).is_("deleted_at", "null").execute().data
         )
         exam = er[0] if er else None
@@ -322,7 +324,46 @@ class ExamAttemptService:
             has_in_progress=has_in_progress,
             already_submitted=already_submitted,
             can_start=can_start,
+            anti_cheat=exam.get("anti_cheat") or {},
         )
+
+    # ─── Anti-cheat (M8.1): lapor peristiwa perilaku ──────────
+    @staticmethod
+    async def report_events(attempt_id: str, user_id: str, req: ReportEventsRequest) -> ReportEventsResponse:
+        """Terima batch peristiwa perilaku dari runner → attempt_events + violation_count.
+        Best-effort: hanya untuk attempt aktif milik peserta. Return jumlah + sinyal auto-submit (ambang)."""
+        supabase = get_supabase_admin()
+        ar = (
+            supabase.table("exam_attempts")
+            .select("id, user_id, exam_id, status, violation_count")
+            .eq("id", attempt_id).execute().data
+        )
+        if not ar:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Percobaan tidak ditemukan.")
+        attempt = ar[0]
+        if attempt["user_id"] != user_id:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Bukan percobaan Anda.")
+
+        current = attempt.get("violation_count") or 0
+        if attempt["status"] != "in_progress" or not req.events:
+            return ReportEventsResponse(violation_count=current, auto_submit=False)
+
+        rows = [
+            {"attempt_id": attempt_id, "user_id": user_id, "type": (e.type or "unknown")[:30], "detail": e.detail}
+            for e in req.events[:50]  # batasi lonjakan
+        ]
+        supabase.table("attempt_events").insert(rows).execute()
+        new_count = current + len(rows)
+        supabase.table("exam_attempts").update({"violation_count": new_count}).eq("id", attempt_id).execute()
+
+        # Ambang server-side (M8.3, bila admin mengaktifkan max_violations).
+        auto_submit = False
+        exr = supabase.table("exams").select("anti_cheat").eq("id", attempt["exam_id"]).execute().data
+        ac = (exr[0].get("anti_cheat") if exr else None) or {}
+        maxv = int(ac.get("max_violations") or 0)
+        if maxv > 0 and new_count >= maxv:
+            auto_submit = True
+        return ReportEventsResponse(violation_count=new_count, auto_submit=auto_submit)
 
     # ─── Mulai / lanjut percobaan ─────────────────────────────
     @staticmethod
@@ -419,6 +460,7 @@ class ExamAttemptService:
             allow_retake=bool(exam.get("allow_retake")),
             questions=questions,
             section_timing=section_timing,
+            anti_cheat=exam.get("anti_cheat") or {},
         )
 
     @staticmethod

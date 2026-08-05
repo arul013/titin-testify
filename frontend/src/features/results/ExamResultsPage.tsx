@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   Users, CheckCircle2, XCircle, Hourglass, ChevronRight, AlertTriangle,
-  TrendingUp, Award, ClipboardCheck, CalendarClock, Loader2, Download, RotateCcw,
+  TrendingUp, Award, ClipboardCheck, CalendarClock, Loader2, Download, RotateCcw, ShieldAlert,
 } from 'lucide-react';
 import { PageContainer } from '@/components/ui/page-container';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -252,6 +252,11 @@ function AttemptRow({ a, unit, onOpen, onReset }: { a: AdminAttemptRow; unit: st
           </span>
           <h3 className="truncate font-bold text-slate-800">{a.participant_name || 'Peserta'}</h3>
           {statusBadge}
+          {(a.violation_count ?? 0) > 0 && (
+            <Badge variant="danger" className="gap-1">
+              <ShieldAlert className="h-3 w-3" /> {a.violation_count} pelanggaran
+            </Badge>
+          )}
         </div>
         {a.per_section.length > 0 && (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-10 text-[11px] text-slate-400">

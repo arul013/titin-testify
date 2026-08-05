@@ -15,6 +15,20 @@ export interface AdminAttemptRow {
   per_section: SectionResult[];
   started_at: string | null;
   submitted_at: string | null;
+  /** M8: jumlah pelanggaran anti-cheat. */
+  violation_count?: number;
+}
+
+export interface AttemptEventItem {
+  type: string;
+  detail?: Record<string, unknown> | null;
+  created_at: string | null;
+}
+
+export interface AttemptIntegrity {
+  violation_count: number;
+  by_type: Record<string, number>;
+  events: AttemptEventItem[];
 }
 
 export interface AdminResultsSummary {
@@ -50,6 +64,8 @@ export interface AdminAttemptReview extends AttemptReview {
   passing_value: number | null;
   per_section: SectionResult[];
   submitted_at: string | null;
+  /** M8: ringkasan integritas (pelanggaran anti-cheat). */
+  integrity?: AttemptIntegrity;
 }
 
 export interface ItemStat {

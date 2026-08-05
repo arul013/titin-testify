@@ -31,6 +31,20 @@ class MyExamListResponse(BaseModel):
     exams: list[MyExamItem] = []
 
 
+class AttemptEventItem(BaseModel):
+    """Satu peristiwa perilaku (untuk laporan admin)."""
+    type: str
+    detail: Optional[dict[str, Any]] = None
+    created_at: Optional[datetime] = None
+
+
+class AttemptIntegrity(BaseModel):
+    """Ringkasan integritas satu attempt (M8.1) — untuk review admin."""
+    violation_count: int = 0
+    by_type: dict[str, int] = {}
+    events: list[AttemptEventItem] = []
+
+
 class AttemptIntroResponse(BaseModel):
     """Meta layar pra-ujian (M7.1) — TANPA memulai attempt/timer."""
     exam_id: str
@@ -47,6 +61,8 @@ class AttemptIntroResponse(BaseModel):
     has_in_progress: bool = False
     already_submitted: bool = False
     can_start: bool = False
+    # M8: config anti-cheat (raw) untuk pengumuman & pemeriksaan pra-ujian.
+    anti_cheat: dict[str, Any] = {}
 
 
 class AttemptQuestion(BaseModel):
@@ -80,6 +96,24 @@ class StartAttemptResponse(BaseModel):
     questions: list[AttemptQuestion] = []
     # F1.4b: bila diisi → ujian mode per-bagian; runner pakai timer per-bagian.
     section_timing: Optional[SectionTiming] = None
+    # M8: config anti-cheat (raw) — runner mengaktifkan deteksi sesuai isi.
+    anti_cheat: dict[str, Any] = {}
+
+
+class AttemptEventReport(BaseModel):
+    """Satu peristiwa perilaku dari klien (M8.1)."""
+    type: str = Field(..., max_length=30)
+    detail: Optional[dict[str, Any]] = None
+
+
+class ReportEventsRequest(BaseModel):
+    """Batch peristiwa dari runner (best-effort)."""
+    events: list[AttemptEventReport] = Field(default_factory=list)
+
+
+class ReportEventsResponse(BaseModel):
+    violation_count: int
+    auto_submit: bool = False   # server minta klien submit (ambang terlampaui)
 
 
 class AdvanceSectionRequest(BaseModel):

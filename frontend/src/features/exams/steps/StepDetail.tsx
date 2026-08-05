@@ -5,7 +5,8 @@ import { Input, Textarea } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DatePicker } from '@/components/ui/date-picker';
 import { ClockTimePicker } from '@/components/ui/clock-time-picker';
-import { CalendarClock, AlertTriangle, Repeat, Gauge } from 'lucide-react';
+import { CalendarClock, AlertTriangle, Repeat, Gauge, ShieldAlert } from 'lucide-react';
+import type { ExamAntiCheat } from '@/features/exams/hooks/useExams';
 
 interface StepDetailProps {
   title: string;
@@ -23,6 +24,8 @@ interface StepDetailProps {
   setShowReview: (v: boolean) => void;
   allowRetake: boolean;
   setAllowRetake: (v: boolean) => void;
+  antiCheat: ExamAntiCheat;
+  setAntiCheat: (v: ExamAntiCheat) => void;
   scheduled: boolean;
   setScheduled: (v: boolean) => void;
   startDate: string;
@@ -64,6 +67,8 @@ export const StepDetail: React.FC<StepDetailProps> = ({
   setShowReview,
   allowRetake,
   setAllowRetake,
+  antiCheat,
+  setAntiCheat,
   scheduled,
   setScheduled,
   startDate,
@@ -218,6 +223,53 @@ export const StepDetail: React.FC<StepDetailProps> = ({
               ? 'Hati-hati: untuk Tes Lengkap resmi, membuka kunci berisiko bocor (soal peserta sama).'
               : 'Peserta bisa melihat jawaban benar + pembahasan di Riwayat setelah mengumpulkan.'
           }
+        />
+      </div>
+
+      {/* M8: Anti-cheat (opt-in) */}
+      <div className="border border-slate-200/70 rounded-2xl p-5 bg-white shadow-sm shadow-slate-100/60 flex flex-col gap-4">
+        <p className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+          <ShieldAlert className="w-4 h-4 text-indigo-600" /> Pengawasan Integritas (Anti-Cheat)
+        </p>
+        <p className="-mt-2 text-xs text-slate-400">
+          Opsional. Langkah aktif akan diumumkan ke peserta di layar pra-ujian. Deteksi bersifat bantuan
+          (bukan jaminan mutlak) dan tercatat untuk peninjauan.
+        </p>
+        <Checkbox
+          checked={!!antiCheat.track_focus}
+          onChange={(v) => setAntiCheat({ ...antiCheat, track_focus: v })}
+          label="Pantau perpindahan tab / keluar layar ujian"
+          description="Mendeteksi peserta berpindah tab atau aplikasi lain."
+        />
+        {antiCheat.track_focus && (
+          <div className="ml-7">
+            <Checkbox
+              checked={antiCheat.on_focus_loss === 'submit'}
+              onChange={(v) =>
+                setAntiCheat({ ...antiCheat, on_focus_loss: v ? 'submit' : 'warn', focus_strikes: 1 })
+              }
+              label="Kumpulkan ujian otomatis setelah 1 peringatan"
+              description="Pelanggaran pertama → peringatan; pelanggaran kedua → ujian dikumpulkan. Bila mati, hanya diperingatkan & dicatat."
+            />
+          </div>
+        )}
+        <Checkbox
+          checked={!!antiCheat.require_fullscreen}
+          onChange={(v) => setAntiCheat({ ...antiCheat, require_fullscreen: v })}
+          label="Wajib mode layar penuh"
+          description="Ujian harus dikerjakan dalam layar penuh; keluar akan diperingatkan."
+        />
+        <Checkbox
+          checked={!!antiCheat.block_copy_paste}
+          onChange={(v) => setAntiCheat({ ...antiCheat, block_copy_paste: v })}
+          label="Blokir salin / tempel & klik-kanan"
+          description="Seleksi teks untuk membaca tetap diizinkan."
+        />
+        <Checkbox
+          checked={!!antiCheat.detect_multi_screen}
+          onChange={(v) => setAntiCheat({ ...antiCheat, detect_multi_screen: v })}
+          label="Larang layar / monitor ganda"
+          description="Deteksi layar kedua saat mulai (perlu izin browser; tak 100%)."
         />
       </div>
     </div>

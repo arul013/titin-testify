@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/src/lib/cn";
 import { useAnswerSync } from "./hooks/useAnswerSync";
+import { useAntiCheat } from "./hooks/useAntiCheat";
 import {
   SECTION_LABELS,
   type ExamSectionId,
@@ -252,6 +253,14 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
       );
     }
   }, [attemptId, router, syncClear]);
+
+  // M8.1: deteksi anti-cheat (fokus/copy-paste/fullscreen) + peringatan + auto-submit.
+  const antiCheat = useAntiCheat({
+    attemptId,
+    config: data?.anti_cheat,
+    active: !!data,
+    onAutoSubmit: doSubmit,
+  });
 
   const perSection = !!sectionTiming;
   const order = sectionTiming?.order ?? [];
@@ -1020,6 +1029,40 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
             >
               Mulai Bagian
               <ArrowRightCircle className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* M8.1: overlay wajib layar penuh */}
+      {antiCheat.needFullscreen && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-slate-900/70 p-6 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-xl flex flex-col items-center gap-4">
+            <span className="grid h-14 w-14 place-items-center rounded-2xl bg-amber-50 text-amber-600">
+              <AlertTriangle className="h-7 w-7" />
+            </span>
+            <h2 className="text-lg font-extrabold text-slate-800">Wajib Layar Penuh</h2>
+            <p className="text-sm text-slate-500">
+              Ujian ini harus dikerjakan dalam mode layar penuh. Klik tombol di bawah untuk melanjutkan.
+            </p>
+            <Button variant="primary" className="font-bold" onClick={antiCheat.enterFullscreen}>
+              Masuk Layar Penuh
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* M8.1: peringatan pelanggaran */}
+      {antiCheat.warning && !antiCheat.needFullscreen && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-slate-900/60 p-6 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-red-200 bg-white p-8 text-center shadow-xl flex flex-col items-center gap-4">
+            <span className="grid h-14 w-14 place-items-center rounded-2xl bg-red-50 text-red-500">
+              <AlertTriangle className="h-7 w-7" />
+            </span>
+            <h2 className="text-lg font-extrabold text-slate-800">Peringatan Integritas</h2>
+            <p className="text-sm text-slate-600 leading-relaxed">{antiCheat.warning}</p>
+            <Button variant="secondary" className="font-bold" onClick={antiCheat.dismissWarning}>
+              Saya Mengerti
             </Button>
           </div>
         </div>

@@ -14,6 +14,8 @@ from app.models.exam_attempt import (
     SimpleMessage,
     SectionTiming,
     AdvanceSectionRequest,
+    ReportEventsRequest,
+    ReportEventsResponse,
 )
 from app.models.user import UserProfile
 from app.services.exam_attempt_service import ExamAttemptService
@@ -38,6 +40,16 @@ async def attempt_intro(exam_id: str, current_user: UserProfile = Depends(get_cu
 async def start_attempt(exam_id: str, current_user: UserProfile = Depends(get_current_user)):
     """Mulai/lanjut mengerjakan ujian → soal (tanpa kunci) + sisa waktu."""
     return await ExamAttemptService.start_attempt(exam_id, current_user.id)
+
+
+@router.post("/api/attempts/{attempt_id}/events", response_model=ReportEventsResponse)
+async def report_events(
+    attempt_id: str,
+    request: ReportEventsRequest,
+    current_user: UserProfile = Depends(get_current_user),
+):
+    """M8.1: lapor batch peristiwa perilaku (pindah tab/fullscreen keluar/copy diblok)."""
+    return await ExamAttemptService.report_events(attempt_id, current_user.id, request)
 
 
 @router.put("/api/attempts/{attempt_id}/answer", response_model=SimpleMessage)

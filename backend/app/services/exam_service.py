@@ -19,6 +19,7 @@ from app.models.exam import (
     SectionAvailability,
     PoolPreviewResponse,
     PoolPreviewRequest,
+    AntiCheatConfig,
 )
 from app.services.notification_service import NotificationService
 
@@ -203,6 +204,7 @@ class ExamService:
             "passing_value": request.passing_value,
             "allow_retake": request.allow_retake,
             "status": request.status.value,
+            "anti_cheat": request.anti_cheat.model_dump() if request.anti_cheat else {},
             "starts_at": ExamService._iso(request.starts_at),
             "ends_at": ExamService._iso(request.ends_at),
         }
@@ -351,6 +353,10 @@ class ExamService:
         for key, value in scalar_map.items():
             if value is not None:
                 update_data[key] = value
+
+        # M8: config anti-cheat (replace penuh bila dikirim).
+        if request.anti_cheat is not None:
+            update_data["anti_cheat"] = request.anti_cheat.model_dump()
 
         # Selalu naikkan versi & catat aktor tiap update (optimistic locking + jejak).
         update_data["version"] = current_version + 1
@@ -941,6 +947,7 @@ class ExamService:
             "scoring_scheme_id": src.scoring_scheme_id,
             "passing_value": src.passing_value,
             "allow_retake": src.allow_retake,
+            "anti_cheat": src.anti_cheat.model_dump(),
             "status": "draft",       # selalu mulai sebagai Draf
             "is_template": as_template,
             "starts_at": None,       # jadwal dikosongkan
@@ -1055,6 +1062,7 @@ class ExamService:
             status=e["status"],
             version=e.get("version", 1),
             is_template=e.get("is_template", False),
+            anti_cheat=AntiCheatConfig(**(e.get("anti_cheat") or {})),
             starts_at=e.get("starts_at"),
             ends_at=e.get("ends_at"),
             creator_name=creator_name,

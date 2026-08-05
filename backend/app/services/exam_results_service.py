@@ -15,7 +15,9 @@ from app.services.audit_service import AuditService
 from app.services.scoring_engine import is_official_itp
 # Reuse penilai auto + parser tanggal dari alur peserta (hindari duplikasi).
 from app.services.exam_attempt_service import _grade, _parse_dt
-from app.models.exam_attempt import SectionResult, AttemptReviewQuestion
+from app.models.exam_attempt import (
+    SectionResult, AttemptReviewQuestion, AttemptIntegrity, AttemptEventItem,
+)
 from app.models.exam_results import (
     AdminAttemptRow,
     AdminResultsSummary,
@@ -100,6 +102,7 @@ class ExamResultsService:
                 per_section=per,
                 started_at=_parse_dt(a.get("started_at")),
                 submitted_at=_parse_dt(a.get("submitted_at")),
+                violation_count=a.get("violation_count") or 0,
             ))
 
             # Ringkasan skor hanya dari attempt SELESAI & sudah final (bukan pending penilaian).
@@ -205,6 +208,23 @@ class ExamResultsService:
         per = [SectionResult(**ps) for ps in detail.get("per_section", [])]
         names = _names_by_user(supabase, [attempt["user_id"]])
 
+        # M8: ringkasan integritas (peristiwa anti-cheat).
+        ev_rows = (
+            supabase.table("attempt_events").select("type, detail, created_at")
+            .eq("attempt_id", attempt_id).order("created_at").execute().data or []
+        )
+        by_type: dict[str, int] = {}
+        for r in ev_rows:
+            by_type[r["type"]] = by_type.get(r["type"], 0) + 1
+        integrity = AttemptIntegrity(
+            violation_count=attempt.get("violation_count") or 0,
+            by_type=by_type,
+            events=[
+                AttemptEventItem(type=r["type"], detail=r.get("detail"), created_at=_parse_dt(r.get("created_at")))
+                for r in ev_rows
+            ],
+        )
+
         AuditService.log_action(
             request, current_user,
             action="attempt.review.view", entity_type="attempt", entity_id=attempt_id,
@@ -227,6 +247,7 @@ class ExamResultsService:
             per_section=per,
             submitted_at=_parse_dt(attempt.get("submitted_at")),
             questions=questions,
+            integrity=integrity,
         )
 
     @staticmethod

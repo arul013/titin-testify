@@ -46,6 +46,18 @@ export interface ExamPoolUnit {
 
 export type ExamMode = 'full' | 'custom';
 
+/** M8: config anti-cheat per-ujian. */
+export interface ExamAntiCheat {
+  track_focus?: boolean;
+  on_focus_loss?: 'warn' | 'submit';
+  focus_strikes?: number;
+  require_fullscreen?: boolean;
+  block_copy_paste?: boolean;
+  detect_multi_screen?: boolean;
+  single_session?: boolean;
+  max_violations?: number;
+}
+
 export interface Exam {
   id: string;
   created_by: string;
@@ -62,6 +74,8 @@ export interface Exam {
   version: number;
   /** M4: resep template (dikecualikan dari daftar ujian aktif). */
   is_template?: boolean;
+  /** M8: config anti-cheat per-ujian. */
+  anti_cheat?: ExamAntiCheat;
   starts_at: string | null;
   ends_at: string | null;
   creator_name: string | null;

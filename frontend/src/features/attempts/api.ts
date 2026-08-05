@@ -29,6 +29,18 @@ export interface MyExamListResponse {
   exams: MyExamItem[];
 }
 
+/** M8: config anti-cheat per-ujian (raw). */
+export interface AntiCheatConfig {
+  track_focus?: boolean;
+  on_focus_loss?: 'warn' | 'submit';
+  focus_strikes?: number;
+  require_fullscreen?: boolean;
+  block_copy_paste?: boolean;
+  detect_multi_screen?: boolean;
+  single_session?: boolean;
+  max_violations?: number;
+}
+
 /** M7.1: meta layar pra-ujian (tanpa memulai attempt). */
 export interface AttemptIntro {
   exam_id: string;
@@ -45,6 +57,7 @@ export interface AttemptIntro {
   has_in_progress: boolean;
   already_submitted: boolean;
   can_start: boolean;
+  anti_cheat?: AntiCheatConfig;
 }
 
 /** Konten render satu soal — TANPA kunci jawaban (dari exam_questions.payload). */
@@ -105,6 +118,8 @@ export interface StartAttemptResponse {
   questions: AttemptQuestion[];
   /** F1.4b: bila ada → ujian mode per-bagian; runner pakai timer per-bagian. */
   section_timing?: SectionTiming | null;
+  /** M8: config anti-cheat — runner mengaktifkan deteksi sesuai isi. */
+  anti_cheat?: AntiCheatConfig;
 }
 
 export interface SectionResult {
@@ -194,6 +209,13 @@ export const attemptsApi = {
 
   submit: (attemptId: string) =>
     api.request<AttemptResult>(`/api/attempts/${attemptId}/submit`, { method: 'POST' }),
+
+  /** M8.1: lapor batch peristiwa perilaku (best-effort). */
+  reportEvents: (attemptId: string, events: { type: string; detail?: Record<string, unknown> }[]) =>
+    api.request<{ violation_count: number; auto_submit: boolean }>(`/api/attempts/${attemptId}/events`, {
+      method: 'POST',
+      body: JSON.stringify({ events }),
+    }),
 
   /** F1.4b: kunci bagian aktif & maju ke bagian berikutnya. */
   advance: (attemptId: string, section: string) =>

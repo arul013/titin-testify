@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Clock,
@@ -8,6 +8,8 @@ import {
   Layers,
   CalendarClock,
   ShieldCheck,
+  ShieldAlert,
+  MonitorX,
   Loader2,
   AlertTriangle,
   ArrowLeft,
@@ -75,6 +77,8 @@ export const PreExamGate: React.FC<{ examId: string }> = ({ examId }) => {
   const [error, setError] = useState<string | null>(null);
   const [agreed, setAgreed] = useState(false);
   const [started, setStarted] = useState(false);
+  // M8.1: hasil cek layar ganda (bila detect_multi_screen).
+  const [screenState, setScreenState] = useState<"idle" | "ok" | "blocked" | "unsupported">("idle");
 
   useEffect(() => {
     let active = true;
@@ -93,6 +97,32 @@ export const PreExamGate: React.FC<{ examId: string }> = ({ examId }) => {
       active = false;
     };
   }, [examId]);
+
+  // M8.1: deteksi layar ganda (Window Management API) saat gerbang bila diaktifkan.
+  const checkScreens = useCallback(async () => {
+    await Promise.resolve(); // batas async → setState tak sinkron di body efek
+    const w = window as unknown as { getScreenDetails?: () => Promise<{ screens?: unknown[] }> };
+    if (!w.getScreenDetails) { setScreenState("unsupported"); return; }
+    try {
+      const det = await w.getScreenDetails();
+      setScreenState((det.screens?.length ?? 1) > 1 ? "blocked" : "ok");
+    } catch {
+      setScreenState("unsupported"); // izin ditolak / tak didukung → tak bisa ditegakkan
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!(intro && !intro.has_in_progress && intro.anti_cheat?.detect_multi_screen)) return;
+    const id = setTimeout(() => void checkScreens(), 0);
+    return () => clearTimeout(id);
+  }, [intro, checkScreens]);
+
+  const startExam = useCallback(async () => {
+    if (intro?.anti_cheat?.require_fullscreen) {
+      try { await document.documentElement.requestFullscreen?.(); } catch { /* akan diminta lagi di runner */ }
+    }
+    setStarted(true);
+  }, [intro]);
 
   // Sudah mulai (baru saja / melanjutkan) → jalankan runner (yang memanggil start()).
   if (started) return <ExamRunner examId={examId} />;
@@ -141,6 +171,19 @@ export const PreExamGate: React.FC<{ examId: string }> = ({ examId }) => {
         : intro.already_submitted && !intro.allow_retake
           ? "Kamu sudah menyelesaikan ujian ini."
           : "Ujian belum bisa dimulai saat ini.";
+
+  // M8.1: pengumuman langkah anti-cheat yang aktif.
+  const ac = intro.anti_cheat ?? {};
+  const acItems: string[] = [];
+  if (ac.track_focus)
+    acItems.push(
+      ac.on_focus_loss === "submit"
+        ? "Meninggalkan layar ujian (pindah tab/aplikasi) akan mengumpulkan ujian otomatis setelah 1 peringatan."
+        : "Aktivitas meninggalkan layar ujian dicatat dan dilaporkan ke pengawas.",
+    );
+  if (ac.require_fullscreen) acItems.push("Ujian dikerjakan dalam mode layar penuh.");
+  if (ac.block_copy_paste) acItems.push("Menyalin dan menempel teks dinonaktifkan selama ujian.");
+  if (ac.detect_multi_screen) acItems.push("Tidak boleh menggunakan layar/monitor ganda.");
 
   return (
     <Shell wide>
@@ -242,6 +285,33 @@ export const PreExamGate: React.FC<{ examId: string }> = ({ examId }) => {
           )}
         </ul>
 
+        {/* M8.1: pengumuman pengawasan integritas */}
+        {acItems.length > 0 && (
+          <div className="rounded-2xl border border-amber-100 bg-amber-50/40 p-4">
+            <p className="mb-2 flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide text-amber-700">
+              <ShieldAlert className="h-3.5 w-3.5" /> Pengawasan Integritas
+            </p>
+            <ul className="flex flex-col gap-1.5 text-sm text-amber-800">
+              {acItems.map((t, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" /> {t}
+                </li>
+              ))}
+            </ul>
+            {screenState === "blocked" && (
+              <div className="mt-3 flex flex-col items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                <span className="inline-flex items-center gap-1.5 font-bold">
+                  <MonitorX className="h-4 w-4" /> Terdeteksi layar ganda
+                </span>
+                <span>Nonaktifkan atau lepas monitor kedua, lalu periksa ulang untuk melanjutkan.</span>
+                <Button variant="secondary" size="sm" className="font-bold" onClick={checkScreens}>
+                  Periksa Ulang
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
         {blocked ? (
           <div className="flex flex-col items-center gap-4 rounded-2xl border border-amber-100 bg-amber-50/50 p-6 text-center">
             <p className="text-sm font-semibold text-amber-700">{blockMsg}</p>
@@ -287,9 +357,9 @@ export const PreExamGate: React.FC<{ examId: string }> = ({ examId }) => {
                 variant="primary"
                 size="lg"
                 className="font-bold"
-                disabled={!agreed}
+                disabled={!agreed || screenState === "blocked"}
                 rightIcon={<ArrowRightCircle className="h-5 w-5" />}
-                onClick={() => setStarted(true)}
+                onClick={startExam}
               >
                 Mulai Ujian
               </Button>
