@@ -183,3 +183,21 @@ input[type="checkbox"],
 input[type="radio"] {
   cursor: pointer;
 }
+
+/* ─── M7.3 Aksesibilitas: mode kontras tinggi (khusus runner ujian) ──────────
+   Diaktifkan lewat class `.exam-hc` di root runner. Menggelapkan teks redup &
+   menguatkan garis batas agar lebih terbaca, tanpa mengubah komponen DS. */
+.exam-hc .text-slate-400,
+.exam-hc .text-slate-500 {
+  color: #1e293b !important; /* slate-800 */
+}
+.exam-hc .text-slate-600 {
+  color: #0f172a !important; /* slate-900 */
+}
+.exam-hc .border-slate-100,
+.exam-hc .border-slate-200 {
+  border-color: #64748b !important; /* slate-500 */
+}
+.exam-hc .bg-slate-50 {
+  background-color: #ffffff !important;
+}
