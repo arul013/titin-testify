@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends
 
 from app.models.exam_attempt import (
     MyExamListResponse,
+    AttemptIntroResponse,
     StartAttemptResponse,
     SaveAnswerRequest,
     AttemptResultResponse,
@@ -25,6 +26,12 @@ router = APIRouter(tags=["Exam Attempts"])
 async def list_my_exams(current_user: UserProfile = Depends(get_current_user)):
     """Daftar ujian yang ditugaskan ke peserta + status percobaan."""
     return await ExamAttemptService.list_my_exams(current_user.id)
+
+
+@router.get("/api/my-exams/{exam_id}/intro", response_model=AttemptIntroResponse)
+async def attempt_intro(exam_id: str, current_user: UserProfile = Depends(get_current_user)):
+    """Meta layar pra-ujian (M7.1) — TANPA memulai attempt/timer."""
+    return await ExamAttemptService.attempt_intro(exam_id, current_user.id)
 
 
 @router.post("/api/my-exams/{exam_id}/start", response_model=StartAttemptResponse)

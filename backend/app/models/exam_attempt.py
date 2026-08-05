@@ -31,6 +31,24 @@ class MyExamListResponse(BaseModel):
     exams: list[MyExamItem] = []
 
 
+class AttemptIntroResponse(BaseModel):
+    """Meta layar pra-ujian (M7.1) — TANPA memulai attempt/timer."""
+    exam_id: str
+    title: str
+    description: Optional[str] = None
+    duration_minutes: int
+    total_questions: int = 0
+    section_count: int = 0
+    per_section_mode: bool = False
+    starts_at: Optional[datetime] = None
+    ends_at: Optional[datetime] = None
+    schedule_state: str  # 'available' | 'upcoming' | 'ended'
+    allow_retake: bool = False
+    has_in_progress: bool = False
+    already_submitted: bool = False
+    can_start: bool = False
+
+
 class AttemptQuestion(BaseModel):
     exam_question_id: str
     position: int

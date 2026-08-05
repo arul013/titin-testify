@@ -29,6 +29,24 @@ export interface MyExamListResponse {
   exams: MyExamItem[];
 }
 
+/** M7.1: meta layar pra-ujian (tanpa memulai attempt). */
+export interface AttemptIntro {
+  exam_id: string;
+  title: string;
+  description: string | null;
+  duration_minutes: number;
+  total_questions: number;
+  section_count: number;
+  per_section_mode: boolean;
+  starts_at: string | null;
+  ends_at: string | null;
+  schedule_state: ScheduleState;
+  allow_retake: boolean;
+  has_in_progress: boolean;
+  already_submitted: boolean;
+  can_start: boolean;
+}
+
 /** Konten render satu soal — TANPA kunci jawaban (dari exam_questions.payload). */
 export interface QuestionPayload {
   id?: string;
@@ -152,6 +170,9 @@ export interface AttemptReview {
 
 export const attemptsApi = {
   listMyExams: () => api.request<MyExamListResponse>('/api/my-exams'),
+
+  intro: (examId: string) =>
+    api.request<AttemptIntro>(`/api/my-exams/${examId}/intro`),
 
   start: (examId: string) =>
     api.request<StartAttemptResponse>(`/api/my-exams/${examId}/start`, { method: 'POST' }),

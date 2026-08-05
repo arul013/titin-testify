@@ -11,6 +11,7 @@ logger = logging.getLogger("app.jobs")
 from app.models.exam_attempt import (
     MyExamItem,
     MyExamListResponse,
+    AttemptIntroResponse,
     AttemptQuestion,
     StartAttemptResponse,
     SaveAnswerRequest,
@@ -251,6 +252,77 @@ class ExamAttemptService:
                 can_start=can_start,
             ))
         return MyExamListResponse(exams=items)
+
+    # ─── Pra-ujian (M7.1): meta tanpa memulai attempt ─────────
+    @staticmethod
+    async def attempt_intro(exam_id: str, user_id: str) -> AttemptIntroResponse:
+        """Info layar pra-ujian: judul/instruksi/durasi/jumlah soal/jadwal/status —
+        TANPA membuat attempt atau menjalankan timer."""
+        supabase = get_supabase_admin()
+
+        ep = (
+            supabase.table("exam_participants").select("id")
+            .eq("exam_id", exam_id).eq("user_id", user_id).execute()
+        )
+        if not ep.data:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Anda tidak terdaftar sebagai peserta ujian ini.")
+
+        er = (
+            supabase.table("exams")
+            .select("id, title, description, duration_minutes, allow_retake, starts_at, ends_at, status")
+            .eq("id", exam_id).is_("deleted_at", "null").execute().data
+        )
+        exam = er[0] if er else None
+        if not exam or exam.get("status") != "published":
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ujian tidak tersedia.")
+
+        now = datetime.now(timezone.utc)
+        starts = _parse_dt(exam.get("starts_at"))
+        ends = _parse_dt(exam.get("ends_at"))
+        if starts and now < starts:
+            schedule_state = "upcoming"
+        elif ends and now > ends:
+            schedule_state = "ended"
+        else:
+            schedule_state = "available"
+
+        eqs = (
+            supabase.table("exam_questions").select("section")
+            .eq("exam_id", exam_id).execute().data or []
+        )
+        total_questions = len(eqs)
+        section_count = len({r["section"] for r in eqs})
+        per_section_mode = _section_timing_config(supabase, exam_id) is not None
+
+        attempts = (
+            supabase.table("exam_attempts").select("status")
+            .eq("exam_id", exam_id).eq("user_id", user_id).is_("reset_at", "null")
+            .execute().data or []
+        )
+        has_in_progress = any(a["status"] == "in_progress" for a in attempts)
+        already_submitted = any(a["status"] == "submitted" for a in attempts)
+        allow_retake = bool(exam.get("allow_retake"))
+
+        can_start = has_in_progress or (
+            schedule_state == "available" and not (already_submitted and not allow_retake)
+        )
+
+        return AttemptIntroResponse(
+            exam_id=exam_id,
+            title=exam["title"],
+            description=exam.get("description"),
+            duration_minutes=exam["duration_minutes"],
+            total_questions=total_questions,
+            section_count=section_count,
+            per_section_mode=per_section_mode,
+            starts_at=starts,
+            ends_at=ends,
+            schedule_state=schedule_state,
+            allow_retake=allow_retake,
+            has_in_progress=has_in_progress,
+            already_submitted=already_submitted,
+            can_start=can_start,
+        )
 
     # ─── Mulai / lanjut percobaan ─────────────────────────────
     @staticmethod
