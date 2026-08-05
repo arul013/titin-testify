@@ -20,7 +20,8 @@ export default function DashboardLayout({
   const pesertaAllowed =
     pathname.startsWith('/beranda') ||
     pathname.startsWith('/ujian') ||
-    pathname.startsWith('/riwayat');
+    pathname.startsWith('/riwayat') ||
+    pathname.startsWith('/notifikasi');
 
   useEffect(() => {
     if (!isLoading && user) {

@@ -309,4 +309,13 @@ class GradingService:
             "grading_status": "complete",
             "score_detail": detail,
         }).eq("id", attempt_id).execute()
+
+        # M6: penilaian manual selesai → skor final → beri tahu peserta.
+        from app.services.notification_service import NotificationService
+        NotificationService.notify(
+            [attempt["user_id"]], "result_ready",
+            f"Hasil ujian tersedia: {exam.get('title') or 'Ujian'}",
+            body="Penilaian selesai. Skor dan rincian jawaban sudah bisa dilihat di Riwayat.",
+            entity_type="attempt", entity_id=attempt_id,
+        )
         return "complete", score, passed

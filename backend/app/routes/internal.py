@@ -13,6 +13,7 @@ from typing import Optional
 
 from app.config import get_settings
 from app.services.exam_attempt_service import ExamAttemptService
+from app.services.notification_service import NotificationService
 
 router = APIRouter(prefix="/api/internal/jobs", tags=["Internal Jobs"])
 
@@ -33,3 +34,10 @@ async def expire_attempts(x_internal_secret: Optional[str] = Header(default=None
     """Finalisasi attempt yang deadline-nya lewat. Aman dipanggil berulang."""
     _verify_secret(x_internal_secret)
     return await ExamAttemptService.expire_stale_attempts()
+
+
+@router.post("/dispatch-reminders")
+async def dispatch_reminders(x_internal_secret: Optional[str] = Header(default=None)):
+    """Kirim pengingat notifikasi ujian akan dibuka/ditutup (M6). Idempoten."""
+    _verify_secret(x_internal_secret)
+    return await NotificationService.dispatch_reminders()

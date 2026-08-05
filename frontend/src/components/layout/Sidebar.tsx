@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "../../features/auth/hooks/useAuth";
+import { useUnreadCount } from "../../features/notifications/useNotifications";
 import { ChangePasswordModal } from "../../features/auth/ChangePasswordModal";
 import {
   Sidebar as GlassSidebar,
@@ -25,6 +26,7 @@ import {
   Layers,
   History,
   SquarePen,
+  Bell,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -36,6 +38,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
+  const unreadCount = useUnreadCount();
   const [isChangePwOpen, setIsChangePwOpen] = useState(false);
 
   const isAdmin =
@@ -101,6 +104,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       href: "/users",
       icon: <Users className="w-4 h-4" />,
       show: isAdmin,
+    },
+    {
+      name: "Notifikasi",
+      href: "/notifikasi",
+      icon: <Bell className="w-4 h-4" />,
+      show: !!user,
+      badge: unreadCount,
     },
   ];
 
@@ -169,6 +179,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   icon={link.icon}
                   label={link.name}
                   active={isActive}
+                  badge={link.badge}
                   onClick={() => {
                     onClose();
                     router.push(link.href);

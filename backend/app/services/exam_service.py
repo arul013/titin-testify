@@ -20,6 +20,7 @@ from app.models.exam import (
     PoolPreviewResponse,
     PoolPreviewRequest,
 )
+from app.services.notification_service import NotificationService
 
 SECTION_LABELS = {
     "listening": "Listening",
@@ -309,7 +310,7 @@ class ExamService:
 
         existing = ExamService._fetch_owned(
             supabase, exam_id, user_id, user_role,
-            columns="created_by, version, status, ends_at",
+            columns="created_by, version, status, ends_at, title",
         )
 
         # Optimistic concurrency: tolak bila versi klien tertinggal (ada yang mengubah lebih dulu).
@@ -389,6 +390,14 @@ class ExamService:
                 supabase.table("exam_participants").insert([
                     {"exam_id": exam_id, "user_id": uid} for uid in to_add
                 ]).execute()
+                # M6: peserta baru pada ujian yang SUDAH tayang → beri tahu langsung.
+                if existing.get("status") == "published":
+                    NotificationService.notify(
+                        to_add, "exam_assigned",
+                        f"Ujian ditugaskan: {existing.get('title') or 'Ujian'}",
+                        body="Ujian sudah tersedia di menu Ujian Saya. Cek jadwalnya.",
+                        entity_type="exam", entity_id=exam_id,
+                    )
 
         if request.pool_units is not None:
             supabase.table("exam_pool_units").delete().eq("exam_id", exam_id).execute()
@@ -812,6 +821,15 @@ class ExamService:
                 )
 
         supabase.table("exams").update({"status": "published"}).eq("id", exam_id).execute()
+
+        # M6: beri tahu semua peserta bahwa ujian mereka telah ditayangkan (idempoten).
+        NotificationService.notify(
+            [p.user_id for p in detail.participants],
+            "exam_assigned",
+            f"Ujian ditugaskan: {detail.title}",
+            body="Ujian sudah tersedia di menu Ujian Saya. Cek jadwalnya.",
+            entity_type="exam", entity_id=exam_id,
+        )
         return await ExamService.get_exam(exam_id, user_id, user_role)
 
     @staticmethod

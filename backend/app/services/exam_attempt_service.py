@@ -534,6 +534,16 @@ class ExamAttemptService:
             "grading_status": grading_status,
         }).eq("id", attempt_id).execute()
 
+        # M6: skor final langsung (tanpa penilaian manual) → beri tahu peserta.
+        if grading_status != "pending":
+            from app.services.notification_service import NotificationService
+            NotificationService.notify(
+                [user_id], "result_ready",
+                f"Hasil ujian tersedia: {exam['title']}",
+                body="Skor dan rincian jawaban sudah bisa dilihat di Riwayat.",
+                entity_type="attempt", entity_id=attempt_id,
+            )
+
         return AttemptResultResponse(
             attempt_id=attempt_id, exam_id=exam["id"], title=exam["title"], status="submitted",
             score=score, passed=passed, scale_unit=scale_unit,
