@@ -14,8 +14,10 @@ def setup_cors(app: FastAPI) -> None:
     """
     settings = get_settings()
 
+    # FRONTEND_URL boleh berisi banyak origin dipisah koma (mis. apex + www + domain lama).
+    configured = [o.strip() for o in (settings.frontend_url or "").split(",") if o.strip()]
     origins = [
-        settings.frontend_url,
+        *configured,
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ]
@@ -23,6 +25,9 @@ def setup_cors(app: FastAPI) -> None:
     # In production, add the actual domain
     if settings.app_env == "production":
         origins.append("https://cbt.learningnexus.co.id")
+
+    # Buang duplikat, jaga urutan.
+    origins = list(dict.fromkeys(origins))
 
     app.add_middleware(
         CORSMiddleware,
