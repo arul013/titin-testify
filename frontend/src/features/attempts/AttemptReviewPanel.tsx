@@ -245,8 +245,10 @@ function ReviewCard({ q, number }: { q: ReviewQuestion; number: number }) {
   const isMatching = q.payload.question_type === 'matching';
   const isOrdering = q.payload.question_type === 'ordering';
   const isEssay = q.payload.question_type === 'essay';
+  const isSpeaking = q.payload.question_type === 'speaking';
+  const speakingAudio = (q.answer_json?.audio_url as string | undefined) ?? '';
   const letterMode =
-    !isTFNG && !isMulti && !isFill && !isMatching && !isOrdering && !isEssay && (q.section === 'written_expression' || !!q.payload.options_image_url);
+    !isTFNG && !isMulti && !isFill && !isMatching && !isOrdering && !isEssay && !isSpeaking && (q.section === 'written_expression' || !!q.payload.options_image_url);
   const optKeys = isTFNG ? (['a', 'b', 'c'] as const) : KEYS;
 
   // fill_blank/short_answer: jawaban teks peserta vs daftar jawaban diterima
@@ -278,9 +280,11 @@ function ReviewCard({ q, number }: { q: ReviewQuestion; number: number }) {
     ? pickedSet.length > 0
     : isFill
       ? !!fillText.trim()
-      : isEssay
-        ? !!essayText.trim()
-        : isMatching
+      : isSpeaking
+        ? !!speakingAudio
+        : isEssay
+          ? !!essayText.trim()
+          : isMatching
           ? Object.keys(gotPairs).length > 0
           : isOrdering
             ? Object.keys(gotPos).length > 0
@@ -305,7 +309,7 @@ function ReviewCard({ q, number }: { q: ReviewQuestion; number: number }) {
             {sectionLabel(q.section)}
           </span>
         </div>
-        {isEssay ? (
+        {isEssay || isSpeaking ? (
           q.awarded_score != null ? (
             <Badge variant="success">
               <span className="flex items-center gap-1">
@@ -410,13 +414,25 @@ function ReviewCard({ q, number }: { q: ReviewQuestion; number: number }) {
               );
             })}
           </div>
-        ) : isEssay ? (
+        ) : isEssay || isSpeaking ? (
           <div className="flex flex-col gap-2.5">
             <div className="rounded-2xl border-2 border-slate-200 bg-white p-3.5">
-              <span className="text-xs font-bold text-slate-400 uppercase">Jawaban esaimu</span>
-              <p className={`mt-1 text-[15px] whitespace-pre-wrap leading-relaxed ${answered ? 'text-slate-700' : 'text-slate-400 italic'}`}>
-                {essayText.trim() || 'Tidak dijawab'}
-              </p>
+              <span className="text-xs font-bold text-slate-400 uppercase">
+                {isSpeaking ? 'Jawaban speaking-mu' : 'Jawaban esaimu'}
+              </span>
+              {isSpeaking ? (
+                speakingAudio ? (
+                  <audio controls src={speakingAudio} className="mt-2 w-full" preload="none">
+                    <track kind="captions" />
+                  </audio>
+                ) : (
+                  <p className="mt-1 text-[15px] italic text-slate-400">Tidak dijawab</p>
+                )
+              ) : (
+                <p className={`mt-1 text-[15px] whitespace-pre-wrap leading-relaxed ${answered ? 'text-slate-700' : 'text-slate-400 italic'}`}>
+                  {essayText.trim() || 'Tidak dijawab'}
+                </p>
+              )}
             </div>
             {q.awarded_score != null ? (
               <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50/60 p-3.5 flex flex-col gap-2">
@@ -446,7 +462,9 @@ function ReviewCard({ q, number }: { q: ReviewQuestion; number: number }) {
             ) : (
               <p className="flex items-center gap-1.5 text-xs font-semibold text-indigo-700">
                 <Lightbulb className="h-3.5 w-3.5" />
-                Jawaban esai dinilai manual oleh penilai berdasarkan rubrik.
+                {isSpeaking
+                  ? 'Jawaban speaking dinilai manual oleh penilai berdasarkan rubrik.'
+                  : 'Jawaban esai dinilai manual oleh penilai berdasarkan rubrik.'}
               </p>
             )}
           </div>

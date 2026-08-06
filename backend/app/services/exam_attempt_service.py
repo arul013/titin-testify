@@ -371,6 +371,41 @@ class ExamAttemptService:
             auto_submit = True
         return ReportEventsResponse(violation_count=new_count, auto_submit=auto_submit)
 
+    # ─── F1.3: unggah audio jawaban speaking ──────────────────
+    @staticmethod
+    async def upload_answer_audio(attempt_id: str, user_id: str, content: bytes) -> dict:
+        """Unggah audio jawaban speaking peserta → storage (folder speaking/). Return {audio_url}.
+        Klien lalu menyimpan jawaban via saveAnswer(answer_json={audio_url})."""
+        supabase = get_supabase_admin()
+        ar = supabase.table("exam_attempts").select("user_id, status").eq("id", attempt_id).execute().data
+        if not ar:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Percobaan tidak ditemukan.")
+        if ar[0]["user_id"] != user_id:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Bukan percobaan Anda.")
+        if ar[0]["status"] != "in_progress":
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Ujian sudah tidak berlangsung.")
+
+        if not content or len(content) > 25 * 1024 * 1024:
+            raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "Ukuran audio tidak valid (maks 25 MB).")
+        head = content[:16]
+        # webm/ogg (MediaRecorder umum), mp4/m4a, wav, mp3.
+        if head[:4] == b"\x1aE\xdf\xa3":            # EBML → webm/mkv
+            content_type, ext = "audio/webm", "webm"
+        elif head[:4] == b"OggS":
+            content_type, ext = "audio/ogg", "ogg"
+        elif head[4:8] == b"ftyp":
+            content_type, ext = "audio/mp4", "m4a"
+        elif head[:4] == b"RIFF" and content[8:12] == b"WAVE":
+            content_type, ext = "audio/wav", "wav"
+        elif head[:3] == b"ID3" or (len(head) >= 2 and head[0] == 0xFF and (head[1] & 0xE0) == 0xE0):
+            content_type, ext = "audio/mpeg", "mp3"
+        else:
+            raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "Format audio tidak didukung.")
+
+        from app.services.storage_service import upload_media
+        url = upload_media(content, content_type, "speaking", ext)
+        return {"audio_url": url, "success": True}
+
     # ─── Anti-cheat (M8.4): kamera capture berkala ───────────
     @staticmethod
     async def record_capture(attempt_id: str, user_id: str, content: bytes) -> dict:

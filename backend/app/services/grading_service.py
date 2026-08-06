@@ -188,8 +188,10 @@ class GradingService:
                 for c in crits
             ]
             text = ""
+            audio_url = None
             if row and isinstance(row.get("answer_json"), dict):
                 text = row["answer_json"].get("text") or ""
+                audio_url = row["answer_json"].get("audio_url")
             answers.append(GradingAnswerItem(
                 answer_id=row["id"] if row else None,
                 exam_question_id=q["id"],
@@ -197,6 +199,7 @@ class GradingService:
                 section=q["section"],
                 payload=q.get("payload") or {},
                 participant_text=text,
+                participant_audio_url=audio_url,
                 rubric_name=rub.get("name"),
                 criteria=criteria,
                 max_score=float(q.get("max_score") or rub.get("max_total") or 0),

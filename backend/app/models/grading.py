@@ -52,6 +52,7 @@ class GradingAnswerItem(BaseModel):
     section: str
     payload: dict[str, Any]               # render soal (perintah esai + materi)
     participant_text: str = ""            # jawaban esai peserta
+    participant_audio_url: Optional[str] = None  # F1.3: jawaban speaking (audio)
     rubric_name: Optional[str] = None
     criteria: list[GradingCriterion] = []
     max_score: float = 0

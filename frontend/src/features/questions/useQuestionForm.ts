@@ -155,13 +155,15 @@ export function useQuestionForm({ initialData, passageId, defaultSection }: UseQ
   const isMatching = questionType === 'matching';     // pasangkan kiri↔kanan
   const isOrdering = questionType === 'ordering';      // urutkan langkah
   const isEssay = questionType === 'essay';            // esai/writing (dinilai manual via rubrik)
-  const isFixedType = isTFNG || isMulti || isTextAnswer || isMatching || isOrdering || isEssay;
+  const isSpeaking = questionType === 'speaking';      // speaking (jawaban audio, dinilai manual via rubrik)
+  const isManualType = isEssay || isSpeaking;          // F1.2/F1.3: dinilai manual
+  const isFixedType = isTFNG || isMulti || isTextAnswer || isMatching || isOrdering || isManualType;
   const isListeningStandalone = section === 'listening' && !passageId;
   const isListening = section === 'listening';
   const isWE = !isFixedType && section === 'written_expression';
   const showImageOption = section === 'reading' || section === 'structure';
   const allowImageAnswers = !isFixedType && (section === 'listening' || section === 'reading');
-  const effectiveFormat = isTFNG ? 'tfng' : isMulti ? 'multi' : isTextAnswer ? 'textans' : isMatching ? 'matching' : isOrdering ? 'ordering' : isEssay ? 'essay' : isWE ? 'we' : allowImageAnswers ? answerFormat : 'text';
+  const effectiveFormat = isTFNG ? 'tfng' : isMulti ? 'multi' : isTextAnswer ? 'textans' : isMatching ? 'matching' : isOrdering ? 'ordering' : isSpeaking ? 'speaking' : isEssay ? 'essay' : isWE ? 'we' : allowImageAnswers ? answerFormat : 'text';
 
   const clearError = (key: string) =>
     setErrors((prev) => {
@@ -196,9 +198,10 @@ export function useQuestionForm({ initialData, passageId, defaultSection }: UseQ
       if (matchRight.filter((x) => x.trim()).length < 2) e.matchRight = 'Isi minimal 2 opsi kanan.';
       else if (matchRight.some((x) => !x.trim())) e.matchRight = 'Semua opsi kanan harus terisi.';
       if (matchLeft.some((_, i) => !matchPairs[String(i)])) e.matchPairs = 'Tentukan pasangan benar untuk semua item kiri.';
-    } else if (isEssay) {
-      if (!questionText.trim()) e.questionText = 'Perintah/soal esai wajib diisi.';
-      if (!rubricId) e.rubric = 'Pilih rubrik penilaian untuk soal esai.';
+    } else if (isManualType) {
+      if (!questionText.trim())
+        e.questionText = isSpeaking ? 'Perintah/soal speaking wajib diisi.' : 'Perintah/soal esai wajib diisi.';
+      if (!rubricId) e.rubric = 'Pilih rubrik penilaian.';
     } else if (isOrdering) {
       if (orderItems.filter((x) => x.trim()).length < 2) e.orderItems = 'Isi minimal 2 langkah.';
       else if (orderItems.some((x) => !x.trim())) e.orderItems = 'Semua langkah harus terisi.';
@@ -343,10 +346,10 @@ export function useQuestionForm({ initialData, passageId, defaultSection }: UseQ
     question_type: questionType,
     content_json: contentJson,
     answer_json: answerJson,
-    // F1.2: essay dinilai manual (poin = max_total rubrik); tipe lain auto (1 poin).
-    scoring_mode: isEssay ? 'manual' : 'auto',
-    rubric_id: isEssay ? rubricId || null : null,
-    max_score: isEssay ? essayMaxScore : 1,
+    // F1.2/F1.3: essay & speaking dinilai manual (poin = max_total rubrik); tipe lain auto (1 poin).
+    scoring_mode: isManualType ? 'manual' : 'auto',
+    rubric_id: isManualType ? rubricId || null : null,
+    max_score: isManualType ? essayMaxScore : 1,
     question_text: questionText,
     option_a: noOptionText ? '' : optionA,
     option_b: noOptionText ? '' : optionB,
@@ -393,6 +396,7 @@ export function useQuestionForm({ initialData, passageId, defaultSection }: UseQ
     // values + setters
     section, setSection,
     questionType, setQuestionType, isTFNG, isMulti, isFill, isShort, isTextAnswer, isMatching, isOrdering, isEssay,
+    isSpeaking, isManualType,
     rubricId, setRubricId, essayMaxScore, setEssayMaxScore,
     multiOptions, multiCorrect,
     updateMultiOption, addMultiOption, removeMultiOption, toggleMultiCorrect,

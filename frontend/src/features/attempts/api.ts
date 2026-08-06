@@ -227,6 +227,21 @@ export const attemptsApi = {
       body: JSON.stringify({ session_token: sessionToken }),
     }),
 
+  /** F1.3: unggah audio jawaban speaking → { audio_url }. */
+  uploadAnswerAudio: async (attemptId: string, blob: Blob): Promise<{ audio_url: string }> => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('cbt_access_token') : null;
+    const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const form = new FormData();
+    form.append('file', blob, 'answer.webm');
+    const res = await fetch(`${base}/api/attempts/${attemptId}/answer-audio`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+    if (!res.ok) throw new Error('Gagal mengunggah audio jawaban.');
+    return (await res.json()) as { audio_url: string };
+  },
+
   /** M8.4: unggah satu foto capture kamera (multipart, best-effort). */
   uploadCapture: async (attemptId: string, blob: Blob): Promise<void> => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('cbt_access_token') : null;

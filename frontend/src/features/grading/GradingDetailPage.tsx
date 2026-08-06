@@ -96,9 +96,15 @@ function GradingAnswerCard({
 
       {/* Jawaban peserta */}
       <div className="rounded-2xl border-2 border-slate-200 bg-slate-50/50 p-4">
-        <span className="text-xs font-bold text-slate-400 uppercase">Jawaban esai peserta</span>
+        <span className="text-xs font-bold text-slate-400 uppercase">
+          {answer.participant_audio_url ? 'Jawaban speaking peserta' : 'Jawaban esai peserta'}
+        </span>
         {notAnswered ? (
           <p className="mt-1 text-sm italic text-slate-400">Peserta tidak menjawab — otomatis 0 poin.</p>
+        ) : answer.participant_audio_url ? (
+          <audio controls src={answer.participant_audio_url} className="mt-2 w-full" preload="none">
+            <track kind="captions" />
+          </audio>
         ) : (
           <p className="mt-1.5 text-[15px] leading-relaxed whitespace-pre-wrap text-slate-700">
             {answer.participant_text || <span className="italic text-slate-400">(kosong)</span>}

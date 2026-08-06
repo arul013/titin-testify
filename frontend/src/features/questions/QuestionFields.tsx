@@ -27,6 +27,7 @@ export const QuestionFields: React.FC<QuestionFieldsProps> = ({ form, idPrefix =
   const {
     section, questionText, setQuestionText,
     questionType, setQuestionType, isTFNG, isMulti, isTextAnswer, isShort, isMatching, isOrdering, isEssay,
+    isManualType,
     rubricId, setRubricId, setEssayMaxScore,
     multiOptions, multiCorrect, updateMultiOption, addMultiOption, removeMultiOption, toggleMultiCorrect,
     acceptList, updateAccept, addAccept, removeAccept,
@@ -62,6 +63,7 @@ export const QuestionFields: React.FC<QuestionFieldsProps> = ({ form, idPrefix =
           <option value="matching">Menjodohkan (Matching)</option>
           <option value="ordering">Mengurutkan (Ordering)</option>
           <option value="essay">Esai / Writing (dinilai manual)</option>
+          <option value="speaking">Speaking (rekam audio, dinilai manual)</option>
         </Select>
       </div>
 
@@ -475,13 +477,18 @@ export const QuestionFields: React.FC<QuestionFieldsProps> = ({ form, idPrefix =
           {errors.orderItems && <p className="mt-1.5 text-xs text-red-500">{errors.orderItems}</p>}
           {errors.orderPos && <p className="mt-1.5 text-xs text-red-500">{errors.orderPos}</p>}
         </div>
-      ) : isEssay ? (
+      ) : isManualType ? (
         <div id={`${idPrefix}-rubric`} className="scroll-mt-4 flex flex-col gap-4">
           <div className="rounded-2xl border border-indigo-100 bg-indigo-50/40 p-3.5 flex items-start gap-2.5">
             <ClipboardCheck className="w-4 h-4 text-indigo-600 mt-0.5 shrink-0" />
             <p className="text-[11px] text-indigo-700 leading-relaxed">
-              Soal esai <strong>dinilai manual</strong> memakai rubrik. Peserta mengetik jawaban panjang;
-              skor diberi penilai (admin) berdasarkan kriteria rubrik yang dipilih.
+              {isEssay ? (
+                <>Soal esai <strong>dinilai manual</strong> memakai rubrik. Peserta mengetik jawaban panjang;
+                  skor diberi penilai (admin) berdasarkan kriteria rubrik.</>
+              ) : (
+                <>Soal speaking <strong>dinilai manual</strong> memakai rubrik. Peserta <strong>merekam audio</strong>;
+                  penilai (admin) memutar rekaman & memberi skor berdasarkan kriteria rubrik.</>
+              )}
             </p>
           </div>
           <div>

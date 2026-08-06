@@ -127,6 +127,7 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
   const [pairs, setPairs] = useState<Record<string, Record<string, string>>>(
     {},
   ); // matching: leftIdx→rightKey
+  const [audio, setAudio] = useState<Record<string, string>>({}); // speaking: audio_url
   const [flags, setFlags] = useState<Set<string>>(new Set());
   const [current, setCurrent] = useState(0);
   const [endAt, setEndAt] = useState<number | null>(null);
@@ -179,6 +180,7 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
         const initMulti: Record<string, string[]> = {};
         const initText: Record<string, string> = {};
         const initPairs: Record<string, Record<string, string>> = {};
+        const initAudio: Record<string, string> = {};
         res.questions.forEach((q) => {
           init[q.exam_question_id] = q.selected_answer;
           const aj = q.answer_json as {
@@ -186,6 +188,7 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
             text?: string;
             pairs?: Record<string, string>;
             positions?: Record<string, string>;
+            audio_url?: string;
           } | null;
           if (Array.isArray(aj?.selected))
             initMulti[q.exam_question_id] = aj.selected;
@@ -195,11 +198,14 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
             initPairs[q.exam_question_id] = aj.pairs;
           if (aj?.positions && typeof aj.positions === "object")
             initPairs[q.exam_question_id] = aj.positions;
+          if (typeof aj?.audio_url === "string")
+            initAudio[q.exam_question_id] = aj.audio_url;
         });
         setAnswers(init);
         setMulti(initMulti);
         setText(initText);
         setPairs(initPairs);
+        setAudio(initAudio);
         setEndAt(Date.now() + res.remaining_seconds * 1000);
         setRemaining(res.remaining_seconds);
         if (res.section_timing) {
@@ -402,6 +408,19 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
     syncSave(eqId, null, { selected: next });
   };
 
+  // speaking (F1.3): unggah audio jawaban → simpan URL.
+  const uploadAudio = async (blob: Blob): Promise<string> => {
+    if (!attemptId) return "";
+    const res = await attemptsApi.uploadAnswerAudio(attemptId, blob);
+    return res.audio_url;
+  };
+  const handleAudioChange = (url: string) => {
+    if (!q || !attemptId || submittedRef.current) return;
+    const eqId = q.exam_question_id;
+    setAudio((prev) => ({ ...prev, [eqId]: url }));
+    syncSave(eqId, null, { audio_url: url });
+  };
+
   // fill_blank/essay: ketik jawaban (autosave debounce 400ms; flush saat blur / pindah soal).
   const saveText = (eqId: string, value: string) =>
     syncSave(eqId, null, { text: value });
@@ -490,6 +509,7 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
       return !!text[x.exam_question_id]?.trim();
     if (t === "matching" || t === "ordering")
       return Object.keys(pairs[x.exam_question_id] ?? {}).length > 0;
+    if (t === "speaking") return !!audio[x.exam_question_id];
     return !!answers[x.exam_question_id];
   };
   const answeredCount = questions.filter(isAnswered).length;
@@ -935,6 +955,9 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
               onTextBlur={flushText}
               pairs={pairs[q.exam_question_id] ?? {}}
               onPairChange={handlePairChange}
+              audioUrl={audio[q.exam_question_id] ?? null}
+              uploadAudio={uploadAudio}
+              onAudioChange={handleAudioChange}
               flagged={flags.has(q.exam_question_id)}
               onToggleFlag={toggleFlag}
               palette={palette}

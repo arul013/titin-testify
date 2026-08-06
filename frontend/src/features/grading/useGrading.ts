@@ -33,6 +33,8 @@ export interface GradingAnswer {
   section: string;
   payload: Record<string, unknown>;
   participant_text: string;
+  /** F1.3: jawaban speaking (audio) — penilai memutar rekaman. */
+  participant_audio_url?: string | null;
   rubric_name: string | null;
   criteria: GradingCriterion[];
   max_score: number;

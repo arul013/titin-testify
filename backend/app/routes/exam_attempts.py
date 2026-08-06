@@ -54,6 +54,22 @@ async def heartbeat(
     return await ExamAttemptService.heartbeat(attempt_id, current_user.id, request.session_token)
 
 
+@router.post("/api/attempts/{attempt_id}/answer-audio")
+async def upload_answer_audio(
+    attempt_id: str,
+    file: UploadFile = File(...),
+    current_user: UserProfile = Depends(get_current_user),
+):
+    """F1.3: unggah audio jawaban speaking peserta (≤ 25 MB) → {audio_url}."""
+    try:
+        content = await file.read(25 * 1024 * 1024 + 1)
+        if len(content) > 25 * 1024 * 1024:
+            raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "Ukuran audio melebihi 25 MB.")
+        return await ExamAttemptService.upload_answer_audio(attempt_id, current_user.id, content)
+    finally:
+        await file.close()
+
+
 @router.post("/api/attempts/{attempt_id}/capture")
 async def record_capture(
     attempt_id: str,

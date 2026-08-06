@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input, Textarea } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/src/lib/cn';
+import { AudioRecorder } from './AudioRecorder';
 import type { QuestionPayload } from './api';
 
 const LETTERS = ['A', 'B', 'C', 'D'] as const;
@@ -32,6 +33,10 @@ interface AnswerSheetProps {
   /** matching: pasangan leftIdx→rightKey + ubah. */
   pairs?: Record<string, string>;
   onPairChange?: (leftIdx: number, rightKey: string) => void;
+  /** speaking (F1.3): URL audio jawaban + unggah + simpan. */
+  audioUrl?: string | null;
+  uploadAudio?: (blob: Blob) => Promise<string>;
+  onAudioChange?: (url: string) => void;
   flagged: boolean;
   onToggleFlag: () => void;
   palette: PaletteItem[];
@@ -55,6 +60,9 @@ export const AnswerSheet: React.FC<AnswerSheetProps> = ({
   onTextBlur,
   pairs = {},
   onPairChange,
+  audioUrl,
+  uploadAudio,
+  onAudioChange,
   flagged,
   onToggleFlag,
   palette,
@@ -70,6 +78,7 @@ export const AnswerSheet: React.FC<AnswerSheetProps> = ({
   const isMatching = q.question_type === 'matching';
   const isOrdering = q.question_type === 'ordering';
   const isEssay = q.question_type === 'essay';
+  const isSpeaking = q.question_type === 'speaking';
   const wordLimit = q.content_json?.word_limit as string | undefined;
   const matchLeft = (q.content_json?.left as string[] | undefined) ?? [];
   const matchRight = (q.content_json?.right as string[] | undefined) ?? [];
@@ -184,6 +193,12 @@ export const AnswerSheet: React.FC<AnswerSheetProps> = ({
           />
           <p className="text-[11px] text-slate-400">Jawaban esai dinilai manual oleh penilai setelah ujian.</p>
         </div>
+      ) : isSpeaking ? (
+        <AudioRecorder
+          audioUrl={audioUrl}
+          onUpload={uploadAudio ?? (async () => '')}
+          onChange={(url) => onAudioChange?.(url)}
+        />
       ) : isTextAnswer ? (
         <div className="flex flex-col gap-1.5">
           <p className="text-xs font-semibold text-slate-500">
