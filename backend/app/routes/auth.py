@@ -2,7 +2,7 @@
 Learning Nexus CBT — Auth Routes
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from app.models.user import (
     LoginRequest,
@@ -26,7 +26,7 @@ class RefreshRequest(BaseModel):
 
 @router.post("/login", response_model=AuthResponse)
 @limiter.limit("10/minute")
-async def login(request: Request, payload: LoginRequest):
+async def login(request: Request, response: Response, payload: LoginRequest):
     """Login with username and password (rate-limited per IP + lockout per akun).
 
     Returns access token, refresh token, and user profile.
@@ -51,7 +51,7 @@ async def get_me(current_user: UserProfile = Depends(get_current_user)):
 
 @router.post("/refresh", response_model=AuthResponse)
 @limiter.limit("30/minute")
-async def refresh_token(request: Request, payload: RefreshRequest):
+async def refresh_token(request: Request, response: Response, payload: RefreshRequest):
     """Refresh an expired access token using a refresh token."""
     return await AuthService.refresh_token(payload.refresh_token)
 
@@ -60,6 +60,7 @@ async def refresh_token(request: Request, payload: RefreshRequest):
 @limiter.limit("10/minute")
 async def change_password(
     request: Request,
+    response: Response,
     payload: ChangePasswordRequest,
     current_user: UserProfile = Depends(get_current_user),
 ):
