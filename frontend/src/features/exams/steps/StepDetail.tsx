@@ -271,6 +271,32 @@ export const StepDetail: React.FC<StepDetailProps> = ({
           label="Larang layar / monitor ganda"
           description="Deteksi layar kedua saat mulai (perlu izin browser; tak 100%)."
         />
+        <Checkbox
+          checked={!!antiCheat.single_session}
+          onChange={(v) => setAntiCheat({ ...antiCheat, single_session: v })}
+          label="Satu sesi aktif"
+          description="Bila ujian dibuka di perangkat/tab lain, sesi sebelumnya dikunci."
+        />
+
+        {(antiCheat.track_focus || antiCheat.require_fullscreen) && (
+          <div className="border-t border-slate-100 pt-4">
+            <label className={fieldLabel}>Auto-kumpul setelah sekian pelanggaran (opsional)</label>
+            <Input
+              value={antiCheat.max_violations ? String(antiCheat.max_violations) : ''}
+              inputMode="numeric"
+              placeholder="mis. 3 — kosongkan untuk mematikan"
+              className="max-w-xs"
+              onChange={(e) => {
+                const n = Number(digits(e.target.value).slice(0, 3));
+                setAntiCheat({ ...antiCheat, max_violations: n });
+              }}
+            />
+            <p className="mt-1.5 text-xs text-slate-400">
+              Ujian dikumpulkan otomatis bila total pelanggaran serius (keluar layar/fullscreen)
+              mencapai angka ini. Kosong/0 = mati.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

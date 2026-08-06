@@ -98,6 +98,16 @@ class StartAttemptResponse(BaseModel):
     section_timing: Optional[SectionTiming] = None
     # M8: config anti-cheat (raw) — runner mengaktifkan deteksi sesuai isi.
     anti_cheat: dict[str, Any] = {}
+    # M8.2: token sesi (bila single_session aktif) — dikirim balik lewat heartbeat.
+    session_token: Optional[str] = None
+
+
+class HeartbeatRequest(BaseModel):
+    session_token: Optional[str] = None
+
+
+class HeartbeatResponse(BaseModel):
+    active: bool = True   # False = sesi diambil alih di tempat lain (superseded)
 
 
 class AttemptEventReport(BaseModel):

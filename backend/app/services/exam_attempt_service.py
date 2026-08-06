@@ -4,6 +4,7 @@ Learning Nexus CBT — Exam Attempt Service (Phase 4: peserta mengerjakan ujian)
 
 import logging
 from datetime import datetime, timezone, timedelta
+from uuid import uuid4
 from fastapi import HTTPException, status
 from app.database import get_supabase_admin
 
@@ -22,6 +23,7 @@ from app.models.exam_attempt import (
     SectionTiming,
     ReportEventsRequest,
     ReportEventsResponse,
+    HeartbeatResponse,
 )
 from app.services.scoring_engine import compute_exam_score, is_official_itp
 
@@ -353,8 +355,12 @@ class ExamAttemptService:
             for e in req.events[:50]  # batasi lonjakan
         ]
         supabase.table("attempt_events").insert(rows).execute()
-        new_count = current + len(rows)
-        supabase.table("exam_attempts").update({"violation_count": new_count}).eq("id", attempt_id).execute()
+        # violation_count hanya menghitung pelanggaran SERIUS (bukan percobaan copy/paste yang
+        # sudah diblokir) — konsisten dg konsep "strike" & membuat ambang max_violations bermakna.
+        serious = {"focus_lost", "fullscreen_exit"}
+        new_count = current + sum(1 for r in rows if r["type"] in serious)
+        if new_count != current:
+            supabase.table("exam_attempts").update({"violation_count": new_count}).eq("id", attempt_id).execute()
 
         # Ambang server-side (M8.3, bila admin mengaktifkan max_violations).
         auto_submit = False
@@ -364,6 +370,28 @@ class ExamAttemptService:
         if maxv > 0 and new_count >= maxv:
             auto_submit = True
         return ReportEventsResponse(violation_count=new_count, auto_submit=auto_submit)
+
+    # ─── Anti-cheat (M8.2): heartbeat satu sesi aktif ─────────
+    @staticmethod
+    async def heartbeat(attempt_id: str, user_id: str, session_token: str | None) -> HeartbeatResponse:
+        """Bandingkan token sesi klien dg server. active=False → sesi diambil alih di tempat lain."""
+        supabase = get_supabase_admin()
+        ar = (
+            supabase.table("exam_attempts").select("user_id, status, session_token")
+            .eq("id", attempt_id).execute().data
+        )
+        if not ar:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Percobaan tidak ditemukan.")
+        attempt = ar[0]
+        if attempt["user_id"] != user_id:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Bukan percobaan Anda.")
+        # Sudah tidak in_progress → biarkan runner menyelesaikan alurnya sendiri (bukan superseded).
+        if attempt["status"] != "in_progress":
+            return HeartbeatResponse(active=True)
+        server = attempt.get("session_token")
+        # Bila server belum punya token (single_session baru diaktifkan) → anggap masih aktif.
+        active = (not server) or (server == session_token)
+        return HeartbeatResponse(active=active)
 
     # ─── Mulai / lanjut percobaan ─────────────────────────────
     @staticmethod
@@ -449,6 +477,12 @@ class ExamAttemptService:
                 supabase.table("exam_attempts").update({"section_state": state}).eq("id", attempt["id"]).execute()
             section_timing = _section_timing_view(state, now)
 
+        # M8.2: satu sesi aktif → token baru tiap start (sesi lama tersingkir).
+        session_token = None
+        if (exam.get("anti_cheat") or {}).get("single_session"):
+            session_token = str(uuid4())
+            supabase.table("exam_attempts").update({"session_token": session_token}).eq("id", attempt["id"]).execute()
+
         return StartAttemptResponse(
             attempt_id=attempt["id"],
             exam_id=exam_id,
@@ -461,6 +495,7 @@ class ExamAttemptService:
             questions=questions,
             section_timing=section_timing,
             anti_cheat=exam.get("anti_cheat") or {},
+            session_token=session_token,
         )
 
     @staticmethod

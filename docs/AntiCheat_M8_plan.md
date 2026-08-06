@@ -120,8 +120,8 @@ Bukan rekam video: **ambil foto peserta secara berkala** (mis. tiap 60 dtk) seba
 | Fase | Isi | Migrasi |
 |---|---|---|
 | **M8.1** | Fondasi + deteksi + log + laporan admin (SOFT). Config `exams.anti_cheat` + toggle di builder; tabel `attempt_events` + `violation_count`; endpoint lapor (batch); deteksi klien (focus/blur, copy-paste, fullscreen) + peringatan peserta; bagian Integritas di review + badge di daftar hasil. | `028` (anti_cheat + attempt_events + violation_count) |
-| **M8.2** | Satu sesi aktif: `session_token` + heartbeat + lockout. | `029` (session_token) |
-| **M8.3** | Enforcement ambang: `max_violations` → flag/auto-submit. | — (pakai kolom yang ada) |
+| **M8.2** | ✅ **SELESAI** (2026-08-06, mig 029). Satu sesi aktif: `exam_attempts.session_token` (di-generate tiap `start()` bila `single_session`) + `POST /api/attempts/{id}/heartbeat` (bandingkan token; `active=false`→superseded) + overlay lockout "dibuka di tempat lain" (Ambil Alih=reload / Kembali). Toggle di builder + pengumuman pra-ujian. | `029` (session_token) |
+| **M8.3** | ✅ **SELESAI** (2026-08-06). Ambang `max_violations` → auto-submit (server hitung di `report_events`, runner `useAntiCheat` honor `auto_submit`). `violation_count` kini hanya menghitung pelanggaran **serius** (`focus_lost`/`fullscreen_exit`; copy/paste hanya dilog) → ambang bermakna. Input di builder (StepDetail) + pengumuman pra-ujian. | — (pakai kolom yang ada) |
 | **M8.4** | **Kamera capture berkala** (proctoring-lite): preview LIVE + wajib aktif + capture tiap N dtk + consent/retensi + galeri admin. **Prasyarat: object storage (R2/Supabase) siap.** | `030` (`attempt_captures` + `camera_capture` di config) |
 
 Rekomendasi urutan: **M8.1 → M8.2 → M8.3**, lalu **M8.4 setelah storage (R2) beres**. M8.1 sudah memberi nilai penuh (deteren + bukti + laporan) tanpa risiko mengubah alur nilai. M8.4 bergantung storage + consent/retensi (F2 PII).

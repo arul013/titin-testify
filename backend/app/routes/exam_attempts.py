@@ -16,6 +16,8 @@ from app.models.exam_attempt import (
     AdvanceSectionRequest,
     ReportEventsRequest,
     ReportEventsResponse,
+    HeartbeatRequest,
+    HeartbeatResponse,
 )
 from app.models.user import UserProfile
 from app.services.exam_attempt_service import ExamAttemptService
@@ -40,6 +42,16 @@ async def attempt_intro(exam_id: str, current_user: UserProfile = Depends(get_cu
 async def start_attempt(exam_id: str, current_user: UserProfile = Depends(get_current_user)):
     """Mulai/lanjut mengerjakan ujian → soal (tanpa kunci) + sisa waktu."""
     return await ExamAttemptService.start_attempt(exam_id, current_user.id)
+
+
+@router.post("/api/attempts/{attempt_id}/heartbeat", response_model=HeartbeatResponse)
+async def heartbeat(
+    attempt_id: str,
+    request: HeartbeatRequest,
+    current_user: UserProfile = Depends(get_current_user),
+):
+    """M8.2: cek satu sesi aktif. active=False → sesi diambil alih di tempat lain."""
+    return await ExamAttemptService.heartbeat(attempt_id, current_user.id, request.session_token)
 
 
 @router.post("/api/attempts/{attempt_id}/events", response_model=ReportEventsResponse)

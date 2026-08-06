@@ -184,6 +184,9 @@ export const PreExamGate: React.FC<{ examId: string }> = ({ examId }) => {
   if (ac.require_fullscreen) acItems.push("Ujian dikerjakan dalam mode layar penuh.");
   if (ac.block_copy_paste) acItems.push("Menyalin dan menempel teks dinonaktifkan selama ujian.");
   if (ac.detect_multi_screen) acItems.push("Tidak boleh menggunakan layar/monitor ganda.");
+  if (ac.single_session) acItems.push("Ujian hanya boleh dikerjakan di satu perangkat/tab dalam satu waktu.");
+  if ((ac.max_violations ?? 0) > 0)
+    acItems.push(`Ujian dikumpulkan otomatis bila pelanggaran mencapai ${ac.max_violations} kali.`);
 
   return (
     <Shell wide>

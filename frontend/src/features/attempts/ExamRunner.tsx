@@ -19,6 +19,7 @@ import {
   RefreshCw,
   Type,
   Contrast,
+  MonitorX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -261,6 +262,23 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
     active: !!data,
     onAutoSubmit: doSubmit,
   });
+
+  // M8.2: satu sesi aktif — heartbeat; bila diambil alih di tempat lain → kunci sesi ini.
+  const [sessionLocked, setSessionLocked] = useState(false);
+  const singleSession = !!data?.anti_cheat?.single_session;
+  const sessionToken = data?.session_token ?? null;
+  useEffect(() => {
+    if (!singleSession || !attemptId || !sessionToken || sessionLocked) return;
+    let active = true;
+    const ping = () => {
+      attemptsApi
+        .heartbeat(attemptId, sessionToken)
+        .then((res) => { if (active && !res.active) setSessionLocked(true); })
+        .catch(() => { /* best-effort */ });
+    };
+    const id = setInterval(ping, 25000);
+    return () => { active = false; clearInterval(id); };
+  }, [singleSession, attemptId, sessionToken, sessionLocked]);
 
   const perSection = !!sectionTiming;
   const order = sectionTiming?.order ?? [];
@@ -1064,6 +1082,30 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
             <Button variant="secondary" className="font-bold" onClick={antiCheat.dismissWarning}>
               Saya Mengerti
             </Button>
+          </div>
+        </div>
+      )}
+
+      {/* M8.2: sesi dikunci (diambil alih di tempat lain) */}
+      {sessionLocked && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/80 p-6 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-xl flex flex-col items-center gap-4">
+            <span className="grid h-14 w-14 place-items-center rounded-2xl bg-red-50 text-red-500">
+              <MonitorX className="h-7 w-7" />
+            </span>
+            <h2 className="text-lg font-extrabold text-slate-800">Ujian dibuka di tempat lain</h2>
+            <p className="text-sm text-slate-500 leading-relaxed">
+              Ujian ini hanya boleh dikerjakan di satu perangkat/tab dalam satu waktu. Sesi ini dikunci
+              karena ujianmu dibuka di tempat lain.
+            </p>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row">
+              <Button variant="ghost" className="font-bold" onClick={() => router.replace("/ujian")}>
+                Kembali
+              </Button>
+              <Button variant="primary" className="font-bold" onClick={() => window.location.reload()}>
+                Ambil Alih di Sini
+              </Button>
+            </div>
           </div>
         </div>
       )}

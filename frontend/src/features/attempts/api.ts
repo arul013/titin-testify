@@ -120,6 +120,8 @@ export interface StartAttemptResponse {
   section_timing?: SectionTiming | null;
   /** M8: config anti-cheat — runner mengaktifkan deteksi sesuai isi. */
   anti_cheat?: AntiCheatConfig;
+  /** M8.2: token sesi (bila single_session) — dipakai heartbeat. */
+  session_token?: string | null;
 }
 
 export interface SectionResult {
@@ -215,6 +217,13 @@ export const attemptsApi = {
     api.request<{ violation_count: number; auto_submit: boolean }>(`/api/attempts/${attemptId}/events`, {
       method: 'POST',
       body: JSON.stringify({ events }),
+    }),
+
+  /** M8.2: heartbeat satu sesi aktif. active=false → sesi diambil alih di tempat lain. */
+  heartbeat: (attemptId: string, sessionToken: string | null) =>
+    api.request<{ active: boolean }>(`/api/attempts/${attemptId}/heartbeat`, {
+      method: 'POST',
+      body: JSON.stringify({ session_token: sessionToken }),
     }),
 
   /** F1.4b: kunci bagian aktif & maju ke bagian berikutnya. */
