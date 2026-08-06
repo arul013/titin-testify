@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   ShieldAlert,
   MonitorX,
+  Camera,
   Loader2,
   AlertTriangle,
   ArrowLeft,
@@ -79,6 +80,9 @@ export const PreExamGate: React.FC<{ examId: string }> = ({ examId }) => {
   const [started, setStarted] = useState(false);
   // M8.1: hasil cek layar ganda (bila detect_multi_screen).
   const [screenState, setScreenState] = useState<"idle" | "ok" | "blocked" | "unsupported">("idle");
+  // M8.4: kamera pengawasan — izin terverifikasi + persetujuan.
+  const [cameraOk, setCameraOk] = useState(false);
+  const [cameraConsent, setCameraConsent] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -116,6 +120,23 @@ export const PreExamGate: React.FC<{ examId: string }> = ({ examId }) => {
     const id = setTimeout(() => void checkScreens(), 0);
     return () => clearTimeout(id);
   }, [intro, checkScreens]);
+
+  // M8.4: verifikasi izin kamera (test stream lalu hentikan; runner acquire ulang).
+  const checkCamera = useCallback(async () => {
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      s.getTracks().forEach((t) => t.stop());
+      setCameraOk(true);
+    } catch {
+      setCameraOk(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!(intro && !intro.has_in_progress && intro.anti_cheat?.camera_capture?.enabled)) return;
+    const id = setTimeout(() => void checkCamera(), 0);
+    return () => clearTimeout(id);
+  }, [intro, checkCamera]);
 
   const startExam = useCallback(async () => {
     if (intro?.anti_cheat?.require_fullscreen) {
@@ -187,6 +208,9 @@ export const PreExamGate: React.FC<{ examId: string }> = ({ examId }) => {
   if (ac.single_session) acItems.push("Ujian hanya boleh dikerjakan di satu perangkat/tab dalam satu waktu.");
   if ((ac.max_violations ?? 0) > 0)
     acItems.push(`Ujian dikumpulkan otomatis bila pelanggaran mencapai ${ac.max_violations} kali.`);
+  const cameraOn = !!ac.camera_capture?.enabled;
+  if (cameraOn)
+    acItems.push("Kamera aktif — sesi ini dipantau; foto diambil berkala untuk verifikasi integritas.");
 
   return (
     <Shell wide>
@@ -329,6 +353,36 @@ export const PreExamGate: React.FC<{ examId: string }> = ({ examId }) => {
           </div>
         ) : (
           <>
+            {/* M8.4: kamera pengawasan — wajib aktif + persetujuan */}
+            {cameraOn && (
+              <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="inline-flex items-center gap-2 text-sm font-bold text-slate-700">
+                    <Camera className="h-4 w-4" /> Kamera Pengawasan
+                  </span>
+                  {cameraOk ? (
+                    <span className="text-xs font-bold text-emerald-600">Kamera terdeteksi ✓</span>
+                  ) : (
+                    <Button variant="secondary" size="sm" className="font-bold" onClick={checkCamera}>
+                      Aktifkan Kamera
+                    </Button>
+                  )}
+                </div>
+                <label className="flex cursor-pointer items-start gap-3">
+                  <Checkbox checked={cameraConsent} onChange={() => setCameraConsent((v) => !v)} />
+                  <span className="text-sm leading-relaxed text-slate-600">
+                    Saya setuju kamera aktif selama ujian dan <b className="text-slate-800">foto saya diambil berkala</b> untuk
+                    verifikasi integritas. Foto hanya dapat dilihat pengawas ujian dan dihapus setelah masa peninjauan.
+                  </span>
+                </label>
+                {!cameraOk && (
+                  <p className="text-xs text-amber-600">
+                    Ujian belum bisa dimulai sampai kamera aktif. Izinkan akses kamera di browser.
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Pakta integritas */}
             <label
               className={cn(
@@ -360,7 +414,11 @@ export const PreExamGate: React.FC<{ examId: string }> = ({ examId }) => {
                 variant="primary"
                 size="lg"
                 className="font-bold"
-                disabled={!agreed || screenState === "blocked"}
+                disabled={
+                  !agreed ||
+                  screenState === "blocked" ||
+                  (cameraOn && (!cameraOk || !cameraConsent))
+                }
                 rightIcon={<ArrowRightCircle className="h-5 w-5" />}
                 onClick={startExam}
               >

@@ -56,6 +56,7 @@ export interface ExamAntiCheat {
   detect_multi_screen?: boolean;
   single_session?: boolean;
   max_violations?: number;
+  camera_capture?: { enabled?: boolean; interval_sec?: number };
 }
 
 export interface Exam {

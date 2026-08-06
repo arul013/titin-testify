@@ -39,6 +39,7 @@ export interface AntiCheatConfig {
   detect_multi_screen?: boolean;
   single_session?: boolean;
   max_violations?: number;
+  camera_capture?: { enabled?: boolean; interval_sec?: number };
 }
 
 /** M7.1: meta layar pra-ujian (tanpa memulai attempt). */
@@ -225,6 +226,19 @@ export const attemptsApi = {
       method: 'POST',
       body: JSON.stringify({ session_token: sessionToken }),
     }),
+
+  /** M8.4: unggah satu foto capture kamera (multipart, best-effort). */
+  uploadCapture: async (attemptId: string, blob: Blob): Promise<void> => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('cbt_access_token') : null;
+    const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const form = new FormData();
+    form.append('file', blob, 'capture.jpg');
+    await fetch(`${base}/api/attempts/${attemptId}/capture`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+  },
 
   /** F1.4b: kunci bagian aktif & maju ke bagian berikutnya. */
   advance: (attemptId: string, section: string) =>

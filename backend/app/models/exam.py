@@ -22,6 +22,12 @@ class ExamStatus(str, Enum):
 
 # ─── Anti-cheat (M8) ─────────────────────────────────────────────
 
+class CameraCaptureConfig(BaseModel):
+    """M8.4: kamera capture berkala (foto, bukan rekam video)."""
+    enabled: bool = False
+    interval_sec: int = Field(default=60, ge=15, le=600)
+
+
 class AntiCheatConfig(BaseModel):
     """Config anti-cheat per-ujian (opt-in). Disimpan sebagai JSONB `exams.anti_cheat`."""
     track_focus: bool = False            # catat pindah-tab/blur
@@ -32,6 +38,7 @@ class AntiCheatConfig(BaseModel):
     detect_multi_screen: bool = False    # deteksi layar ganda saat mulai (Window Management API)
     single_session: bool = False         # M8.2 (belum ditegakkan)
     max_violations: int = Field(default=0, ge=0, le=100)  # M8.3
+    camera_capture: CameraCaptureConfig = Field(default_factory=CameraCaptureConfig)  # M8.4
 
     @field_validator("on_focus_loss")
     @classmethod

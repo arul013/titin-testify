@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   AlertTriangle, CheckCircle2, XCircle, Hourglass, CalendarClock, User, Loader2,
-  ShieldAlert, Eye, Maximize, Copy, ClipboardPaste, MousePointerClick,
+  ShieldAlert, Eye, Maximize, Copy, ClipboardPaste, MousePointerClick, Camera,
 } from 'lucide-react';
 import { PageContainer } from '@/components/ui/page-container';
 import { Card } from '@/components/ui/card';
@@ -29,28 +29,66 @@ function evtLabel(t: string): string {
 }
 
 function IntegrityCard({ integrity }: { integrity: AttemptIntegrity }) {
+  const captures = integrity.captures ?? [];
+  const hasViolations = integrity.violation_count > 0;
   return (
-    <Card className="rounded-3xl p-6 md:p-7 border-red-100">
+    <Card className={cn('rounded-3xl p-6 md:p-7', hasViolations ? 'border-red-100' : 'border-slate-100')}>
       <div className="flex items-center gap-3">
-        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-red-50 text-red-500">
+        <span className={cn(
+          'grid h-11 w-11 shrink-0 place-items-center rounded-2xl',
+          hasViolations ? 'bg-red-50 text-red-500' : 'bg-slate-100 text-slate-500',
+        )}>
           <ShieldAlert className="h-6 w-6" />
         </span>
         <div>
           <h2 className="text-base font-extrabold text-slate-800">Integritas</h2>
           <p className="text-sm text-slate-500">
-            {integrity.violation_count} pelanggaran terdeteksi selama ujian.
+            {hasViolations
+              ? `${integrity.violation_count} pelanggaran terdeteksi selama ujian.`
+              : captures.length > 0
+                ? 'Tidak ada pelanggaran terdeteksi. Kamera pengawasan aktif.'
+                : 'Tidak ada pelanggaran terdeteksi.'}
           </p>
         </div>
       </div>
 
       {/* Ringkasan per jenis */}
-      <div className="mt-4 flex flex-wrap gap-2">
-        {Object.entries(integrity.by_type).map(([t, n]) => (
-          <span key={t} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">
-            {EVENT_META[t]?.icon} {evtLabel(t)} · <span className="tabular-nums">{n}</span>
-          </span>
-        ))}
-      </div>
+      {Object.keys(integrity.by_type).length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {Object.entries(integrity.by_type).map(([t, n]) => (
+            <span key={t} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">
+              {EVENT_META[t]?.icon} {evtLabel(t)} · <span className="tabular-nums">{n}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* M8.4: galeri foto kamera */}
+      {captures.length > 0 && (
+        <div className="mt-4">
+          <p className="mb-2 inline-flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide text-slate-500">
+            <Camera className="h-3.5 w-3.5" /> Foto Kamera ({captures.length})
+          </p>
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+            {captures.map((c, i) => (
+              <a
+                key={i}
+                href={c.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group relative block overflow-hidden rounded-lg border border-slate-200"
+                title={fmtDate(c.captured_at)}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={c.url} alt={`Capture ${i + 1}`} className="aspect-square w-full object-cover transition-transform group-hover:scale-105" />
+                <span className="absolute bottom-0 inset-x-0 bg-black/50 px-1 py-0.5 text-[9px] text-white tabular-nums">
+                  {c.captured_at ? new Date(c.captured_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : ''}
+                </span>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Timeline */}
       {integrity.events.length > 0 && (
@@ -210,8 +248,9 @@ export function AdminAttemptReviewPage({ examId, attemptId }: { examId: string; 
             )}
           </Card>
 
-          {/* M8.1: Integritas — pelanggaran anti-cheat */}
-          {(data.integrity?.violation_count ?? 0) > 0 && (
+          {/* M8: Integritas — pelanggaran anti-cheat + foto kamera */}
+          {((data.integrity?.violation_count ?? 0) > 0 ||
+            (data.integrity?.captures?.length ?? 0) > 0) && (
             <IntegrityCard integrity={data.integrity!} />
           )}
 

@@ -103,8 +103,9 @@ Bukan rekam video: **ambil foto peserta secara berkala** (mis. tiap 60 dtk) seba
 - **Retensi/auto-hapus**: foto dibersihkan otomatis setelah jendela peninjauan (mis. X hari pasca-nilai) — job internal (pola M3/M6).
 - **Minimisasi data**: JPEG kecil; tanpa ML/face-recognition (cukup capture + tinjau manual admin). Face-presence detection = opsional jauh di kemudian hari.
 
-**Blocker/dependensi:**
-- Butuh **object storage** siap. Fitur audio F1.3 masih ⏸️ karena **blocker sertifikat R2** — capture gambar kena dependensi yang sama. Prasyarat M8.4: **beresi R2** atau pakai alternatif (bucket Supabase Storage). Tanpa storage, tak ada tempat menyimpan.
+**Blocker/dependensi — ✅ TERATASI (2026-08-06):**
+- Ditambahkan abstraksi `services/storage_service.py` → `upload_media(...)` yang memilih backend via `STORAGE_BACKEND` (`auto`/`r2`/`supabase`). Bila R2 (domain/sertifikat) bermasalah, set **`STORAGE_BACKEND=supabase`** → pakai **Supabase Storage** (bucket publik auto-dibuat, URL HTTPS valid otomatis; media dirender via `<img>`/`<audio>` polos → tanpa perubahan frontend/allowlist). Ini melepas ketergantungan setup custom-domain/cert R2.
+- Sisa M8.4 (capture kamera) tinggal: endpoint upload capture (peserta) reuse `upload_media(folder="proctor")` + tabel `attempt_captures` + UI preview/kirim + consent/retensi. Storage sudah bukan blocker.
 
 **Sisi admin:** galeri foto per attempt di bagian "Integritas" review (grid thumbnail + waktu), akses owner/super_admin saja.
 
@@ -122,7 +123,7 @@ Bukan rekam video: **ambil foto peserta secara berkala** (mis. tiap 60 dtk) seba
 | **M8.1** | Fondasi + deteksi + log + laporan admin (SOFT). Config `exams.anti_cheat` + toggle di builder; tabel `attempt_events` + `violation_count`; endpoint lapor (batch); deteksi klien (focus/blur, copy-paste, fullscreen) + peringatan peserta; bagian Integritas di review + badge di daftar hasil. | `028` (anti_cheat + attempt_events + violation_count) |
 | **M8.2** | ✅ **SELESAI** (2026-08-06, mig 029). Satu sesi aktif: `exam_attempts.session_token` (di-generate tiap `start()` bila `single_session`) + `POST /api/attempts/{id}/heartbeat` (bandingkan token; `active=false`→superseded) + overlay lockout "dibuka di tempat lain" (Ambil Alih=reload / Kembali). Toggle di builder + pengumuman pra-ujian. | `029` (session_token) |
 | **M8.3** | ✅ **SELESAI** (2026-08-06). Ambang `max_violations` → auto-submit (server hitung di `report_events`, runner `useAntiCheat` honor `auto_submit`). `violation_count` kini hanya menghitung pelanggaran **serius** (`focus_lost`/`fullscreen_exit`; copy/paste hanya dilog) → ambang bermakna. Input di builder (StepDetail) + pengumuman pra-ujian. | — (pakai kolom yang ada) |
-| **M8.4** | **Kamera capture berkala** (proctoring-lite): preview LIVE + wajib aktif + capture tiap N dtk + consent/retensi + galeri admin. **Prasyarat: object storage (R2/Supabase) siap.** | `030` (`attempt_captures` + `camera_capture` di config) |
+| **M8.4** | ✅ **SELESAI** (2026-08-06, mig 030). Kamera capture berkala: `camera_capture{enabled,interval_sec}` di config+builder; `POST /api/attempts/{id}/capture` (peserta, JPEG/PNG≤3MB → `upload_media(folder='proctor')` R2) + tabel `attempt_captures`; runner `useCameraProctor` (preview LIVE + foto tiap N dtk); PreExamGate wajib kamera+consent; galeri admin di IntegrityCard; retensi `POST /api/internal/jobs/purge-captures` (>30 hari, hapus objek+baris). | `030` (`attempt_captures` + `camera_capture`) |
 
 Rekomendasi urutan: **M8.1 → M8.2 → M8.3**, lalu **M8.4 setelah storage (R2) beres**. M8.1 sudah memberi nilai penuh (deteren + bukti + laporan) tanpa risiko mengubah alur nilai. M8.4 bergantung storage + consent/retensi (F2 PII).
 

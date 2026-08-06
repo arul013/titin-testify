@@ -371,6 +371,66 @@ class ExamAttemptService:
             auto_submit = True
         return ReportEventsResponse(violation_count=new_count, auto_submit=auto_submit)
 
+    # ─── Anti-cheat (M8.4): kamera capture berkala ───────────
+    @staticmethod
+    async def record_capture(attempt_id: str, user_id: str, content: bytes) -> dict:
+        """Simpan satu foto capture kamera peserta → storage (folder proctor/) + metadata.
+        Best-effort: hanya attempt aktif milik peserta pada ujian yang mengaktifkan camera_capture."""
+        supabase = get_supabase_admin()
+        ar = (
+            supabase.table("exam_attempts").select("user_id, status, exam_id")
+            .eq("id", attempt_id).execute().data
+        )
+        if not ar:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Percobaan tidak ditemukan.")
+        attempt = ar[0]
+        if attempt["user_id"] != user_id:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Bukan percobaan Anda.")
+        if attempt["status"] != "in_progress":
+            return {"success": False}
+
+        # Ujian harus mengaktifkan camera_capture (cegah unggah liar).
+        exr = supabase.table("exams").select("anti_cheat").eq("id", attempt["exam_id"]).execute().data
+        cam = ((exr[0].get("anti_cheat") if exr else None) or {}).get("camera_capture") or {}
+        if not cam.get("enabled"):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Capture kamera tidak diaktifkan untuk ujian ini.")
+
+        # Validasi: harus JPEG/PNG & ukuran wajar (≤ 3 MB).
+        if not content or len(content) > 3 * 1024 * 1024:
+            raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "Ukuran foto tidak valid.")
+        head = content[:16]
+        if head[:3] == b"\xff\xd8\xff":
+            content_type, ext = "image/jpeg", "jpg"
+        elif head.startswith(b"\x89PNG\r\n\x1a\n"):
+            content_type, ext = "image/png", "png"
+        else:
+            raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "Format foto tidak didukung.")
+
+        from app.services.storage_service import put_media
+        url, key = put_media(content, content_type, "proctor", ext)
+        supabase.table("attempt_captures").insert({
+            "attempt_id": attempt_id, "user_id": user_id, "url": url, "storage_key": key,
+        }).execute()
+        return {"success": True}
+
+    @staticmethod
+    async def purge_old_captures(days: int = 30, limit: int = 1000) -> dict:
+        """Retensi PII (M8.4): hapus foto capture lebih tua dari `days` (objek storage + baris)."""
+        supabase = get_supabase_admin()
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        rows = (
+            supabase.table("attempt_captures").select("id, storage_key")
+            .lt("captured_at", cutoff).limit(limit).execute().data or []
+        )
+        if not rows:
+            return {"deleted": 0}
+        from app.services.storage_service import delete_media
+        for r in rows:
+            delete_media(r.get("storage_key"))
+        supabase.table("attempt_captures").delete().in_("id", [r["id"] for r in rows]).execute()
+        logger.info("retensi capture: %s foto dihapus (>%s hari)", len(rows), days)
+        return {"deleted": len(rows)}
+
     # ─── Anti-cheat (M8.2): heartbeat satu sesi aktif ─────────
     @staticmethod
     async def heartbeat(attempt_id: str, user_id: str, session_token: str | None) -> HeartbeatResponse:

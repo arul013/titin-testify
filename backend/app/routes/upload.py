@@ -1,23 +1,22 @@
 """
-Learning Nexus CBT — Media Upload Routes (Cloudflare R2)
+Learning Nexus CBT — Media Upload Routes
+
+Penyimpanan: Cloudflare R2 bila dikonfigurasi, selain itu Supabase Storage
+(lihat `services/storage_service.py`).
 
 Keamanan (F2.c):
-- Batas ukuran hard: audio ≤ 50 MB, gambar ≤ 10 MB (tolak sebelum ke R2).
+- Batas ukuran hard: audio ≤ 50 MB, gambar ≤ 10 MB (tolak sebelum diunggah).
 - Validasi tipe via **magic bytes** (baca header file), BUKAN sekadar percaya
   `content_type` dari klien (mudah dipalsukan).
 - Whitelist format + nama file acak (uuid) + ContentType hasil deteksi server.
 """
 
-import uuid
-import boto3
-from botocore.config import Config
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, status
-from app.config import get_settings
 from app.models.user import UserProfile
 from app.dependencies import require_admin
+from app.services.storage_service import upload_media
 
 router = APIRouter(prefix="/api/questions", tags=["Question Bank Uploader"])
-settings = get_settings()
 
 MB = 1024 * 1024
 MAX_AUDIO_BYTES = 50 * MB
@@ -63,35 +62,6 @@ def _sniff(head: bytes) -> str | None:
     return None
 
 
-def _s3_client():
-    """Klien R2 (S3-compatible). Raise 503 bila belum dikonfigurasi."""
-    if not all([
-        settings.cloudflare_r2_endpoint,
-        settings.cloudflare_r2_access_key_id,
-        settings.cloudflare_r2_secret_access_key,
-        settings.cloudflare_r2_bucket_name,
-        settings.cloudflare_r2_public_url,
-    ]):
-        raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "Penyimpanan Cloudflare R2 belum dikonfigurasi di backend (.env).",
-        )
-    try:
-        return boto3.client(
-            "s3",
-            endpoint_url=settings.cloudflare_r2_endpoint,
-            aws_access_key_id=settings.cloudflare_r2_access_key_id,
-            aws_secret_access_key=settings.cloudflare_r2_secret_access_key,
-            config=Config(signature_version="s3v4"),
-            region_name="auto",
-        )
-    except Exception as e:
-        raise HTTPException(
-            status.HTTP_500_INTERNAL_SERVER_ERROR,
-            f"Gagal menginisialisasi penyimpanan: {str(e)}",
-        )
-
-
 async def _read_validated(
     file: UploadFile, max_bytes: int, allowed: set[str], human: str
 ) -> tuple[bytes, str, str]:
@@ -115,34 +85,15 @@ async def _read_validated(
     return content, kind, EXT_BY_KIND[kind]
 
 
-def _upload(content: bytes, kind: str, ext: str, folder: str) -> str:
-    """Unggah ke R2 dengan nama acak + ContentType hasil deteksi server. Return public URL."""
-    s3 = _s3_client()
-    r2_key = f"{folder}/{uuid.uuid4().hex}.{ext}"
-    try:
-        s3.put_object(
-            Bucket=settings.cloudflare_r2_bucket_name,
-            Key=r2_key,
-            Body=content,
-            ContentType=kind,
-        )
-    except Exception as e:
-        raise HTTPException(
-            status.HTTP_500_INTERNAL_SERVER_ERROR,
-            f"Gagal mengunggah ke penyimpanan: {str(e)}",
-        )
-    return f"{settings.cloudflare_r2_public_url.rstrip('/')}/{r2_key}"
-
-
 @router.post("/upload-audio")
 async def upload_audio(
     file: UploadFile = File(...),
     _current_user: UserProfile = Depends(require_admin),
 ):
-    """Upload audio Listening ke R2 (Admin/Super Admin). Maks 50 MB, tervalidasi magic-bytes."""
+    """Upload audio Listening (Admin/Super Admin). Maks 50 MB, tervalidasi magic-bytes."""
     try:
         content, kind, ext = await _read_validated(file, MAX_AUDIO_BYTES, AUDIO_KINDS, "audio")
-        url = _upload(content, kind, ext, "listening")
+        url = upload_media(content, kind, "listening", ext)
     finally:
         await file.close()
     return {"filename": file.filename, "audio_url": url, "success": True}
@@ -153,10 +104,10 @@ async def upload_image(
     file: UploadFile = File(...),
     _current_user: UserProfile = Depends(require_admin),
 ):
-    """Upload gambar soal/passage ke R2 (Admin/Super Admin). Maks 10 MB, tervalidasi magic-bytes."""
+    """Upload gambar soal/passage (Admin/Super Admin). Maks 10 MB, tervalidasi magic-bytes."""
     try:
         content, kind, ext = await _read_validated(file, MAX_IMAGE_BYTES, IMAGE_KINDS, "gambar")
-        url = _upload(content, kind, ext, "images")
+        url = upload_media(content, kind, "images", ext)
     finally:
         await file.close()
     return {"filename": file.filename, "image_url": url, "success": True}

@@ -26,6 +26,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/src/lib/cn";
 import { useAnswerSync } from "./hooks/useAnswerSync";
 import { useAntiCheat } from "./hooks/useAntiCheat";
+import { useCameraProctor } from "./hooks/useCameraProctor";
 import {
   SECTION_LABELS,
   type ExamSectionId,
@@ -261,6 +262,15 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
     config: data?.anti_cheat,
     active: !!data,
     onAutoSubmit: doSubmit,
+  });
+
+  // M8.4: kamera proctoring — preview LIVE + foto berkala.
+  const cameraCfg = data?.anti_cheat?.camera_capture;
+  const cameraEnabled = !!cameraCfg?.enabled;
+  const { videoRef: camVideoRef, error: camError } = useCameraProctor({
+    attemptId,
+    enabled: cameraEnabled,
+    intervalSec: cameraCfg?.interval_sec ?? 60,
   });
 
   // M8.2: satu sesi aktif — heartbeat; bila diambil alih di tempat lain → kunci sesi ini.
@@ -1049,6 +1059,27 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
               <ArrowRightCircle className="w-4 h-4" />
             </Button>
           </div>
+        </div>
+      )}
+
+      {/* M8.4: preview kamera LIVE (foto diambil berkala) */}
+      {cameraEnabled && (
+        <div className="absolute bottom-4 right-4 z-30 w-36 overflow-hidden rounded-xl border-2 border-red-500 bg-black shadow-lg">
+          <video
+            ref={camVideoRef}
+            autoPlay
+            muted
+            playsInline
+            className="block h-auto w-full -scale-x-100"
+          />
+          <div className="absolute left-1.5 top-1.5 inline-flex items-center gap-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[9px] font-bold text-white">
+            <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" /> DIPANTAU
+          </div>
+          {camError && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-2 text-center text-[10px] font-bold text-red-300">
+              Kamera mati — aktifkan kembali
+            </div>
+          )}
         </div>
       )}
 

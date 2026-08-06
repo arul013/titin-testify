@@ -15,12 +15,18 @@ class Settings(BaseSettings):
     supabase_service_key: str = ""
     supabase_jwt_secret: str = ""
 
-    # Cloudflare R2
+    # Cloudflare R2 (opsional — bila kosong, media jatuh ke Supabase Storage)
     cloudflare_r2_endpoint: str = ""
     cloudflare_r2_access_key_id: str = ""
     cloudflare_r2_secret_access_key: str = ""
     cloudflare_r2_bucket_name: str = ""
     cloudflare_r2_public_url: str = ""
+
+    # Backend penyimpanan media: "auto" (R2 bila terkonfigurasi, selain itu Supabase),
+    # "r2" (paksa R2), atau "supabase" (paksa Supabase Storage — mis. bila domain/cert R2 bermasalah).
+    storage_backend: str = "auto"
+    # Bucket Supabase Storage (dipakai bila backend supabase). Publik & auto-dibuat.
+    storage_bucket: str = "media"
 
     # App
     app_name: str = "Learning Nexus CBT"

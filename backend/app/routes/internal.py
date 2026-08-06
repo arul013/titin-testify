@@ -41,3 +41,10 @@ async def dispatch_reminders(x_internal_secret: Optional[str] = Header(default=N
     """Kirim pengingat notifikasi ujian akan dibuka/ditutup (M6). Idempoten."""
     _verify_secret(x_internal_secret)
     return await NotificationService.dispatch_reminders()
+
+
+@router.post("/purge-captures")
+async def purge_captures(x_internal_secret: Optional[str] = Header(default=None)):
+    """Retensi PII (M8.4): hapus foto capture kamera > 30 hari (objek storage + baris)."""
+    _verify_secret(x_internal_secret)
+    return await ExamAttemptService.purge_old_captures()

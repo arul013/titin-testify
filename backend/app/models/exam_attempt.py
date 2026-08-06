@@ -38,11 +38,18 @@ class AttemptEventItem(BaseModel):
     created_at: Optional[datetime] = None
 
 
+class AttemptCapture(BaseModel):
+    """Satu foto capture kamera (M8.4) — untuk galeri admin."""
+    url: str
+    captured_at: Optional[datetime] = None
+
+
 class AttemptIntegrity(BaseModel):
-    """Ringkasan integritas satu attempt (M8.1) — untuk review admin."""
+    """Ringkasan integritas satu attempt (M8.1/M8.4) — untuk review admin."""
     violation_count: int = 0
     by_type: dict[str, int] = {}
     events: list[AttemptEventItem] = []
+    captures: list[AttemptCapture] = []
 
 
 class AttemptIntroResponse(BaseModel):

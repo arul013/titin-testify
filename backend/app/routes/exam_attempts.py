@@ -2,7 +2,7 @@
 Learning Nexus CBT — Exam Attempt Routes (Phase 4: peserta mengerjakan ujian)
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, status
 
 from app.models.exam_attempt import (
     MyExamListResponse,
@@ -52,6 +52,22 @@ async def heartbeat(
 ):
     """M8.2: cek satu sesi aktif. active=False → sesi diambil alih di tempat lain."""
     return await ExamAttemptService.heartbeat(attempt_id, current_user.id, request.session_token)
+
+
+@router.post("/api/attempts/{attempt_id}/capture")
+async def record_capture(
+    attempt_id: str,
+    file: UploadFile = File(...),
+    current_user: UserProfile = Depends(get_current_user),
+):
+    """M8.4: unggah satu foto capture kamera peserta (JPEG/PNG ≤ 3 MB)."""
+    try:
+        content = await file.read(3 * 1024 * 1024 + 1)
+        if len(content) > 3 * 1024 * 1024:
+            raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "Ukuran foto melebihi 3 MB.")
+        return await ExamAttemptService.record_capture(attempt_id, current_user.id, content)
+    finally:
+        await file.close()
 
 
 @router.post("/api/attempts/{attempt_id}/events", response_model=ReportEventsResponse)

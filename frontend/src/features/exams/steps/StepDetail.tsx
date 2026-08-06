@@ -297,6 +297,40 @@ export const StepDetail: React.FC<StepDetailProps> = ({
             </p>
           </div>
         )}
+
+        {/* M8.4: kamera pengawasan */}
+        <div className="border-t border-slate-100 pt-4">
+          <Checkbox
+            checked={!!antiCheat.camera_capture?.enabled}
+            onChange={(v) =>
+              setAntiCheat({
+                ...antiCheat,
+                camera_capture: { ...(antiCheat.camera_capture ?? {}), enabled: v },
+              })
+            }
+            label="Kamera pengawasan (foto berkala)"
+            description="Peserta wajib mengaktifkan kamera; foto diambil berkala (bukan rekam video) untuk verifikasi integritas. Butuh persetujuan peserta + penyimpanan (R2)."
+          />
+          {antiCheat.camera_capture?.enabled && (
+            <div className="ml-7 mt-3">
+              <label className={fieldLabel}>Interval foto (detik)</label>
+              <Input
+                value={String(antiCheat.camera_capture?.interval_sec ?? 60)}
+                inputMode="numeric"
+                placeholder="60"
+                className="max-w-xs"
+                onChange={(e) => {
+                  const n = Number(digits(e.target.value).slice(0, 3)) || 60;
+                  setAntiCheat({
+                    ...antiCheat,
+                    camera_capture: { ...(antiCheat.camera_capture ?? {}), enabled: true, interval_sec: n },
+                  });
+                }}
+              />
+              <p className="mt-1.5 text-xs text-slate-400">Antara 15–600 detik. Default 60.</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

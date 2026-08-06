@@ -25,10 +25,16 @@ export interface AttemptEventItem {
   created_at: string | null;
 }
 
+export interface AttemptCapture {
+  url: string;
+  captured_at: string | null;
+}
+
 export interface AttemptIntegrity {
   violation_count: number;
   by_type: Record<string, number>;
   events: AttemptEventItem[];
+  captures?: AttemptCapture[];
 }
 
 export interface AdminResultsSummary {

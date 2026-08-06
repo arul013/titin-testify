@@ -16,7 +16,7 @@ from app.services.scoring_engine import is_official_itp
 # Reuse penilai auto + parser tanggal dari alur peserta (hindari duplikasi).
 from app.services.exam_attempt_service import _grade, _parse_dt
 from app.models.exam_attempt import (
-    SectionResult, AttemptReviewQuestion, AttemptIntegrity, AttemptEventItem,
+    SectionResult, AttemptReviewQuestion, AttemptIntegrity, AttemptEventItem, AttemptCapture,
 )
 from app.models.exam_results import (
     AdminAttemptRow,
@@ -216,12 +216,20 @@ class ExamResultsService:
         by_type: dict[str, int] = {}
         for r in ev_rows:
             by_type[r["type"]] = by_type.get(r["type"], 0) + 1
+        cap_rows = (
+            supabase.table("attempt_captures").select("url, captured_at")
+            .eq("attempt_id", attempt_id).order("captured_at").execute().data or []
+        )
         integrity = AttemptIntegrity(
             violation_count=attempt.get("violation_count") or 0,
             by_type=by_type,
             events=[
                 AttemptEventItem(type=r["type"], detail=r.get("detail"), created_at=_parse_dt(r.get("created_at")))
                 for r in ev_rows
+            ],
+            captures=[
+                AttemptCapture(url=r["url"], captured_at=_parse_dt(r.get("captured_at")))
+                for r in cap_rows
             ],
         )
 
