@@ -15,7 +15,7 @@ from app.config import get_settings
 from app.middleware.cors import setup_cors
 from app.middleware.rate_limit import limiter
 from app.middleware.observability import setup_logging, install_request_logging
-from app.routes import auth, users, questions, upload, exams, scoring_schemes, exam_attempts, test_types, scoring, rubrics, grading, internal, exam_results, participant_groups, notifications
+from app.routes import auth, users, questions, upload, exams, scoring_schemes, exam_attempts, test_types, scoring, rubrics, grading, internal, exam_results, participant_groups, notifications, dashboard
 
 settings = get_settings()
 
@@ -57,6 +57,7 @@ app.include_router(scoring.router)
 app.include_router(internal.router)
 app.include_router(participant_groups.router)
 app.include_router(notifications.router)
+app.include_router(dashboard.router)
 
 
 @app.get("/api/health")
