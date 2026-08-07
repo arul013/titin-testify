@@ -7,6 +7,9 @@
   --font-mono: var(--font-geist-mono);
   --font-body: var(--font-dm-sans);
   --animate-move-left: move-left 30s linear infinite;
+  /* Entrance halus (dashboard, dsb). Pakai: animate-fade-up / animate-fade-in. */
+  --animate-fade-up: fade-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-fade-in: fade-in 0.4s ease-out both;
 
   /* ─── Learning Nexus Design System — brand tokens ────────────────────────
      Fondasi portable. Saat DS diekstrak jadi package, blok ini pindah ke
@@ -25,6 +28,34 @@
   }
   to {
     transform: translateX(-50%);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Aksesibilitas: hormati preferensi kurangi-gerak. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-fade-in {
+    animation: none !important;
   }
 }
 

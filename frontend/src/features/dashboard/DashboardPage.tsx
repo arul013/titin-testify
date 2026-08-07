@@ -5,40 +5,61 @@ import { useRouter } from 'next/navigation';
 import {
   ClipboardCheck, Library, Users, Hourglass, ShieldAlert, BarChart3,
   Plus, ChevronRight, SquarePen, CheckCircle2, TrendingUp, History, UserCog,
+  Sparkles, ArrowUpRight,
 } from 'lucide-react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/src/lib/cn';
 import { useDashboard, type DashboardSummary } from './useDashboard';
 
+/** Delay masuk berjenjang (stagger) untuk animasi fade-up. */
+const stagger = (i: number): React.CSSProperties => ({ animationDelay: `${i * 70}ms` });
+
+// ─── Kartu KPI ───────────────────────────────────────────────
+type Tone = { chip: string; glow: string };
+const TONES: Record<string, Tone> = {
+  brand: { chip: 'bg-brand/10 text-brand', glow: 'bg-brand/20' },
+  blue: { chip: 'bg-blue-50 text-blue-600', glow: 'bg-blue-300/30' },
+  emerald: { chip: 'bg-emerald-50 text-emerald-600', glow: 'bg-emerald-300/30' },
+  amber: { chip: 'bg-amber-50 text-amber-600', glow: 'bg-amber-300/30' },
+  slate: { chip: 'bg-slate-100 text-slate-500', glow: 'bg-slate-300/20' },
+};
+
 function StatCard({
-  icon, label, value, sub, tone, onClick,
+  icon, label, value, sub, tone = 'brand', index, onClick,
 }: {
   icon: React.ReactNode; label: string; value: React.ReactNode; sub?: React.ReactNode;
-  tone?: string; onClick?: () => void;
+  tone?: keyof typeof TONES; index: number; onClick?: () => void;
 }) {
+  const t = TONES[tone];
   return (
-    <Card
-      variant={onClick ? 'interactive' : 'default'}
+    <button
+      type="button"
       onClick={onClick}
-      className={cn('flex items-center gap-4 rounded-2xl p-5', onClick && 'cursor-pointer transition-shadow hover:shadow-md')}
+      disabled={!onClick}
+      style={stagger(index)}
+      className={cn(
+        'group animate-fade-up relative overflow-hidden rounded-2xl border border-slate-200/70 bg-white p-5 text-left shadow-sm shadow-slate-200/40 transition-all duration-300',
+        onClick ? 'cursor-pointer hover:-translate-y-1 hover:border-brand/20 hover:shadow-xl hover:shadow-slate-200/70' : 'cursor-default',
+      )}
     >
-      <span className={cn('grid h-12 w-12 shrink-0 place-items-center rounded-2xl', tone ?? 'bg-brand/10 text-brand')}>
-        {icon}
-      </span>
-      <div className="min-w-0">
-        <p className="text-2xl font-extrabold tabular-nums leading-tight text-slate-900">{value}</p>
-        <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
-        {sub && <p className="mt-0.5 text-xs text-slate-500">{sub}</p>}
+      {/* glow halus saat hover */}
+      <div className={cn('pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100', t.glow)} />
+      <div className="relative flex items-start justify-between">
+        <span className={cn('grid h-11 w-11 place-items-center rounded-xl transition-transform duration-300 group-hover:scale-105', t.chip)}>
+          {icon}
+        </span>
+        {onClick && <ArrowUpRight className="h-4 w-4 text-slate-300 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-brand" />}
       </div>
-    </Card>
+      <p className="relative mt-4 text-3xl font-extrabold tabular-nums leading-none text-slate-900">{value}</p>
+      <p className="relative mt-1.5 text-sm font-bold text-slate-600">{label}</p>
+      {sub && <p className="relative mt-0.5 text-xs text-slate-400">{sub}</p>}
+    </button>
   );
 }
 
+// ─── Halaman ─────────────────────────────────────────────────
 export function DashboardPage() {
   const { user } = useAuth();
   const { data, isLoading } = useDashboard();
@@ -46,171 +67,138 @@ export function DashboardPage() {
 
   if (!user) return null;
 
+  const firstName = user.full_name?.split(' ')[0] || user.full_name;
+
   return (
-    <div className="flex flex-col gap-6 animate-fade-in">
+    <div className="flex flex-col gap-7">
       {/* Header */}
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+      <div className="animate-fade-up flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
-          <h1 className="font-heading text-3xl font-extrabold tracking-tight text-gray-900">
-            Selamat Datang,{' '}
-            <span className="bg-linear-to-r from-brand-start to-brand-end bg-clip-text text-transparent">
-              {user.full_name}
-            </span>
-            !
+          <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-brand/15 bg-brand/5 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-brand">
+            <Sparkles className="h-3 w-3" /> {user.role.replace('_', ' ')}
+          </div>
+          <h1 className="font-heading text-3xl font-extrabold tracking-tight text-slate-900">
+            Halo,{' '}
+            <span className="bg-linear-to-r from-brand-start to-brand-end bg-clip-text text-transparent">{firstName}</span>
+            <span className="text-slate-300"> 👋</span>
           </h1>
-          <p className="mt-1.5 font-medium text-gray-500">Ringkasan aktivitas CBT yang kamu kelola.</p>
+          <p className="mt-1 text-sm font-medium text-slate-500">Ringkasan aktivitas CBT yang kamu kelola.</p>
         </div>
-        <Badge variant="info" className="self-start px-4 py-1.5 text-xs font-bold uppercase tracking-wider shadow-xs md:self-auto">
-          {user.role.replace('_', ' ')}
-        </Badge>
       </div>
 
       {isLoading || !data ? (
         <DashboardSkeleton />
       ) : (
-        <AdminSections data={data} isSuper={user.role === 'super_admin'} router={router} />
+        <Sections data={data} isSuper={user.role === 'super_admin'} router={router} />
       )}
     </div>
   );
 }
 
-function AdminSections({ data, isSuper, router }: { data: DashboardSummary; isSuper: boolean; router: ReturnType<typeof useRouter> }) {
+function Sections({ data, isSuper, router }: { data: DashboardSummary; isSuper: boolean; router: ReturnType<typeof useRouter> }) {
   const go = (path: string) => () => router.push(path);
-  const scopeNote = isSuper ? 'seluruh sistem' : 'yang kamu kelola';
 
   return (
     <>
-      {/* Kartu statistik */}
+      {/* KPI */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          icon={<ClipboardCheck className="h-6 w-6" />}
-          label="Ujian"
-          value={data.exams.total}
-          sub={`${data.exams.published} tayang · ${data.exams.draft} draf`}
-          onClick={go('/manajemen-ujian')}
-        />
-        <StatCard
-          icon={<Library className="h-6 w-6" />}
-          label="Bank Soal"
-          value={data.questions.total}
-          sub={`${data.questions.published} tayang · ${data.passages_total} materi`}
-          tone="bg-blue-50 text-blue-600"
-          onClick={go('/bank-soal')}
-        />
-        <StatCard
-          icon={<Users className="h-6 w-6" />}
-          label="Peserta & Grup"
-          value={data.participants_total}
-          sub={`${data.groups_total} grup/kelas`}
-          tone="bg-emerald-50 text-emerald-600"
-        />
-        <StatCard
-          icon={<Hourglass className="h-6 w-6" />}
-          label="Menunggu Penilaian"
-          value={data.pending_grading}
+        <StatCard index={0} icon={<ClipboardCheck className="h-5.5 w-5.5" />} label="Ujian" value={data.exams.total}
+          sub={`${data.exams.published} tayang · ${data.exams.draft} draf`} onClick={go('/manajemen-ujian')} />
+        <StatCard index={1} tone="blue" icon={<Library className="h-5.5 w-5.5" />} label="Bank Soal" value={data.questions.total}
+          sub={`${data.questions.published} tayang · ${data.passages_total} materi`} onClick={go('/bank-soal')} />
+        <StatCard index={2} tone="emerald" icon={<Users className="h-5.5 w-5.5" />} label="Peserta & Grup" value={data.participants_total}
+          sub={`${data.groups_total} grup/kelas`} />
+        <StatCard index={3} tone={data.pending_grading > 0 ? 'amber' : 'slate'} icon={<Hourglass className="h-5.5 w-5.5" />}
+          label="Menunggu Penilaian" value={data.pending_grading}
           sub={data.pending_grading > 0 ? 'Perlu dinilai' : 'Tak ada antrean'}
-          tone={data.pending_grading > 0 ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'}
-          onClick={data.pending_grading > 0 ? go('/penilaian') : undefined}
-        />
+          onClick={data.pending_grading > 0 ? go('/penilaian') : undefined} />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         {/* Ujian aktif */}
-        <div className="lg:col-span-2">
-          <Card className="rounded-2xl p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-heading text-lg font-bold text-gray-900">Ujian Aktif</h3>
-              <button onClick={go('/manajemen-ujian')} className="text-xs font-bold text-brand hover:underline">
-                Semua ujian →
-              </button>
-            </div>
-            {data.active_exams.length === 0 ? (
-              <EmptyState
-                icon={<ClipboardCheck className="h-8 w-8" />}
-                title="Belum ada ujian tayang"
-                description={`Ujian Tayang ${scopeNote} akan muncul di sini beserta progres pesertanya.`}
-              />
-            ) : (
-              <div className="flex flex-col gap-3">
-                {data.active_exams.map((e) => (
-                  <div
+        <section style={stagger(4)} className="animate-fade-up rounded-2xl border border-slate-200/70 bg-white p-6 shadow-sm shadow-slate-200/40 lg:col-span-2">
+          <header className="mb-5 flex items-center justify-between">
+            <h3 className="font-heading text-lg font-extrabold text-slate-900">Ujian Aktif</h3>
+            <button onClick={go('/manajemen-ujian')} className="inline-flex items-center gap-1 text-xs font-bold text-brand transition-colors hover:text-brand-end">
+              Semua ujian <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </header>
+          {data.active_exams.length === 0 ? (
+            <EmptyState icon={<ClipboardCheck className="h-8 w-8" />} title="Belum ada ujian tayang"
+              description="Ujian yang sedang tayang akan muncul di sini beserta progres pesertanya." />
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              {data.active_exams.map((e) => {
+                const pct = e.participants > 0 ? Math.round((e.submitted / e.participants) * 100) : 0;
+                return (
+                  <button
                     key={e.exam_id}
-                    className="flex flex-col gap-2 rounded-2xl border border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between"
+                    onClick={() => router.push(`/manajemen-ujian/${e.exam_id}/hasil`)}
+                    className="group flex items-center gap-4 rounded-2xl border border-slate-100 p-4 text-left transition-all duration-200 hover:border-brand/25 hover:bg-slate-50/70 hover:shadow-sm"
                   >
-                    <div className="min-w-0">
-                      <h4 className="truncate font-bold text-slate-800">{e.title}</h4>
-                      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
-                        <span className="inline-flex items-center gap-1.5">
-                          <Users className="h-3.5 w-3.5 text-slate-400" />
-                          {e.submitted}/{e.participants} mengerjakan
-                        </span>
+                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-brand/10 text-brand">
+                      <ClipboardCheck className="h-5 w-5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <h4 className="truncate font-bold text-slate-800">{e.title}</h4>
                         {e.avg_score != null && (
-                          <span className="inline-flex items-center gap-1.5">
-                            <TrendingUp className="h-3.5 w-3.5 text-slate-400" /> Rata-rata {Math.round(e.avg_score)}
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-600">
+                            <TrendingUp className="h-3 w-3" /> {Math.round(e.avg_score)}
                           </span>
                         )}
                       </div>
+                      <div className="mt-1.5 flex items-center gap-2.5">
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                          <div className="h-full rounded-full bg-linear-to-r from-brand-start to-brand-end transition-all duration-500" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="shrink-0 text-[11px] font-semibold tabular-nums text-slate-400">{e.submitted}/{e.participants}</span>
+                      </div>
                     </div>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="shrink-0 font-bold"
-                      leftIcon={<BarChart3 className="h-4 w-4" />}
-                      onClick={() => router.push(`/manajemen-ujian/${e.exam_id}/hasil`)}
-                    >
-                      Lihat Hasil
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-        </div>
+                    <BarChart3 className="h-4.5 w-4.5 shrink-0 text-slate-300 transition-colors group-hover:text-brand" />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
 
         {/* Perlu tindakan + aksi cepat */}
-        <div className="flex flex-col gap-6">
-          <Card className="rounded-2xl p-6">
-            <h3 className="mb-4 font-heading text-lg font-bold text-gray-900">Perlu Tindakan</h3>
+        <div className="flex flex-col gap-5">
+          <section style={stagger(5)} className="animate-fade-up rounded-2xl border border-slate-200/70 bg-white p-6 shadow-sm shadow-slate-200/40">
+            <h3 className="mb-4 font-heading text-lg font-extrabold text-slate-900">Perlu Tindakan</h3>
             <div className="flex flex-col gap-2.5">
               {data.pending_grading > 0 && (
-                <ActionItem
-                  icon={<SquarePen className="h-4 w-4" />}
-                  tone="bg-amber-50 text-amber-600"
-                  title={`${data.pending_grading} jawaban menunggu dinilai`}
-                  onClick={go('/penilaian')}
-                />
+                <ActionItem icon={<SquarePen className="h-4 w-4" />} tone="bg-amber-50 text-amber-600"
+                  title={`${data.pending_grading} jawaban menunggu dinilai`} onClick={go('/penilaian')} />
               )}
               {data.flagged_attempts > 0 && (
-                <ActionItem
-                  icon={<ShieldAlert className="h-4 w-4" />}
-                  tone="bg-red-50 text-red-500"
-                  title={`${data.flagged_attempts} percobaan dengan pelanggaran integritas`}
-                  onClick={go('/manajemen-ujian')}
-                />
+                <ActionItem icon={<ShieldAlert className="h-4 w-4" />} tone="bg-red-50 text-red-500"
+                  title={`${data.flagged_attempts} percobaan berpelanggaran`} onClick={go('/manajemen-ujian')} />
               )}
               {data.pending_grading === 0 && data.flagged_attempts === 0 && (
-                <div className="flex items-center gap-2.5 rounded-2xl bg-emerald-50/60 px-4 py-3 text-sm font-semibold text-emerald-700">
-                  <CheckCircle2 className="h-4 w-4" /> Semua beres — tak ada yang perlu ditindak.
+                <div className="flex items-center gap-2.5 rounded-2xl bg-emerald-50/70 px-4 py-3.5 text-sm font-semibold text-emerald-700">
+                  <CheckCircle2 className="h-4.5 w-4.5" /> Semua beres — tak ada yang perlu ditindak.
                 </div>
               )}
             </div>
-          </Card>
+          </section>
 
-          <Card className="rounded-2xl p-6">
-            <h3 className="mb-4 font-heading text-lg font-bold text-gray-900">Aksi Cepat</h3>
-            <div className="flex flex-col gap-2">
+          <section style={stagger(6)} className="animate-fade-up rounded-2xl border border-slate-200/70 bg-white p-6 shadow-sm shadow-slate-200/40">
+            <h3 className="mb-4 font-heading text-lg font-extrabold text-slate-900">Aksi Cepat</h3>
+            <div className="flex flex-col gap-1">
               <QuickLink icon={<Plus className="h-4 w-4" />} label="Buat Ujian" onClick={go('/manajemen-ujian')} />
               <QuickLink icon={<Library className="h-4 w-4" />} label="Bank Soal" onClick={go('/bank-soal')} />
               <QuickLink icon={<SquarePen className="h-4 w-4" />} label="Penilaian" onClick={go('/penilaian')} />
               {isSuper && <QuickLink icon={<Users className="h-4 w-4" />} label="Manajemen User" onClick={go('/users')} />}
             </div>
-          </Card>
+          </section>
         </div>
       </div>
 
-      {/* Super Admin: pengguna + audit sistem */}
+      {/* Super Admin */}
       {isSuper && data.users && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
           <UsersCard users={data.users} onManage={go('/users')} />
           <AuditCard items={data.audit_recent ?? []} />
         </div>
@@ -220,36 +208,57 @@ function AdminSections({ data, isSuper, router }: { data: DashboardSummary; isSu
 }
 
 function UsersCard({ users, onManage }: { users: NonNullable<DashboardSummary['users']>; onManage: () => void }) {
+  const activePct = users.total > 0 ? Math.round((users.active / users.total) * 100) : 0;
   return (
-    <Card className="rounded-2xl p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="inline-flex items-center gap-2 font-heading text-lg font-bold text-gray-900">
+    <section style={stagger(7)} className="animate-fade-up rounded-2xl border border-slate-200/70 bg-white p-6 shadow-sm shadow-slate-200/40">
+      <header className="mb-4 flex items-center justify-between">
+        <h3 className="inline-flex items-center gap-2 font-heading text-lg font-extrabold text-slate-900">
           <UserCog className="h-5 w-5 text-brand" /> Pengguna
         </h3>
-        <button onClick={onManage} className="text-xs font-bold text-brand hover:underline">Kelola →</button>
+        <button onClick={onManage} className="inline-flex items-center gap-1 text-xs font-bold text-brand hover:text-brand-end">
+          Kelola <ChevronRight className="h-3.5 w-3.5" />
+        </button>
+      </header>
+      <div className="flex items-end gap-2">
+        <p className="text-4xl font-extrabold tabular-nums leading-none text-slate-900">{users.total}</p>
+        <p className="pb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">total akun</p>
       </div>
-      <p className="text-3xl font-extrabold tabular-nums text-slate-900">{users.total}</p>
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">total akun</p>
-      <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-        <div className="rounded-xl border border-slate-100 px-3 py-2">
-          <p className="font-extrabold tabular-nums text-slate-800">{users.admins}</p>
-          <p className="text-[11px] text-slate-400">Admin</p>
+      <div className="mt-4 grid grid-cols-2 gap-2.5">
+        <div className="rounded-xl bg-slate-50 px-3.5 py-2.5">
+          <p className="text-lg font-extrabold tabular-nums text-slate-800">{users.admins}</p>
+          <p className="text-[11px] font-semibold text-slate-400">Admin</p>
         </div>
-        <div className="rounded-xl border border-slate-100 px-3 py-2">
-          <p className="font-extrabold tabular-nums text-slate-800">{users.participants}</p>
-          <p className="text-[11px] text-slate-400">Peserta</p>
+        <div className="rounded-xl bg-slate-50 px-3.5 py-2.5">
+          <p className="text-lg font-extrabold tabular-nums text-slate-800">{users.participants}</p>
+          <p className="text-[11px] font-semibold text-slate-400">Peserta</p>
         </div>
       </div>
-      <div className="mt-2 flex items-center gap-3 text-xs">
-        <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-600">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> {users.active} aktif
-        </span>
-        <span className="inline-flex items-center gap-1.5 font-semibold text-slate-400">
-          <span className="h-1.5 w-1.5 rounded-full bg-slate-300" /> {users.inactive} nonaktif
-        </span>
+      <div className="mt-4">
+        <div className="mb-1.5 flex items-center justify-between text-[11px] font-semibold">
+          <span className="text-emerald-600">{users.active} aktif</span>
+          <span className="text-slate-400">{users.inactive} nonaktif</span>
+        </div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+          <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${activePct}%` }} />
+        </div>
       </div>
-    </Card>
+    </section>
   );
+}
+
+// action → warna titik + label ramah
+const ACTION_META: Record<string, { dot: string }> = {
+  create: { dot: 'bg-emerald-500' },
+  update: { dot: 'bg-amber-500' },
+  delete: { dot: 'bg-red-500' },
+  publish: { dot: 'bg-blue-500' },
+  unpublish: { dot: 'bg-slate-400' },
+  duplicate: { dot: 'bg-violet-500' },
+  reset: { dot: 'bg-orange-500' },
+};
+function actionDot(action: string): string {
+  const key = Object.keys(ACTION_META).find((k) => action.includes(k));
+  return key ? ACTION_META[key].dot : 'bg-slate-300';
 }
 
 function auditRelTime(iso: string | null): string {
@@ -265,29 +274,32 @@ function auditRelTime(iso: string | null): string {
 
 function AuditCard({ items }: { items: NonNullable<DashboardSummary['audit_recent']> }) {
   return (
-    <Card className="rounded-2xl p-6 lg:col-span-2">
-      <h3 className="mb-4 inline-flex items-center gap-2 font-heading text-lg font-bold text-gray-900">
+    <section style={stagger(8)} className="animate-fade-up rounded-2xl border border-slate-200/70 bg-white p-6 shadow-sm shadow-slate-200/40 lg:col-span-2">
+      <h3 className="mb-4 inline-flex items-center gap-2 font-heading text-lg font-extrabold text-slate-900">
         <History className="h-5 w-5 text-brand" /> Aktivitas Sistem
       </h3>
       {items.length === 0 ? (
         <EmptyState icon={<History className="h-8 w-8" />} title="Belum ada aktivitas" description="Aksi admin (buat/ubah/hapus) akan tercatat di sini." />
       ) : (
-        <div className="flex flex-col">
+        <ol className="relative flex flex-col">
+          {/* garis penghubung */}
+          <span className="absolute left-[5px] top-2 bottom-2 w-px bg-slate-100" aria-hidden />
           {items.map((a, i) => (
-            <div key={i} className={cn('flex items-start justify-between gap-3 py-2.5', i > 0 && 'border-t border-slate-100')}>
-              <div className="min-w-0">
+            <li key={i} className="relative flex items-start gap-3.5 py-2.5 pl-0">
+              <span className={cn('relative z-10 mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ring-4 ring-white', actionDot(a.action))} />
+              <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-slate-700">{a.summary || a.action}</p>
                 <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-400">
                   <span className="font-bold text-slate-500">{a.actor_name || 'Sistem'}</span>
-                  <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-500">{a.action}</span>
+                  <span className="font-mono text-[10px] text-slate-400">· {a.action}</span>
                 </p>
               </div>
               <span className="shrink-0 whitespace-nowrap text-[11px] tabular-nums text-slate-400">{auditRelTime(a.created_at)}</span>
-            </div>
+            </li>
           ))}
-        </div>
+        </ol>
       )}
-    </Card>
+    </section>
   );
 }
 
@@ -295,11 +307,11 @@ function ActionItem({ icon, tone, title, onClick }: { icon: React.ReactNode; ton
   return (
     <button
       onClick={onClick}
-      className="group flex w-full items-center gap-3 rounded-2xl border border-slate-100 p-3 text-left transition-colors hover:border-brand/30 hover:bg-slate-50"
+      className="group flex w-full items-center gap-3 rounded-2xl border border-slate-100 p-3 text-left transition-all duration-200 hover:border-brand/25 hover:bg-slate-50/70"
     >
       <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl', tone)}>{icon}</span>
       <span className="min-w-0 flex-1 text-sm font-bold text-slate-700">{title}</span>
-      <ChevronRight className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-brand" />
+      <ChevronRight className="h-4 w-4 shrink-0 text-slate-300 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-brand" />
     </button>
   );
 }
@@ -308,26 +320,26 @@ function QuickLink({ icon, label, onClick }: { icon: React.ReactNode; label: str
   return (
     <button
       onClick={onClick}
-      className="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-brand"
+      className="group flex items-center gap-3 rounded-xl px-2.5 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-brand"
     >
-      <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-slate-500 group-hover:bg-brand/10 group-hover:text-brand">
+      <span className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-500 transition-colors group-hover:bg-brand/10 group-hover:text-brand">
         {icon}
       </span>
       <span className="flex-1 text-left">{label}</span>
-      <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-brand" />
+      <ChevronRight className="h-4 w-4 text-slate-300 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-brand" />
     </button>
   );
 }
 
 function DashboardSkeleton() {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
+        {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-32 rounded-2xl" />)}
       </div>
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Skeleton className="h-72 rounded-2xl lg:col-span-2" />
-        <Skeleton className="h-72 rounded-2xl" />
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <Skeleton className="h-80 rounded-2xl lg:col-span-2" />
+        <Skeleton className="h-80 rounded-2xl" />
       </div>
     </div>
   );
