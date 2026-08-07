@@ -10,8 +10,13 @@ function fmt(t: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-/** Pemutar audio soal — kontrol kustom (bukan native): play/pause + progress + waktu. */
-export const ExamAudioPlayer: React.FC<{ src: string }> = ({ src }) => {
+/** Pemutar audio soal — kontrol kustom (bukan native): play/pause + progress + waktu.
+ *  Dipakai peserta (label default "Audio Soal") maupun editor Bank Soal
+ *  (mis. label "Listening Audio Player" / "Preview Player"). */
+export const ExamAudioPlayer: React.FC<{ src: string; label?: string }> = ({
+  src,
+  label = 'Audio Soal',
+}) => {
   const ref = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [cur, setCur] = useState(0);
@@ -38,7 +43,7 @@ export const ExamAudioPlayer: React.FC<{ src: string }> = ({ src }) => {
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col gap-3">
       <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-brand">
         <Headphones className="w-4 h-4" />
-        Audio Soal
+        {label}
       </div>
 
       <div className="flex items-center gap-3.5">

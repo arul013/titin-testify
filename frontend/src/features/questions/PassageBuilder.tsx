@@ -13,6 +13,7 @@ import { RichPassageEditor } from "./RichPassageEditor";
 import { PassageView } from "./PassageView";
 import { renderExamText } from "./examText";
 import { BankSoalBuilder } from "./BankSoalBuilder";
+import { ExamAudioPlayer } from "@/features/attempts/ExamAudioPlayer";
 import {
   Music,
   FileText,
@@ -350,10 +351,7 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
           </div>
           {audioUrl && (
             <div className="pt-2 border-t border-indigo-100">
-              <p className="text-[10px] font-bold text-slate-500 mb-1">
-                Preview Player:
-              </p>
-              <audio src={audioUrl} controls className="w-full h-8" />
+              <ExamAudioPlayer src={audioUrl} label="Preview Player" />
             </div>
           )}
         </div>
@@ -586,13 +584,7 @@ export const PassageBuilder: React.FC<PassageBuilderProps> = ({
       ) : (
         <div className="flex flex-col gap-4">
           {audioUrl && (
-            <div className="bg-white border border-slate-200/50 p-4 rounded-xl shadow-sm flex flex-col gap-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-indigo-700">
-                <Music className="w-4 h-4 text-indigo-600" />
-                Listening Audio Player
-              </div>
-              <audio src={audioUrl} controls className="w-full h-8" />
-            </div>
+            <ExamAudioPlayer src={audioUrl} label="Listening Audio Player" />
           )}
           {imagePosition === "above"
             ? [imgNode, textNode]

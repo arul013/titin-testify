@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PassageView } from "./PassageView";
+import { ExamAudioPlayer } from "@/features/attempts/ExamAudioPlayer";
 import { MateriQuestionsEditor } from "./MateriQuestionsEditor";
 import { renderExamText } from "./examText";
 import type { Passage, Question } from "./hooks/useQuestions";
@@ -66,9 +67,7 @@ export const PassageDetailPanel: React.FC<PassageDetailPanelProps> = ({
           z-20 supaya audio selalu di atas input opsi (Input DS punya z-10 internal). */}
       {passage.audio_url && (
         <div className="sticky top-4 z-20 bg-white/95 backdrop-blur-sm pb-1">
-          <div className="bg-slate-50 p-2.5 border border-slate-200/50 rounded-xl">
-            <audio src={passage.audio_url} controls className="w-full h-8" />
-          </div>
+          <ExamAudioPlayer src={passage.audio_url} label="Audio Materi" />
         </div>
       )}
       <div className="flex flex-col gap-4">

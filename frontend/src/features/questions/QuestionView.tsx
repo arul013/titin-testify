@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Music, FileText, CheckCircle2, AlertCircle, BookOpen } from 'lucide-react';
 import { renderExamText } from './examText';
 import { PassageView } from './PassageView';
+import { ExamAudioPlayer } from '@/features/attempts/ExamAudioPlayer';
 import { SkeletonText } from '@/components/ui/skeleton';
 import type { Question, Passage } from './hooks/useQuestions';
 
@@ -145,26 +146,14 @@ export const QuestionView: React.FC<QuestionViewProps> = ({
           {passage ? (
             <div className="flex flex-col gap-4 flex-1">
               {passage.audio_url && (
-                <div className="bg-white border border-slate-200/50 p-4 rounded-xl shadow-sm flex flex-col gap-2">
-                  <div className="flex items-center gap-2 text-xs font-bold text-indigo-700">
-                    <Music className="w-4 h-4 text-indigo-600" />
-                    Listening Audio Player
-                  </div>
-                  <audio src={passage.audio_url} controls className="w-full h-8" />
-                </div>
+                <ExamAudioPlayer src={passage.audio_url} label="Listening Audio Player" />
               )}
               {(passage.image_position === 'above'
                 ? [passageImageNode, passageTextNode]
                 : [passageTextNode, passageImageNode])}
             </div>
           ) : standaloneAudio ? (
-            <div className="bg-white border border-slate-200/50 p-4 rounded-xl shadow-sm flex flex-col gap-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-indigo-700">
-                <Music className="w-4 h-4 text-indigo-600" />
-                Listening Audio Player
-              </div>
-              <audio src={standaloneAudio} controls className="w-full h-8" />
-            </div>
+            <ExamAudioPlayer src={standaloneAudio} label="Listening Audio Player" />
           ) : passageLoading ? (
             <div className="flex-1 bg-white border border-slate-200/50 p-4 rounded-xl shadow-sm">
               <SkeletonText lines={6} />

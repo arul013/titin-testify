@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ToggleGroup } from '@/components/ui/toggle-group';
 import { FileUploader } from '@/components/ui/file-uploader';
 import { UnderlineEditor } from './UnderlineEditor';
+import { ExamAudioPlayer } from '@/features/attempts/ExamAudioPlayer';
 import { X, BookOpen, HelpCircle, Image as ImageIcon, Music, ChevronDown, ClipboardCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRubrics } from '@/features/scoring/useRubrics';
@@ -115,8 +116,7 @@ export const QuestionFields: React.FC<QuestionFieldsProps> = ({ form, idPrefix =
           </div>
           {audioUrl && (
             <div className="pt-2 border-t border-indigo-100">
-              <p className="text-[10px] font-bold text-slate-500 mb-1">Preview Player:</p>
-              <audio src={audioUrl} controls className="w-full h-8" />
+              <ExamAudioPlayer src={audioUrl} label="Preview Player" />
             </div>
           )}
         </div>
