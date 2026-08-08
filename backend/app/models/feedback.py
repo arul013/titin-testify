@@ -54,3 +54,24 @@ class FeedbackItem(BaseModel):
 class FeedbackListResponse(BaseModel):
     items: list[FeedbackItem]
     total: int
+
+
+# ─── Komentar (Fase 3) ───────────────────────────────────────
+
+class CreateCommentRequest(BaseModel):
+    body: str = Field(..., min_length=1, max_length=4000)
+
+
+class FeedbackComment(BaseModel):
+    id: str
+    feedback_id: str
+    author_id: str
+    author_name: Optional[str] = None
+    body: str
+    can_delete: bool = False
+    created_at: Optional[datetime] = None
+
+
+class FeedbackCommentListResponse(BaseModel):
+    comments: list[FeedbackComment]
+    total: int

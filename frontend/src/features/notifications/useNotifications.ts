@@ -8,7 +8,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 
 export type NotificationType =
   | 'exam_assigned' | 'exam_opening' | 'exam_closing' | 'result_ready'
-  | 'feedback_created' | 'feedback_status_changed';
+  | 'feedback_created' | 'feedback_status_changed' | 'feedback_commented';
 
 export interface AppNotification {
   id: string;

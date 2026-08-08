@@ -33,7 +33,7 @@ export const MasukanPage: React.FC = () => {
   const [priority, setPriority] = useState('');
   const [view, setView] = useState<'grid' | 'list'>('grid');
 
-  const { items, total, isLoading, createItem, updateItem, updateStatus, deleteItem } =
+  const { items, total, isLoading, createItem, updateItem, updateStatus, deleteItem, bumpCommentCount } =
     useFeedback({ status, category, priority, search, sort });
 
   const [formOpen, setFormOpen] = useState(false);
@@ -150,6 +150,7 @@ export const MasukanPage: React.FC = () => {
         onEdit={openEdit}
         onChangeStatus={(id, s: Status) => updateStatus(id, s)}
         onDelete={deleteItem}
+        onCommentCountChange={bumpCommentCount}
       />
     </PageContainer>
   );

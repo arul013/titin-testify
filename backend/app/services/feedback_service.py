@@ -18,6 +18,7 @@ from app.services.notification_service import NotificationService
 from app.models.feedback import (
     CreateFeedbackRequest, UpdateFeedbackRequest,
     FeedbackItem, FeedbackListResponse,
+    FeedbackComment, FeedbackCommentListResponse,
 )
 
 # Kolom yang dipilih dari DB + join nama pembuat.
@@ -197,3 +198,89 @@ class FeedbackService:
         supabase = get_supabase_admin()
         FeedbackService._load_for_manage(supabase, item_id, user_id, user_role)
         supabase.table("feedback_items").delete().eq("id", item_id).execute()
+
+    # ─── Komentar (Fase 3) ────────────────────────────────────
+
+    @staticmethod
+    def _sync_comment_count(supabase, item_id: str) -> int:
+        """Hitung ulang & simpan comment_count (self-healing, anti-drift)."""
+        count = (
+            supabase.table("feedback_comments").select("id", count=CountMethod.exact)
+            .eq("feedback_id", item_id).execute().count or 0
+        )
+        supabase.table("feedback_items").update({"comment_count": count}).eq("id", item_id).execute()
+        return count
+
+    @staticmethod
+    async def list_comments(
+        item_id: str, user_id: str, user_role: str
+    ) -> FeedbackCommentListResponse:
+        supabase = get_supabase_admin()
+        rows = (
+            supabase.table("feedback_comments")
+            .select("*, profiles!feedback_comments_author_id_fkey(full_name)")
+            .eq("feedback_id", item_id).order("created_at", desc=False).execute().data or []
+        )
+        comments = [
+            FeedbackComment(
+                id=r["id"], feedback_id=r["feedback_id"], author_id=r["author_id"],
+                author_name=(r.get("profiles") or {}).get("full_name"),
+                body=r["body"],
+                can_delete=(user_role == "super_admin" or r["author_id"] == user_id),
+                created_at=r.get("created_at"),
+            )
+            for r in rows
+        ]
+        return FeedbackCommentListResponse(comments=comments, total=len(comments))
+
+    @staticmethod
+    async def add_comment(
+        item_id: str, body: str, user_id: str, user_role: str
+    ) -> FeedbackComment:
+        supabase = get_supabase_admin()
+        item = supabase.table("feedback_items").select("id, title, created_by").eq("id", item_id).single().execute()
+        if not item.data:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Item tidak ditemukan.")
+
+        res = supabase.table("feedback_comments").insert({
+            "feedback_id": item_id, "author_id": user_id, "body": body,
+        }).execute()
+        if not res.data:
+            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Gagal menambah komentar.")
+        FeedbackService._sync_comment_count(supabase, item_id)
+
+        row = res.data[0]
+        actor = supabase.table("profiles").select("full_name").eq("id", user_id).single().execute()
+        author_name = (actor.data or {}).get("full_name")
+
+        # Notif ke PEMBUAT item bila yang berkomentar orang lain.
+        creator_id = item.data["created_by"]
+        if creator_id != user_id:
+            NotificationService.notify(
+                [creator_id],
+                "feedback_commented",
+                f"Komentar baru: {item.data['title']}",
+                body=f"{author_name or 'Admin'} menambahkan komentar.",
+                entity_type="feedback", entity_id=item_id,
+                refresh=True,
+            )
+
+        return FeedbackComment(
+            id=row["id"], feedback_id=item_id, author_id=user_id,
+            author_name=author_name, body=row["body"],
+            can_delete=True, created_at=row.get("created_at"),
+        )
+
+    @staticmethod
+    async def delete_comment(comment_id: str, user_id: str, user_role: str) -> None:
+        supabase = get_supabase_admin()
+        existing = (
+            supabase.table("feedback_comments").select("author_id, feedback_id")
+            .eq("id", comment_id).single().execute()
+        )
+        if not existing.data:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Komentar tidak ditemukan.")
+        if user_role != "super_admin" and existing.data["author_id"] != user_id:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Anda tidak berhak menghapus komentar ini.")
+        supabase.table("feedback_comments").delete().eq("id", comment_id).execute()
+        FeedbackService._sync_comment_count(supabase, existing.data["feedback_id"])

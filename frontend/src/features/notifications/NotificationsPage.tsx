@@ -9,6 +9,7 @@ import {
   Award,
   CheckCheck,
   MessageSquarePlus,
+  MessageSquare,
   RefreshCw,
 } from "lucide-react";
 import { PageContainer } from "@/components/ui/page-container";
@@ -47,6 +48,10 @@ const META: Record<string, { icon: React.ReactNode; tone: string }> = {
   feedback_status_changed: {
     icon: <RefreshCw className="h-5 w-5" />,
     tone: "bg-amber-50 text-amber-600",
+  },
+  feedback_commented: {
+    icon: <MessageSquare className="h-5 w-5" />,
+    tone: "bg-blue-50 text-blue-600",
   },
 };
 

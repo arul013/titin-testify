@@ -104,5 +104,14 @@ export function useFeedback(filters: FeedbackFilters) {
     setItems((prev) => prev.filter((it) => it.id !== id));
   }, []);
 
-  return { items, total, isLoading, refetch, createItem, updateItem, updateStatus, deleteItem };
+  const bumpCommentCount = useCallback((id: string, delta: number) => {
+    setItems((prev) => prev.map((it) =>
+      it.id === id ? { ...it, comment_count: Math.max(0, it.comment_count + delta) } : it,
+    ));
+  }, []);
+
+  return {
+    items, total, isLoading, refetch,
+    createItem, updateItem, updateStatus, deleteItem, bumpCommentCount,
+  };
 }

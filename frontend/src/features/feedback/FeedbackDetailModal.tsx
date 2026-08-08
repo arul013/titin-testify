@@ -10,6 +10,7 @@ import { Pencil, Trash2, User, Clock, ThumbsUp, MessageSquare } from 'lucide-rea
 import { toast } from 'sonner';
 import { getErrorMessage } from '@/lib/errors';
 import { renderFeedbackText } from './feedbackText';
+import { FeedbackComments } from './FeedbackComments';
 import {
   CATEGORY_META, PRIORITY_META, STATUS_META, STATUS_ORDER,
 } from './taxonomy';
@@ -29,10 +30,11 @@ interface Props {
   onEdit: (item: FeedbackItem) => void;
   onChangeStatus: (id: string, status: Status) => Promise<unknown>;
   onDelete: (id: string) => Promise<unknown>;
+  onCommentCountChange: (id: string, delta: number) => void;
 }
 
 export const FeedbackDetailModal: React.FC<Props> = ({
-  item, onClose, onEdit, onChangeStatus, onDelete,
+  item, onClose, onEdit, onChangeStatus, onDelete, onCommentCountChange,
 }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -126,6 +128,11 @@ export const FeedbackDetailModal: React.FC<Props> = ({
           </div>
 
           <div>{renderFeedbackText(item.description)}</div>
+
+          <FeedbackComments
+            itemId={item.id}
+            onCountChange={(delta) => onCommentCountChange(item.id, delta)}
+          />
         </div>
       </Modal>
 

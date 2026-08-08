@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from app.models.feedback import (
     CreateFeedbackRequest, UpdateFeedbackRequest, UpdateStatusRequest,
     FeedbackItem, FeedbackListResponse,
+    CreateCommentRequest, FeedbackComment, FeedbackCommentListResponse,
 )
 from app.models.user import UserProfile
 from app.services.feedback_service import FeedbackService
@@ -105,3 +106,34 @@ async def delete_feedback(
         entity_id=item_id, summary="Hapus item masukan",
     )
     return {"message": "Item dihapus.", "success": True}
+
+
+# ─── Komentar (Fase 3) ───────────────────────────────────────
+
+@router.get("/api/feedback/{item_id}/comments", response_model=FeedbackCommentListResponse)
+async def list_comments(
+    item_id: str,
+    current_user: UserProfile = Depends(require_admin),
+):
+    """Daftar komentar sebuah item (semua admin melihat)."""
+    return await FeedbackService.list_comments(item_id, current_user.id, current_user.role.value)
+
+
+@router.post("/api/feedback/{item_id}/comments", response_model=FeedbackComment, status_code=201)
+async def add_comment(
+    item_id: str,
+    request: CreateCommentRequest,
+    current_user: UserProfile = Depends(require_admin),
+):
+    """Tambah komentar (semua admin)."""
+    return await FeedbackService.add_comment(item_id, request.body, current_user.id, current_user.role.value)
+
+
+@router.delete("/api/feedback/comments/{comment_id}")
+async def delete_comment(
+    comment_id: str,
+    current_user: UserProfile = Depends(require_admin),
+):
+    """Hapus komentar (penulis komentar atau super_admin)."""
+    await FeedbackService.delete_comment(comment_id, current_user.id, current_user.role.value)
+    return {"message": "Komentar dihapus.", "success": True}
