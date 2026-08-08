@@ -13,7 +13,6 @@ import {
   CheckCircle2,
   AlertCircle,
   HelpCircle,
-  ClipboardCheck,
 } from "lucide-react";
 import type { Question } from "./hooks/useQuestions";
 
@@ -213,11 +212,6 @@ export const QuestionTable: React.FC<QuestionTableProps> = ({
                     <td className="py-4 px-6 whitespace-nowrap">
                       <div className="flex flex-col items-start gap-1.5">
                         {getStatusBadge(q.status)}
-                        {(q.used_in_exams ?? 0) > 0 && (
-                          <Badge variant="info" className="flex items-center gap-1 text-[10px] font-bold">
-                            <ClipboardCheck className="w-3 h-3" /> Dipakai di {q.used_in_exams} ujian
-                          </Badge>
-                        )}
                       </div>
                     </td>
 

@@ -81,7 +81,7 @@ export function NotificationsPage() {
   const open = (n: AppNotification) => {
     if (!n.read_at) markRead(n.id);
     if (n.entity_type === "feedback") {
-      router.push(n.entity_id ? `/masukan?item=${n.entity_id}` : "/masukan");
+      router.push(n.entity_id ? `/masukan/${n.entity_id}` : "/masukan");
     } else if (n.type === "result_ready" && n.entity_id) {
       router.push(`/ujian/hasil/${n.entity_id}`);
     } else {

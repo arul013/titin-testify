@@ -2,9 +2,8 @@
 
 import React, { useState } from "react";
 import { Textarea } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Send, Trash2, MessageSquare } from "lucide-react";
+import { Send, Trash2, MessageSquare, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/errors";
 import { useFeedbackComments } from "./useFeedbackComments";
@@ -126,25 +125,37 @@ export const FeedbackComments: React.FC<Props> = ({
         </ul>
       )}
 
-      <div className="flex items-end gap-2">
+      <div className="relative">
         <Textarea
-          rows={2}
+          rows={3}
           value={body}
           placeholder="Tulis komentar…"
-          className="text-sm"
-          containerClassName="flex-1"
+          className="text-sm pr-14 resize-none"
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
             setBody(e.target.value)
           }
+          onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+            // Ctrl/⌘ + Enter untuk kirim cepat.
+            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+              e.preventDefault();
+              void handleSend();
+            }
+          }}
         />
-        <Button
+        <button
+          type="button"
           onClick={handleSend}
-          loading={sending}
-          disabled={!body.trim()}
-          leftIcon={<Send className="w-4 h-4" />}
+          disabled={sending || !body.trim()}
+          title="Kirim komentar (⌘/Ctrl + Enter)"
+          aria-label="Kirim komentar"
+          className="absolute bottom-3 right-3 z-20 grid h-9 w-9 place-items-center rounded-lg bg-brand text-white shadow-sm shadow-brand/25 transition hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          Kirim
-        </Button>
+          {sending ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Send className="w-4 h-4" />
+          )}
+        </button>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { MessageSquarePlus, Plus, Inbox } from 'lucide-react';
 import { PageContainer } from '@/components/ui/page-container';
 import { PageHeader } from '@/components/ui/page-header';
@@ -9,14 +10,12 @@ import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { FAB } from '@/components/ui/FAB';
-import { useFeedback, type FeedbackItem, type FeedbackInput } from './useFeedback';
+import { useFeedback, type FeedbackInput } from './useFeedback';
 import { FeedbackCard } from './FeedbackCard';
 import { FeedbackFormModal } from './FeedbackFormModal';
-import { FeedbackDetailModal } from './FeedbackDetailModal';
 import {
   CATEGORY_ORDER, PRIORITY_ORDER, STATUS_ORDER,
   PRIORITY_META, STATUS_META, categoryOptionLabel,
-  type Status,
 } from './taxonomy';
 
 const SORT_OPTIONS = [
@@ -33,35 +32,16 @@ export const MasukanPage: React.FC = () => {
   const [priority, setPriority] = useState('');
   const [view, setView] = useState<'grid' | 'list'>('grid');
 
-  const { items, total, isLoading, createItem, updateItem, updateStatus, deleteItem, bumpCommentCount, toggleVote } =
+  const router = useRouter();
+  const { items, total, isLoading, createItem } =
     useFeedback({ status, category, priority, search, sort });
 
   const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<FeedbackItem | null>(null);
-  const [detail, setDetail] = useState<FeedbackItem | null>(null);
 
-  // Deep-link dari notifikasi (`/masukan?item=<id>`): buka detail sekali saat
-  // item termuat — dibaca sekali dari URL (tanpa useSearchParams → tanpa Suspense).
-  const [deepLinkId] = useState<string | null>(() => {
-    if (typeof window === 'undefined') return null;
-    return new URLSearchParams(window.location.search).get('item');
-  });
-  const [deepLinkDone, setDeepLinkDone] = useState(false);
-  if (!deepLinkDone && deepLinkId && items.length > 0) {
-    setDeepLinkDone(true);
-    const found = items.find((it) => it.id === deepLinkId);
-    if (found) setDetail(found);
-  }
-
-  // Jaga agar modal detail menampilkan data terbaru setelah item diperbarui.
-  const detailLive = detail ? items.find((it) => it.id === detail.id) ?? detail : null;
-
-  const openCreate = () => { setEditing(null); setFormOpen(true); };
-  const openEdit = (item: FeedbackItem) => { setDetail(null); setEditing(item); setFormOpen(true); };
+  const openDetail = (id: string) => router.push(`/masukan/${id}`);
 
   const handleSubmit = async (input: FeedbackInput) => {
-    if (editing) await updateItem(editing.id, input);
-    else await createItem(input);
+    await createItem(input);
   };
 
   return (
@@ -128,30 +108,20 @@ export const MasukanPage: React.FC = () => {
             <p className="mb-3 text-xs text-slate-400">{total} item</p>
             <div className={view === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3' : 'flex flex-col gap-3'}>
               {items.map((item) => (
-                <FeedbackCard key={item.id} item={item} onOpen={setDetail} />
+                <FeedbackCard key={item.id} item={item} onOpen={(it) => openDetail(it.id)} />
               ))}
             </div>
           </>
         )}
       </div>
 
-      <FAB actions={[{ icon: <Plus className="w-6 h-6" />, label: 'Tambah Masukan', onClick: openCreate }]} />
+      <FAB actions={[{ icon: <Plus className="w-6 h-6" />, label: 'Tambah Masukan', onClick: () => setFormOpen(true) }]} />
 
       <FeedbackFormModal
         open={formOpen}
         onClose={() => setFormOpen(false)}
-        editing={editing}
+        editing={null}
         onSubmit={handleSubmit}
-      />
-
-      <FeedbackDetailModal
-        item={detailLive}
-        onClose={() => setDetail(null)}
-        onEdit={openEdit}
-        onChangeStatus={(id, s: Status) => updateStatus(id, s)}
-        onDelete={deleteItem}
-        onCommentCountChange={bumpCommentCount}
-        onToggleVote={toggleVote}
       />
     </PageContainer>
   );

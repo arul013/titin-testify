@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Music, Layers, Edit2, Trash2, BookOpen, ClipboardCheck } from 'lucide-react';
+import { Music, Layers, Edit2, Trash2, BookOpen } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -82,11 +82,6 @@ export const PassageTable: React.FC<PassageTableProps> = ({
                         <span className="font-bold text-slate-700 text-sm bg-slate-100 px-3 py-1 rounded-xl">
                           {p.questions_count} Soal
                         </span>
-                        {(p.used_in_exams ?? 0) > 0 && (
-                          <Badge variant="info" className="gap-1 text-[10px] font-bold">
-                            <ClipboardCheck className="w-3 h-3" /> Dipakai di {p.used_in_exams} ujian
-                          </Badge>
-                        )}
                       </div>
                     </td>
                     <td className="py-4 px-6 whitespace-nowrap">
