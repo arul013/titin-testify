@@ -15,7 +15,7 @@ import { FeedbackFormModal } from './FeedbackFormModal';
 import { FeedbackDetailModal } from './FeedbackDetailModal';
 import {
   CATEGORY_ORDER, PRIORITY_ORDER, STATUS_ORDER,
-  CATEGORY_META, PRIORITY_META, STATUS_META,
+  PRIORITY_META, STATUS_META, categoryOptionLabel,
   type Status,
 } from './taxonomy';
 
@@ -94,7 +94,7 @@ export const MasukanPage: React.FC = () => {
           <Select value={category} onChange={(e) => setCategory(e.target.value)}>
             <option value="">Semua Kategori</option>
             {CATEGORY_ORDER.map((c) => (
-              <option key={c} value={c}>{CATEGORY_META[c].emoji} {CATEGORY_META[c].label}</option>
+              <option key={c} value={c}>{categoryOptionLabel(c)}</option>
             ))}
           </Select>
           <Select value={priority} onChange={(e) => setPriority(e.target.value)}>

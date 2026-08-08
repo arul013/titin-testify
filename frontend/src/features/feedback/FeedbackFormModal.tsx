@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { getErrorMessage } from '@/lib/errors';
 import { FeedbackDescriptionEditor } from './FeedbackDescriptionEditor';
-import { CATEGORY_ORDER, PRIORITY_ORDER, CATEGORY_META, PRIORITY_META } from './taxonomy';
+import { CATEGORY_ORDER, PRIORITY_ORDER, PRIORITY_META, categoryOptionLabel } from './taxonomy';
 import type { Category, Priority } from './taxonomy';
 import type { FeedbackItem, FeedbackInput } from './useFeedback';
 
@@ -89,7 +89,7 @@ export const FeedbackFormModal: React.FC<Props> = ({ open, onClose, editing, onS
             onChange={(e) => setCategory(e.target.value as Category)}
           >
             {CATEGORY_ORDER.map((c) => (
-              <option key={c} value={c}>{CATEGORY_META[c].emoji} {CATEGORY_META[c].label}</option>
+              <option key={c} value={c}>{categoryOptionLabel(c)}</option>
             ))}
           </Select>
           <Select
