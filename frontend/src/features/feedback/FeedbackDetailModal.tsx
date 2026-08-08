@@ -31,14 +31,16 @@ interface Props {
   onChangeStatus: (id: string, status: Status) => Promise<unknown>;
   onDelete: (id: string) => Promise<unknown>;
   onCommentCountChange: (id: string, delta: number) => void;
+  onToggleVote: (id: string, voted: boolean) => Promise<unknown>;
 }
 
 export const FeedbackDetailModal: React.FC<Props> = ({
-  item, onClose, onEdit, onChangeStatus, onDelete, onCommentCountChange,
+  item, onClose, onEdit, onChangeStatus, onDelete, onCommentCountChange, onToggleVote,
 }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [statusBusy, setStatusBusy] = useState(false);
+  const [voteBusy, setVoteBusy] = useState(false);
 
   if (!item) return null;
 
@@ -56,6 +58,17 @@ export const FeedbackDetailModal: React.FC<Props> = ({
       toast.error(getErrorMessage(err, 'Gagal mengubah status.'));
     } finally {
       setStatusBusy(false);
+    }
+  };
+
+  const handleVote = async () => {
+    setVoteBusy(true);
+    try {
+      await onToggleVote(item.id, item.has_voted);
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Gagal memperbarui suara.'));
+    } finally {
+      setVoteBusy(false);
     }
   };
 
@@ -120,11 +133,25 @@ export const FeedbackDetailModal: React.FC<Props> = ({
             <Badge variant={st.variant}>{st.label}</Badge>
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400 border-b border-slate-100 pb-3">
-            <span className="inline-flex items-center gap-1"><User className="w-3.5 h-3.5" /> {item.creator_name || 'Admin'}</span>
-            <span className="inline-flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {fmtDate(item.created_at)}</span>
-            <span className="inline-flex items-center gap-1"><ThumbsUp className="w-3.5 h-3.5" /> {item.vote_count} vote</span>
-            <span className="inline-flex items-center gap-1"><MessageSquare className="w-3.5 h-3.5" /> {item.comment_count} komentar</span>
+          <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 pb-3">
+            <span className="inline-flex items-center gap-1 text-xs text-slate-400"><User className="w-3.5 h-3.5" /> {item.creator_name || 'Admin'}</span>
+            <span className="inline-flex items-center gap-1 text-xs text-slate-400"><Clock className="w-3.5 h-3.5" /> {fmtDate(item.created_at)}</span>
+            <span className="inline-flex items-center gap-1 text-xs text-slate-400"><MessageSquare className="w-3.5 h-3.5" /> {item.comment_count} komentar</span>
+            <button
+              type="button"
+              onClick={handleVote}
+              disabled={voteBusy}
+              aria-pressed={item.has_voted}
+              title={item.has_voted ? 'Batalkan suara' : 'Beri suara'}
+              className={
+                'ml-auto inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold transition-colors disabled:opacity-60 ' +
+                (item.has_voted
+                  ? 'bg-brand text-white border-brand shadow-sm shadow-brand/25'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-brand/40 hover:text-brand')
+              }
+            >
+              <ThumbsUp className="w-3.5 h-3.5" /> {item.vote_count}
+            </button>
           </div>
 
           <div>{renderFeedbackText(item.description)}</div>

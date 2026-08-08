@@ -45,8 +45,9 @@ class FeedbackItem(BaseModel):
     status: Status = "open"
     comment_count: int = 0
     vote_count: int = 0
-    # Dihitung server untuk user aktif → frontend tak perlu menebak hak akses.
+    # Dihitung server untuk user aktif → frontend tak perlu menebak hak/keadaan.
     can_manage: bool = False
+    has_voted: bool = False
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -75,3 +76,10 @@ class FeedbackComment(BaseModel):
 class FeedbackCommentListResponse(BaseModel):
     comments: list[FeedbackComment]
     total: int
+
+
+# ─── Voting (Fase 4) ─────────────────────────────────────────
+
+class VoteResponse(BaseModel):
+    voted: bool
+    vote_count: int

@@ -66,8 +66,8 @@ export const FeedbackCard: React.FC<Props> = ({ item, onOpen }) => {
               <User className="w-3 h-3" /> {item.creator_name || 'Admin'}
             </span>
             <span>{relTime(item.created_at)}</span>
-            <span className="inline-flex items-center gap-1">
-              <ThumbsUp className="w-3 h-3" /> {item.vote_count}
+            <span className={`inline-flex items-center gap-1 ${item.has_voted ? 'text-brand font-bold' : ''}`}>
+              <ThumbsUp className={`w-3 h-3 ${item.has_voted ? 'fill-brand/20' : ''}`} /> {item.vote_count}
             </span>
             <span className="inline-flex items-center gap-1">
               <MessageSquare className="w-3 h-3" /> {item.comment_count}

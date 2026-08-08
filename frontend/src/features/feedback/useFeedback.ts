@@ -19,8 +19,14 @@ export interface FeedbackItem {
   comment_count: number;
   vote_count: number;
   can_manage: boolean;
+  has_voted: boolean;
   created_at: string | null;
   updated_at: string | null;
+}
+
+interface VoteResponse {
+  voted: boolean;
+  vote_count: number;
 }
 
 interface ListResponse {
@@ -110,8 +116,18 @@ export function useFeedback(filters: FeedbackFilters) {
     ));
   }, []);
 
+  const toggleVote = useCallback(async (id: string, voted: boolean) => {
+    const res = voted
+      ? await api.delete<VoteResponse>(`/api/feedback/${id}/vote`)
+      : await api.post<VoteResponse>(`/api/feedback/${id}/vote`, {});
+    setItems((prev) => prev.map((it) =>
+      it.id === id ? { ...it, has_voted: res.voted, vote_count: res.vote_count } : it,
+    ));
+    return res;
+  }, []);
+
   return {
     items, total, isLoading, refetch,
-    createItem, updateItem, updateStatus, deleteItem, bumpCommentCount,
+    createItem, updateItem, updateStatus, deleteItem, bumpCommentCount, toggleVote,
   };
 }

@@ -1,25 +1,32 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { Textarea } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Send, Trash2, MessageSquare } from 'lucide-react';
-import { toast } from 'sonner';
-import { getErrorMessage } from '@/lib/errors';
-import { useFeedbackComments } from './useFeedbackComments';
+import React, { useState } from "react";
+import { Textarea } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Send, Trash2, MessageSquare } from "lucide-react";
+import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/errors";
+import { useFeedbackComments } from "./useFeedbackComments";
 
 function relTime(iso: string | null): string {
-  if (!iso) return '';
-  const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
-  if (s < 60) return 'baru saja';
+  if (!iso) return "";
+  const s = Math.max(
+    0,
+    Math.floor((Date.now() - new Date(iso).getTime()) / 1000),
+  );
+  if (s < 60) return "baru saja";
   const m = Math.floor(s / 60);
   if (m < 60) return `${m} menit lalu`;
   const h = Math.floor(m / 60);
   if (h < 24) return `${h} jam lalu`;
   const d = Math.floor(h / 24);
   if (d < 7) return `${d} hari lalu`;
-  return new Date(iso).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+  return new Date(iso).toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 interface Props {
@@ -28,9 +35,13 @@ interface Props {
   onCountChange: (delta: number) => void;
 }
 
-export const FeedbackComments: React.FC<Props> = ({ itemId, onCountChange }) => {
-  const { comments, isLoading, addComment, deleteComment } = useFeedbackComments(itemId);
-  const [body, setBody] = useState('');
+export const FeedbackComments: React.FC<Props> = ({
+  itemId,
+  onCountChange,
+}) => {
+  const { comments, isLoading, addComment, deleteComment } =
+    useFeedbackComments(itemId);
+  const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -41,9 +52,9 @@ export const FeedbackComments: React.FC<Props> = ({ itemId, onCountChange }) => 
     try {
       await addComment(text);
       onCountChange(1);
-      setBody('');
+      setBody("");
     } catch (err) {
-      toast.error(getErrorMessage(err, 'Gagal mengirim komentar.'));
+      toast.error(getErrorMessage(err, "Gagal mengirim komentar."));
     } finally {
       setSending(false);
     }
@@ -55,7 +66,7 @@ export const FeedbackComments: React.FC<Props> = ({ itemId, onCountChange }) => 
       await deleteComment(id);
       onCountChange(-1);
     } catch (err) {
-      toast.error(getErrorMessage(err, 'Gagal menghapus komentar.'));
+      toast.error(getErrorMessage(err, "Gagal menghapus komentar."));
     } finally {
       setDeletingId(null);
     }
@@ -73,18 +84,27 @@ export const FeedbackComments: React.FC<Props> = ({ itemId, onCountChange }) => 
           <Skeleton className="h-12 rounded-xl" />
         </div>
       ) : comments.length === 0 ? (
-        <p className="text-xs text-slate-400 mb-3">Belum ada komentar. Mulai diskusi di bawah.</p>
+        <p className="text-xs text-slate-400 mb-3">
+          Belum ada komentar. Mulai diskusi di bawah.
+        </p>
       ) : (
         <ul className="flex flex-col gap-2.5 mb-3">
           {comments.map((c) => (
-            <li key={c.id} className="group rounded-xl bg-slate-50 border border-slate-200/60 p-3">
+            <li
+              key={c.id}
+              className="group rounded-xl bg-slate-50 border border-slate-200/60 p-3"
+            >
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand/10 text-[10px] font-bold text-brand">
-                    {(c.author_name || 'A').charAt(0).toUpperCase()}
+                    {(c.author_name || "A").charAt(0).toUpperCase()}
                   </span>
-                  <span className="text-xs font-bold text-slate-700 truncate">{c.author_name || 'Admin'}</span>
-                  <span className="text-[10px] text-slate-400 shrink-0">{relTime(c.created_at)}</span>
+                  <span className="text-xs font-bold text-slate-700 truncate">
+                    {c.author_name || "Admin"}
+                  </span>
+                  <span className="text-[10px] text-slate-400 shrink-0">
+                    {relTime(c.created_at)}
+                  </span>
                 </div>
                 {c.can_delete && (
                   <button
@@ -98,7 +118,9 @@ export const FeedbackComments: React.FC<Props> = ({ itemId, onCountChange }) => 
                   </button>
                 )}
               </div>
-              <p className="mt-1.5 text-sm text-slate-700 whitespace-pre-wrap break-words">{c.body}</p>
+              <p className="mt-1.5 text-sm text-slate-700 whitespace-pre-wrap wrap-break-word">
+                {c.body}
+              </p>
             </li>
           ))}
         </ul>
@@ -111,7 +133,9 @@ export const FeedbackComments: React.FC<Props> = ({ itemId, onCountChange }) => 
           placeholder="Tulis komentar…"
           className="text-sm"
           containerClassName="flex-1"
-          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setBody(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+            setBody(e.target.value)
+          }
         />
         <Button
           onClick={handleSend}

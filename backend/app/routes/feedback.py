@@ -12,6 +12,7 @@ from app.models.feedback import (
     CreateFeedbackRequest, UpdateFeedbackRequest, UpdateStatusRequest,
     FeedbackItem, FeedbackListResponse,
     CreateCommentRequest, FeedbackComment, FeedbackCommentListResponse,
+    VoteResponse,
 )
 from app.models.user import UserProfile
 from app.services.feedback_service import FeedbackService
@@ -137,3 +138,23 @@ async def delete_comment(
     """Hapus komentar (penulis komentar atau super_admin)."""
     await FeedbackService.delete_comment(comment_id, current_user.id, current_user.role.value)
     return {"message": "Komentar dihapus.", "success": True}
+
+
+# ─── Voting (Fase 4) ─────────────────────────────────────────
+
+@router.post("/api/feedback/{item_id}/vote", response_model=VoteResponse)
+async def add_vote(
+    item_id: str,
+    current_user: UserProfile = Depends(require_admin),
+):
+    """Beri suara (👍) — 1 orang 1 suara, idempoten."""
+    return await FeedbackService.add_vote(item_id, current_user.id)
+
+
+@router.delete("/api/feedback/{item_id}/vote", response_model=VoteResponse)
+async def remove_vote(
+    item_id: str,
+    current_user: UserProfile = Depends(require_admin),
+):
+    """Batalkan suara."""
+    return await FeedbackService.remove_vote(item_id, current_user.id)

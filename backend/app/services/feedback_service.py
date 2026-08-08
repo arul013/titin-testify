@@ -19,6 +19,7 @@ from app.models.feedback import (
     CreateFeedbackRequest, UpdateFeedbackRequest,
     FeedbackItem, FeedbackListResponse,
     FeedbackComment, FeedbackCommentListResponse,
+    VoteResponse,
 )
 
 # Kolom yang dipilih dari DB + join nama pembuat.
@@ -50,7 +51,9 @@ def _can_manage(created_by: str, user_id: str, user_role: str) -> bool:
     return user_role == "super_admin" or created_by == user_id
 
 
-def _to_item(row: dict[str, Any], user_id: str, user_role: str) -> FeedbackItem:
+def _to_item(
+    row: dict[str, Any], user_id: str, user_role: str, has_voted: bool = False
+) -> FeedbackItem:
     return FeedbackItem(
         id=row["id"],
         created_by=row["created_by"],
@@ -63,6 +66,7 @@ def _to_item(row: dict[str, Any], user_id: str, user_role: str) -> FeedbackItem:
         comment_count=row.get("comment_count") or 0,
         vote_count=row.get("vote_count") or 0,
         can_manage=_can_manage(row["created_by"], user_id, user_role),
+        has_voted=has_voted,
         created_at=row.get("created_at"),
         updated_at=row.get("updated_at"),
     )
@@ -100,7 +104,17 @@ class FeedbackService:
         if sort == "priority":
             rows.sort(key=lambda r: (_PRIORITY_RANK.get(r.get("priority") or "medium", 2)))
 
-        items = [_to_item(r, user_id, user_role) for r in rows]
+        # has_voted batch (anti-N+1): 1 query vote milik user untuk item yang tampil.
+        ids = [r["id"] for r in rows]
+        voted: set[str] = set()
+        if ids:
+            vrows = (
+                supabase.table("feedback_votes").select("feedback_id")
+                .eq("user_id", user_id).in_("feedback_id", ids).execute().data or []
+            )
+            voted = {v["feedback_id"] for v in vrows}
+
+        items = [_to_item(r, user_id, user_role, r["id"] in voted) for r in rows]
         return FeedbackListResponse(items=items, total=result.count or 0)
 
     @staticmethod
@@ -109,7 +123,11 @@ class FeedbackService:
         res = supabase.table("feedback_items").select(_SELECT).eq("id", item_id).single().execute()
         if not res.data:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Item tidak ditemukan.")
-        return _to_item(res.data, user_id, user_role)
+        voted = (
+            supabase.table("feedback_votes").select("feedback_id")
+            .eq("feedback_id", item_id).eq("user_id", user_id).execute().data or []
+        )
+        return _to_item(res.data, user_id, user_role, bool(voted))
 
     @staticmethod
     async def create_item(
@@ -284,3 +302,42 @@ class FeedbackService:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Anda tidak berhak menghapus komentar ini.")
         supabase.table("feedback_comments").delete().eq("id", comment_id).execute()
         FeedbackService._sync_comment_count(supabase, existing.data["feedback_id"])
+
+    # ─── Voting (Fase 4) ──────────────────────────────────────
+
+    @staticmethod
+    def _sync_vote_count(supabase, item_id: str) -> int:
+        """Hitung ulang & simpan vote_count (self-healing, anti-drift)."""
+        count = (
+            supabase.table("feedback_votes").select("user_id", count=CountMethod.exact)
+            .eq("feedback_id", item_id).execute().count or 0
+        )
+        supabase.table("feedback_items").update({"vote_count": count}).eq("id", item_id).execute()
+        return count
+
+    @staticmethod
+    def _assert_item_exists(supabase, item_id: str) -> None:
+        res = supabase.table("feedback_items").select("id").eq("id", item_id).single().execute()
+        if not res.data:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Item tidak ditemukan.")
+
+    @staticmethod
+    async def add_vote(item_id: str, user_id: str) -> VoteResponse:
+        supabase = get_supabase_admin()
+        FeedbackService._assert_item_exists(supabase, item_id)
+        # Idempoten: 1 orang 1 suara (PK feedback_id+user_id).
+        supabase.table("feedback_votes").upsert(
+            {"feedback_id": item_id, "user_id": user_id},
+            on_conflict="feedback_id,user_id", ignore_duplicates=True,
+        ).execute()
+        count = FeedbackService._sync_vote_count(supabase, item_id)
+        return VoteResponse(voted=True, vote_count=count)
+
+    @staticmethod
+    async def remove_vote(item_id: str, user_id: str) -> VoteResponse:
+        supabase = get_supabase_admin()
+        FeedbackService._assert_item_exists(supabase, item_id)
+        supabase.table("feedback_votes").delete() \
+            .eq("feedback_id", item_id).eq("user_id", user_id).execute()
+        count = FeedbackService._sync_vote_count(supabase, item_id)
+        return VoteResponse(voted=False, vote_count=count)
