@@ -32,7 +32,10 @@ async def login(request: Request, response: Response, payload: LoginRequest):
 
     Returns access token, refresh token, and user profile.
     """
-    return await AuthService.login(payload, request)
+    result = await AuthService.login(payload, request)
+    # Idle-timeout: buat record sesi untuk token baru (agar `check()` mengenalinya).
+    SessionActivityService.touch(extract_session_id(result.access_token), result.user.id)
+    return result
 
 
 @router.post("/logout", response_model=MessageResponse)

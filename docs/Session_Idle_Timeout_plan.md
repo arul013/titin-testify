@@ -1,7 +1,7 @@
 # Session Idle Timeout (Rencana)
 
-Status: **rencana, 2026-08-08.** Progres: **Tahap 1 (Server) SELESAI kode 2026-08-08** —
-migrasi `033_auth_sessions.sql` **nunggu dijalankan user**; Tahap 2 (Client) & 3 (Ujian) belum.
+Status: **rencana, 2026-08-08.** Progres: **Tahap 1 (Server) & Tahap 2 (Client) SELESAI kode 2026-08-08**
+— migrasi `033_auth_sessions.sql` **sudah dijalankan user**; Tahap 3 (integrasi ujian) belum.
 
 Batasi sesi berdasarkan **ketidakaktifan**: bila tak ada
 aktivitas selama **30 menit** (termasuk saat perangkat sleep / tab ditutup / kondisi lain),
@@ -47,10 +47,12 @@ auth_sessions
 Index `auth_sessions(user_id)`. RLS lockdown service-role (konsisten 019/024/032).
 
 ### 2.2 `services/session_activity_service.py`
-- `check(session_id) -> None`: baca record.
-  - Tak ada → INSERT `last_activity=now` (grace; mis. sesi lama sebelum fitur ini) → lolos.
-  - Ada & `now - last_activity > IDLE_LIMIT` → **raise 401** "Sesi berakhir karena tidak aktif.".
+- `check(session_id, user_id) -> None`: baca record.
+  - **Tak ada → raise 401** "Sesi berakhir atau tidak dikenal." *(REVISI: BUKAN grace-create — agar
+    sesi yang telah berakhir/logout tak bisa "hidup lagi" oleh request berikutnya).*
+  - Ada & `now - last_activity > IDLE_LIMIT` → hapus record + **raise 401** "Sesi berakhir karena tidak aktif.".
   - Ada & masih segar → lolos (TIDAK menulis).
+  - Error koneksi → fail-open (log, jangan blokir) agar gangguan DB tak mengunci semua orang.
 - `touch(session_id, user_id) -> None`: UPSERT `last_activity=now` (refresh). Dipakai login & heartbeat.
 - `end(session_id) -> None`: DELETE (dipakai logout). Best-effort.
 - Semua best-effort terhadap error koneksi (log + jangan crash), KECUALI kondisi "basi" yang
@@ -65,10 +67,10 @@ SEBELUM/juga saat memuat profil. Bila basi → 401 (klien menangani → logout).
 ### 2.4 Endpoint & wiring
 - `POST /api/auth/heartbeat` (`get_current_user`) → `touch(session_id, user_id)` → `{ok:true}`.
   (Lolos `check` dulu; sesi yang sudah basi tak bisa "dihidupkan" oleh heartbeat → 401.)
-- `login` (auth_service/route): setelah sukses, `touch` untuk inisialisasi record dengan `session_id`
-  token yang baru. (session_id diperoleh dari token yang di-generate; bila tak praktis di service,
-  record akan otomatis dibuat saat request ber-auth pertama via `check` — grace.)
-- `logout`: `end(session_id)` agar record bersih (opsional; record juga akan basi sendiri).
+- `login` (route): **WAJIB** `touch(extract_session_id(result.access_token), user.id)` setelah sukses —
+  ini yang MEMBUAT record (karena `check` tak lagi grace-create). *(Konsekuensi: sesi yang sudah login
+  SEBELUM fitur ini akan diminta login ulang SEKALI saat rilis — wajar untuk fitur keamanan.)*
+- `logout`: `end(session_id)` menghapus record.
 - Config: `session_idle_minutes: int = 30` di `app/config.py`.
 
 ## 3. Frontend
@@ -110,8 +112,15 @@ belum sempat jalan. Tampilkan pesan singkat "Sesi berakhir, silakan masuk lagi."
    (`check`/`touch`/`end` + `extract_session_id`) + hook `check()` di `get_current_user` +
    `POST /api/auth/heartbeat` + `logout→end` + config `session_idle_minutes=30`. Import backend bersih
    (106 routes). **Migrasi 033 nunggu dijalankan user.**
-2. **Client:** `useIdleTimeout` + `SessionTimeoutModal` + pasang di `AuthProvider` + handler 401 di `api`. *(belum)*
-3. **Ujian:** flag `cbt_exam_active` di `ExamRunner` + penyesuaian idle-hook. *(belum)*
+2. **Client:** ✅ **SELESAI (2026-08-08).** `features/auth/useIdleTimeout.ts` (wall-clock + listener aktivitas
+   throttle + heartbeat throttle + evaluator interval/visibility/focus/online/storage) + `SessionTimeoutModal.tsx`
+   (countdown 60 dtk, tak bisa tutup via backdrop/esc) + `SessionGuard.tsx` dipasang di `AuthProvider`
+   (`enabled={!!user && !isLoggingOut}`) + handler `401` "Sesi berakhir" di `lib/api.ts` → event
+   `cbt:session-expired` → `AuthProvider` logout penuh. `login` set `cbt_last_activity=now`; `clearAuth`
+   membersihkan `cbt_last_activity`/`cbt_exam_active`. Seed di hook hanya bila LS kosong (idle lintas-reload
+   tetap terdeteksi). tsc+eslint bersih.
+3. **Ujian:** flag `cbt_exam_active` di `ExamRunner` + penyesuaian idle-hook. *(belum — hook SUDAH menghormati
+   flag; tinggal `ExamRunner` men-set/meng-hapus-nya)*
 Tiap tahap: `tsc`+`eslint`+import backend bersih. Migrasi dijalankan **user**.
 
 ### Catatan implementasi Tahap 1

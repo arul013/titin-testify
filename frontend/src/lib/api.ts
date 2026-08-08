@@ -60,6 +60,18 @@ class ApiClient {
             errorMessage = JSON.stringify(errorData.detail);
           }
         }
+        // Idle-timeout: server menolak sesi yang berakhir → beri tahu AuthProvider
+        // untuk logout penuh (Supabase signOut + redirect). Dibatasi ke pesan sesi
+        // agar 401 lain (mis. token kedaluwarsa biasa) tak ikut memaksa keluar.
+        if (
+          response.status === 401 &&
+          typeof window !== 'undefined' &&
+          typeof errorData.detail === 'string' &&
+          errorData.detail.startsWith('Sesi berakhir') &&
+          !window.location.pathname.startsWith('/login')
+        ) {
+          window.dispatchEvent(new CustomEvent('cbt:session-expired'));
+        }
         throw new Error(errorMessage);
       }
 

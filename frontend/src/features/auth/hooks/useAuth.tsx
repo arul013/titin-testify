@@ -1,10 +1,11 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { UserProfile, LoginRequest } from '../../../types';
 import { api } from '../../../lib/api';
 import { createClient } from '../../../lib/supabase';
+import { SessionGuard } from '../SessionGuard';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -31,6 +32,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setToken(null);
     localStorage.removeItem('cbt_access_token');
     localStorage.removeItem('cbt_user');
+    localStorage.removeItem('cbt_last_activity');
+    localStorage.removeItem('cbt_exam_active');
   }, []);
 
   // Load initial session
@@ -128,6 +131,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(response.user);
       localStorage.setItem('cbt_access_token', response.access_token);
       localStorage.setItem('cbt_user', JSON.stringify(response.user));
+      // Idle-timeout: mulai hitung dari sekarang untuk sesi baru.
+      localStorage.setItem('cbt_last_activity', String(Date.now()));
       return response.user;
     } catch (error) {
       clearAuth();
@@ -170,8 +175,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Idle-timeout: server bisa menolak sesi basi (401 "Sesi berakhir") → `api`
+  // memancarkan event ini agar kita logout PENUH (Supabase signOut + redirect).
+  const logoutRef = useRef(logout);
+  useEffect(() => { logoutRef.current = logout; });
+  useEffect(() => {
+    const handler = () => { void logoutRef.current(); };
+    window.addEventListener('cbt:session-expired', handler);
+    return () => window.removeEventListener('cbt:session-expired', handler);
+  }, []);
+
   return (
     <AuthContext.Provider value={{ user, token, isLoading, isLoggingOut, login, logout, refreshUser }}>
+      <SessionGuard enabled={!!user && !isLoggingOut} onLogout={logout} />
       {children}
     </AuthContext.Provider>
   );

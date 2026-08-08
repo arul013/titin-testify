@@ -46,9 +46,12 @@ class SessionActivityService:
 
     @staticmethod
     def check(session_id: Optional[str], user_id: str) -> None:
-        """Tolak (401) bila sesi idle melebihi batas. Buat record bila belum ada (grace).
+        """Tolak (401) bila sesi idle melebihi batas ATAU record tak ada.
 
-        Dipanggil dari `get_current_user`. TIDAK me-refresh last_activity.
+        Dipanggil dari `get_current_user` — hanya MENGECEK, TIDAK me-refresh.
+        Record dibuat saat LOGIN (touch); ketiadaan record berarti sesi sudah
+        berakhir/logout/sebelum-fitur → tolak (BUKAN grace-create, agar sesi
+        yang telah berakhir tak bisa "hidup lagi").
         """
         if not session_id:
             return  # token tanpa session_id (edge) — tak bisa dilacak, lewati.
@@ -60,19 +63,16 @@ class SessionActivityService:
             )
             rows = res.data or []
             if not rows:
-                # Sesi lama / pertama kali terlihat → catat sekarang (grace, tak menendang).
-                supabase.table("auth_sessions").upsert(
-                    {"session_id": session_id, "user_id": user_id,
-                     "last_activity": datetime.now(timezone.utc).isoformat()},
-                    on_conflict="session_id",
-                ).execute()
-                return
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Sesi berakhir atau tidak dikenal. Silakan masuk kembali.",
+                )
 
             last = _parse_ts(rows[0].get("last_activity"))
             if last is None:
-                return
+                return  # data ganjil — jangan tendang.
             if datetime.now(timezone.utc) - last > SessionActivityService._limit():
-                # Bersihkan record basi lalu tolak.
+                # Bersihkan record basi lalu tolak (ketiadaan record berikutnya juga → 401).
                 try:
                     supabase.table("auth_sessions").delete().eq("session_id", session_id).execute()
                 except Exception:
@@ -83,7 +83,7 @@ class SessionActivityService:
                 )
         except HTTPException:
             raise
-        except Exception as e:  # error koneksi → jangan blokir pemakai
+        except Exception as e:  # error koneksi → jangan blokir pemakai (fail-open availability)
             logger.warning("session check gagal: %s", e)
 
     @staticmethod
