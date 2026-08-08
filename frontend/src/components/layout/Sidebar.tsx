@@ -27,6 +27,7 @@ import {
   History,
   SquarePen,
   Bell,
+  MessageSquarePlus,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -103,6 +104,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       name: "Manajemen User",
       href: "/users",
       icon: <Users className="w-4 h-4" />,
+      show: isAdmin,
+    },
+    {
+      name: "Masukan & Perbaikan",
+      href: "/masukan",
+      icon: <MessageSquarePlus className="w-4 h-4" />,
       show: isAdmin,
     },
     {
