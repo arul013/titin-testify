@@ -9,6 +9,10 @@ const WARN_BEFORE = 60 * 1000;     // munculkan modal saat sisa ≤ 60 dtk
 const HEARTBEAT_THROTTLE = 60 * 1000;
 const ACTIVITY_THROTTLE = 20 * 1000;
 const CHECK_INTERVAL = 5000;
+// `cbt_exam_active` disimpan sebagai TIMESTAMP yang di-refresh berkala oleh
+// ExamRunner (~tiap 30 dtk). Dianggap "ujian aktif" hanya bila masih segar →
+// bila tab ujian mati tanpa cleanup, flag jadi basi & tak menyandera sesi.
+const EXAM_FLAG_TTL = 90 * 1000;
 
 const LS_LAST = 'cbt_last_activity';
 const LS_EXAM = 'cbt_exam_active';
@@ -23,7 +27,8 @@ function writeLast(t: number) {
   localStorage.setItem(LS_LAST, String(t));
 }
 function examActive(): boolean {
-  return localStorage.getItem(LS_EXAM) === '1';
+  const v = Number(localStorage.getItem(LS_EXAM));
+  return Number.isFinite(v) && v > 0 && nowMs() - v < EXAM_FLAG_TTL;
 }
 
 /**

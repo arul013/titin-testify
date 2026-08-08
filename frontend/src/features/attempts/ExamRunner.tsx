@@ -262,6 +262,23 @@ export const ExamRunner: React.FC<{ examId: string }> = ({ examId }) => {
     }
   }, [attemptId, router, syncClear]);
 
+  // Idle-timeout: tandai "ujian sedang aktif" agar sesi TIDAK berakhir saat
+  // peserta membaca soal panjang tanpa interaksi. Flag = timestamp yang
+  // di-segarkan berkala; bila tab mati tanpa cleanup, flag jadi basi sendiri
+  // (TTL di useIdleTimeout) → tak menyandera sesi selamanya.
+  useEffect(() => {
+    if (!data) return;
+    const mark = () => {
+      try { localStorage.setItem("cbt_exam_active", String(Date.now())); } catch { /* ignore */ }
+    };
+    mark();
+    const id = window.setInterval(mark, 30_000);
+    return () => {
+      window.clearInterval(id);
+      try { localStorage.removeItem("cbt_exam_active"); } catch { /* ignore */ }
+    };
+  }, [data]);
+
   // M8.1: deteksi anti-cheat (fokus/copy-paste/fullscreen) + peringatan + auto-submit.
   const antiCheat = useAntiCheat({
     attemptId,

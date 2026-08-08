@@ -1,7 +1,8 @@
 # Session Idle Timeout (Rencana)
 
-Status: **rencana, 2026-08-08.** Progres: **Tahap 1 (Server) & Tahap 2 (Client) SELESAI kode 2026-08-08**
-— migrasi `033_auth_sessions.sql` **sudah dijalankan user**; Tahap 3 (integrasi ujian) belum.
+Status: **SELESAI (Tahap 1–3) kode 2026-08-08.** Migrasi `033_auth_sessions.sql` sudah dijalankan user.
+Fitur aktif end-to-end: server enforce (per-request check) + client heartbeat/idle + modal 60 dtk +
+integrasi ujian (sesi dijaga saat attempt aktif).
 
 Batasi sesi berdasarkan **ketidakaktifan**: bila tak ada
 aktivitas selama **30 menit** (termasuk saat perangkat sleep / tab ditutup / kondisi lain),
@@ -95,12 +96,15 @@ Modal DS (size sm) + hitung-mundur `mm:ss` + tombol **"Tetap Masuk"** (reset `cb
 + kirim heartbeat + sembunyikan modal) dan tombol **"Keluar"** (logout langsung). Tak bisa ditutup
 via backdrop (biar tegas). Tak muncul saat mode ujian aktif.
 
-### 3.3 Integrasi ujian (jaga sesi)
-- `ExamRunner` menandai attempt aktif via flag localStorage `cbt_exam_active` (set saat mount/attempt
-  berjalan, hapus saat submit/unmount).
-- `useIdleTimeout`: bila `cbt_exam_active` truthy → anggap selalu aktif (auto-refresh `cbt_last_activity`
-  + heartbeat berkala), TIDAK pernah warn/logout. Peserta benar-benar pergi → timer + auto-submit ujian
-  (M7) yang menutup.
+### 3.3 Integrasi ujian (jaga sesi) — ✅ SELESAI (2026-08-08)
+- `ExamRunner` menandai attempt aktif via `cbt_exam_active` = **TIMESTAMP** (bukan "1"), di-set saat
+  `data` (attempt) termuat + **di-refresh tiap 30 dtk**, dihapus saat submit/unmount (`router.replace`
+  ke hasil → unmount → cleanup).
+- `useIdleTimeout.examActive()` menganggap aktif hanya bila `now - ts < 90 dtk` (`EXAM_FLAG_TTL`).
+  **Kenapa timestamp+TTL:** bila tab ujian mati/crash tanpa cleanup, flag "1" biasa akan menyandera
+  sesi selamanya; dengan TTL, flag basi sendiri → idle normal kembali berlaku.
+- Saat aktif → evaluator auto-refresh `cbt_last_activity=now` + heartbeat berkala → TIDAK pernah
+  warn/logout. Peserta benar-benar pergi → timer + auto-submit ujian (M7) yang menutup.
 
 ### 3.4 `lib/api.ts` — penanganan 401 idle
 Pada respons `401` saat ada token tersimpan: bersihkan `cbt_access_token`/`cbt_user` + hard-redirect
@@ -119,8 +123,8 @@ belum sempat jalan. Tampilkan pesan singkat "Sesi berakhir, silakan masuk lagi."
    `cbt:session-expired` → `AuthProvider` logout penuh. `login` set `cbt_last_activity=now`; `clearAuth`
    membersihkan `cbt_last_activity`/`cbt_exam_active`. Seed di hook hanya bila LS kosong (idle lintas-reload
    tetap terdeteksi). tsc+eslint bersih.
-3. **Ujian:** flag `cbt_exam_active` di `ExamRunner` + penyesuaian idle-hook. *(belum — hook SUDAH menghormati
-   flag; tinggal `ExamRunner` men-set/meng-hapus-nya)*
+3. **Ujian:** ✅ **SELESAI (2026-08-08).** `ExamRunner` set `cbt_exam_active`=timestamp (refresh 30 dtk,
+   hapus saat submit/unmount) + `useIdleTimeout.examActive()` pakai TTL 90 dtk. tsc+eslint bersih.
 Tiap tahap: `tsc`+`eslint`+import backend bersih. Migrasi dijalankan **user**.
 
 ### Catatan implementasi Tahap 1
