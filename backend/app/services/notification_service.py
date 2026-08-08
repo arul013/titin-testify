@@ -50,8 +50,16 @@ class NotificationService:
         body: Optional[str] = None,
         entity_type: Optional[str] = None,
         entity_id: Optional[str] = None,
+        refresh: bool = False,
     ) -> int:
-        """Kirim notifikasi ke banyak pengguna (idempoten). Return jumlah baris di-upsert."""
+        """Kirim notifikasi ke banyak pengguna (idempoten). Return jumlah baris di-upsert.
+
+        `refresh=False` (default): idempoten murni — bila (user,type,entity) sudah ada,
+        DIABAIKAN (mis. `feedback_created` cukup sekali per item).
+        `refresh=True`: bila sudah ada, baris DIPERBARUI & DIMUNCULKAN LAGI sebagai
+        belum-dibaca (read_at=null, created_at=now) — untuk event yang bisa berulang
+        seperti `feedback_status_changed` (selalu tampil status terbaru).
+        """
         uids = [u for u in dict.fromkeys(user_ids) if u]
         if not uids:
             return 0
@@ -61,9 +69,14 @@ class NotificationService:
              "entity_type": entity_type, "entity_id": entity_id}
             for uid in uids
         ]
+        if refresh:
+            now_iso = datetime.now(timezone.utc).isoformat()
+            for r in rows:
+                r["read_at"] = None
+                r["created_at"] = now_iso
         try:
             supabase.table("notifications").upsert(
-                rows, on_conflict="user_id,type,entity_id", ignore_duplicates=True,
+                rows, on_conflict="user_id,type,entity_id", ignore_duplicates=not refresh,
             ).execute()
             return len(rows)
         except Exception as e:  # jangan pernah gagalkan alur pemanggil

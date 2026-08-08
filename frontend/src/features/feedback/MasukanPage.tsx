@@ -40,6 +40,19 @@ export const MasukanPage: React.FC = () => {
   const [editing, setEditing] = useState<FeedbackItem | null>(null);
   const [detail, setDetail] = useState<FeedbackItem | null>(null);
 
+  // Deep-link dari notifikasi (`/masukan?item=<id>`): buka detail sekali saat
+  // item termuat — dibaca sekali dari URL (tanpa useSearchParams → tanpa Suspense).
+  const [deepLinkId] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return new URLSearchParams(window.location.search).get('item');
+  });
+  const [deepLinkDone, setDeepLinkDone] = useState(false);
+  if (!deepLinkDone && deepLinkId && items.length > 0) {
+    setDeepLinkDone(true);
+    const found = items.find((it) => it.id === deepLinkId);
+    if (found) setDetail(found);
+  }
+
   // Jaga agar modal detail menampilkan data terbaru setelah item diperbarui.
   const detailLive = detail ? items.find((it) => it.id === detail.id) ?? detail : null;
 

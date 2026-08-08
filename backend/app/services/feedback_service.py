@@ -14,6 +14,7 @@ from fastapi import HTTPException, status
 from postgrest.types import CountMethod
 
 from app.database import get_supabase_admin
+from app.services.notification_service import NotificationService
 from app.models.feedback import (
     CreateFeedbackRequest, UpdateFeedbackRequest,
     FeedbackItem, FeedbackListResponse,
@@ -24,6 +25,24 @@ _SELECT = "*, profiles!feedback_items_created_by_fkey(full_name)"
 
 # Urutan prioritas untuk sort "priority" (kritis dulu).
 _PRIORITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+
+_CATEGORY_LABEL = {
+    "bug": "Bug/Perbaikan", "logic": "Perubahan Logic", "feature": "Fitur Baru",
+    "ui": "UI/UX", "other": "Lainnya",
+}
+_STATUS_LABEL = {
+    "open": "Terbuka", "in_progress": "Dikerjakan", "done": "Selesai",
+    "rejected": "Ditolak/Ditunda",
+}
+
+
+def _admin_recipient_ids(supabase, exclude_id: str) -> list[str]:
+    """user_id semua admin & super_admin, kecuali `exclude_id` (pelaku)."""
+    rows = (
+        supabase.table("profiles").select("id")
+        .in_("role", ["admin", "super_admin"]).execute().data or []
+    )
+    return [r["id"] for r in rows if r["id"] != exclude_id]
 
 
 def _can_manage(created_by: str, user_id: str, user_role: str) -> bool:
@@ -105,7 +124,17 @@ class FeedbackService:
         }).execute()
         if not res.data:
             raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Gagal membuat item.")
-        return await FeedbackService.get_item(res.data[0]["id"], user_id, user_role)
+        item = await FeedbackService.get_item(res.data[0]["id"], user_id, user_role)
+
+        # Notif ke admin lain (kecuali pembuat) — best-effort, sekali per item.
+        NotificationService.notify(
+            _admin_recipient_ids(supabase, user_id),
+            "feedback_created",
+            f"Masukan baru: {item.title}",
+            body=f"{item.creator_name or 'Admin'} • {_CATEGORY_LABEL.get(item.category, item.category)}",
+            entity_type="feedback", entity_id=item.id,
+        )
+        return item
 
     @staticmethod
     def _load_for_manage(supabase, item_id: str, user_id: str, user_role: str) -> dict[str, Any]:
@@ -143,12 +172,25 @@ class FeedbackService:
         item_id: str, new_status: str, user_id: str, user_role: str
     ) -> FeedbackItem:
         supabase = get_supabase_admin()
-        FeedbackService._load_for_manage(supabase, item_id, user_id, user_role)
+        existing = FeedbackService._load_for_manage(supabase, item_id, user_id, user_role)
         supabase.table("feedback_items").update({
             "status": new_status,
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }).eq("id", item_id).execute()
-        return await FeedbackService.get_item(item_id, user_id, user_role)
+        item = await FeedbackService.get_item(item_id, user_id, user_role)
+
+        # Notif ke PEMBUAT bila status diubah orang lain (hindari notif ke diri sendiri).
+        creator_id = existing["created_by"]
+        if creator_id != user_id:
+            NotificationService.notify(
+                [creator_id],
+                "feedback_status_changed",
+                f"Status masukan diperbarui: {item.title}",
+                body=f"Status kini: {_STATUS_LABEL.get(new_status, new_status)}.",
+                entity_type="feedback", entity_id=item_id,
+                refresh=True,
+            )
+        return item
 
     @staticmethod
     async def delete_item(item_id: str, user_id: str, user_role: str) -> None:

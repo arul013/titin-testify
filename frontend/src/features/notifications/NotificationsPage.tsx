@@ -8,6 +8,8 @@ import {
   AlarmClock,
   Award,
   CheckCheck,
+  MessageSquarePlus,
+  RefreshCw,
 } from "lucide-react";
 import { PageContainer } from "@/components/ui/page-container";
 import { PageHeader } from "@/components/ui/page-header";
@@ -38,6 +40,14 @@ const META: Record<string, { icon: React.ReactNode; tone: string }> = {
     icon: <Award className="h-5 w-5" />,
     tone: "bg-emerald-50 text-emerald-600",
   },
+  feedback_created: {
+    icon: <MessageSquarePlus className="h-5 w-5" />,
+    tone: "bg-brand/10 text-brand",
+  },
+  feedback_status_changed: {
+    icon: <RefreshCw className="h-5 w-5" />,
+    tone: "bg-amber-50 text-amber-600",
+  },
 };
 
 function relTime(iso: string | null): string {
@@ -65,9 +75,13 @@ export function NotificationsPage() {
 
   const open = (n: AppNotification) => {
     if (!n.read_at) markRead(n.id);
-    if (n.type === "result_ready" && n.entity_id)
+    if (n.entity_type === "feedback") {
+      router.push(n.entity_id ? `/masukan?item=${n.entity_id}` : "/masukan");
+    } else if (n.type === "result_ready" && n.entity_id) {
       router.push(`/ujian/hasil/${n.entity_id}`);
-    else router.push("/ujian");
+    } else {
+      router.push("/ujian");
+    }
   };
 
   return (
