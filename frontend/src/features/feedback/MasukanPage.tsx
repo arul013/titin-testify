@@ -33,7 +33,7 @@ export const MasukanPage: React.FC = () => {
   const [view, setView] = useState<'grid' | 'list'>('grid');
 
   const router = useRouter();
-  const { items, total, isLoading, createItem } =
+  const { items, total, isLoading, createItem, toggleVote } =
     useFeedback({ status, category, priority, search, sort });
 
   const [formOpen, setFormOpen] = useState(false);
@@ -108,7 +108,12 @@ export const MasukanPage: React.FC = () => {
             <p className="mb-3 text-xs text-slate-400">{total} item</p>
             <div className={view === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3' : 'flex flex-col gap-3'}>
               {items.map((item) => (
-                <FeedbackCard key={item.id} item={item} onOpen={(it) => openDetail(it.id)} />
+                <FeedbackCard
+                  key={item.id}
+                  item={item}
+                  onOpen={(it) => openDetail(it.id)}
+                  onToggleVote={toggleVote}
+                />
               ))}
             </div>
           </>
