@@ -113,6 +113,11 @@ async def get_current_user(
             detail=f"Token tidak valid atau sudah kedaluwarsa: {str(e)}",
         )
 
+    # Idle-timeout: tolak (401) bila sesi sudah terlalu lama tanpa aktivitas.
+    # Hanya MENGECEK (tidak me-refresh — itu tugas endpoint heartbeat).
+    from app.services.session_activity_service import SessionActivityService
+    SessionActivityService.check(payload.get("session_id"), user_id)
+
     # Fetch user profile from database using Admin client (bypasses RLS since backend has already validated the JWT)
     from app.database import get_supabase_admin
     supabase = get_supabase_admin()

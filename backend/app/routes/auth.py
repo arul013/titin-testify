@@ -12,6 +12,7 @@ from app.models.user import (
     ChangePasswordRequest,
 )
 from app.services.auth_service import AuthService
+from app.services.session_activity_service import SessionActivityService, extract_session_id
 from app.dependencies import get_current_user
 from app.middleware.rate_limit import limiter
 from pydantic import BaseModel
@@ -39,8 +40,25 @@ async def logout(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
     """Logout and invalidate the current session."""
+    # Bersihkan record idle-timeout sesi ini (best-effort).
+    SessionActivityService.end(extract_session_id(credentials.credentials))
     await AuthService.logout(credentials.credentials)
     return MessageResponse(message="Berhasil logout", success=True)
+
+
+@router.post("/heartbeat", response_model=MessageResponse)
+async def heartbeat(
+    current_user: UserProfile = Depends(get_current_user),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    """Perbarui aktivitas terakhir sesi (idle timeout).
+
+    Dipanggil klien saat ada aktivitas NYATA (di-throttle). `get_current_user`
+    sudah mengecek idle lebih dulu → sesi yang telanjur basi tetap 401 (tak bisa
+    dihidupkan oleh heartbeat).
+    """
+    SessionActivityService.touch(extract_session_id(credentials.credentials), current_user.id)
+    return MessageResponse(message="ok", success=True)
 
 
 @router.get("/me", response_model=UserProfile)
